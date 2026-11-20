@@ -18,22 +18,33 @@ import {
   VENTS,
   WALLS,
   distance2D,
+  getZoneIdAt,
   getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePlayerMoveWithElevation,
 } from '../shared/mapData';
 import {
   BOHURUPI_COOLDOWN_SEC,
   BOHURUPI_DISGUISE_DURATION_SEC,
+  CCTV_KAKU_COOLDOWN_SEC,
+  CHAMCHA_COOLDOWN_SEC,
+  CHANDABAZ_COOLDOWN_SEC,
+  CHANDABAZ_GOAL,
+  DALAL_COOLDOWN_SEC,
+  DALAL_JAM_DURATION_MS,
   DAROGA_COOLDOWN_SEC,
   DOOR_LOCK_COOLDOWN_SEC,
   DOOR_LOCK_DURATION_SEC,
+  HATUR_COOLDOWN_SEC,
+  HATUR_DURATION_MS,
   INITIAL_KILL_COOLDOWN_SEC,
   JHARUDAR_CLEAN_CHANNEL_SEC,
   JHARUDAR_CLEAN_COOLDOWN_SEC,
   JHARUDAR_CLEAN_USES,
   KOBIRAJ_COOLDOWN_SEC,
   LOBBY_CHAT_MAX_CHARS,
+  MASTER_COOLDOWN_SEC,
   MAX_MATCH_PLAYERS,
   MIN_MATCH_PLAYERS,
   MISTRI_FIX_RANGE,
@@ -42,8 +53,12 @@ import {
   SABOTAGE_COOLDOWN_SEC,
   SABOTAGE_FIX_RANGE,
   SABOTAGE_INITIAL_LOCKOUT_SEC,
+  SUPARI_COOLDOWN_SEC,
+  TIKTOK_COOLDOWN_SEC,
+  TIKTOK_ZONE_GOAL,
   VENT_RANGE,
   advanceSabotageState,
+  applyDalalBrokerJam,
   assignMatchTasks,
   assignRoles,
   assignSpecialRoles,
@@ -51,24 +66,36 @@ import {
   canExecuteKill,
   canStartLobbyMatch,
   canUseVent,
+  collectChandaFromTarget,
   computeTaskProgress,
   createEmptySabotageState,
   createSabotageState,
   evaluateMatchOutcome,
   executeGoyendaScan,
+  findGhotokPairCandidates,
+  findGhotokPartnerOnDeath,
+  findNearestChamchaPatron,
+  findNearestChandabazTarget,
   findNearestCleanableBody,
   findNearestDarogaTarget,
   findNearestGasValve,
+  findNearestHaturTarget,
   findNearestKillTarget,
+  findNearestMasterTarget,
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
   getColorShadeHint,
+  inspectPlayerTaskAuthenticity,
   isCriticalSabotage,
   isMistriVentAudibleTo,
+  isNeutralRole,
+  isPlayerShieldedNow,
   isTaskLockedBySabotage,
   makeDefaultPlayerState,
   makeEmptyDoorLocks,
+  pickSupariContractTarget,
+  recordTiktokReelInZone,
   resolveDarogaShot,
   resolveVentHopTarget,
   sanitizePlayerName,
@@ -86,14 +113,22 @@ import {
 } from '../shared/botAi';
 import { soundEngine } from '../audio/soundEngine';
 
-const BOT_ROSTER = [
-  { name: 'Chacha Miah', color: 'holud' as PlayerColorId },
-  { name: 'Babu Bhai', color: 'neel' as PlayerColorId },
-  { name: 'Tuktuki Apa', color: 'beguni' as PlayerColorId },
-  { name: 'Pintu Da', color: 'shobuj' as PlayerColorId },
-  { name: 'Komola Kaku', color: 'komola' as PlayerColorId },
-  { name: 'Kalo Ustad', color: 'kalo' as PlayerColorId },
-  { name: 'Sada Dada', color: 'sada' as PlayerColorId },
+const BOT_ROSTER: Array<{ name: string; color: PlayerColorId }> = [
+  { name: 'Chacha Miah', color: 'holud' },
+  { name: 'Babu Bhai', color: 'neel' },
+  { name: 'Tuktuki Apa', color: 'beguni' },
+  { name: 'Pintu Da', color: 'shobuj' },
+  { name: 'Komola Kaku', color: 'komola' },
+  { name: 'Kalo Ustad', color: 'kalo' },
+  { name: 'Sada Dada', color: 'sada' },
+  { name: 'Golapi Rani', color: 'golapi' },
+  { name: 'Akashi Tara', color: 'akashi' },
+  { name: 'Badami Mama', color: 'badami' },
+  { name: 'Tute Chacha', color: 'tute' },
+  { name: 'Jam Kaka', color: 'jam' },
+  { name: 'Pata Bhai', color: 'olive' },
+  { name: 'Shona Babu', color: 'tan' },
+  { name: 'Lal Mia', color: 'lal' },
 ];
 
 const BOT_CHAT_LINES = [
@@ -204,6 +239,8 @@ export class SoloMatchEngine {
       completedTasks: 0,
       netaRevealedId: null,
       prankedLampUntil: 0,
+      commsJammedUntil: 0,
+      ghotokLinkedIds: null,
     };
 
     if (skipRoleReveal) {
@@ -219,7 +256,10 @@ export class SoloMatchEngine {
     }
 
     const effectiveBaseRole =
-      this.forcedSpecialRole === 'bohurupi' || this.forcedSpecialRole === 'jharudar'
+      this.forcedSpecialRole === 'bohurupi' ||
+      this.forcedSpecialRole === 'jharudar' ||
+      this.forcedSpecialRole === 'supari_killer' ||
+      this.forcedSpecialRole === 'dalal'
         ? 'vondo'
         : this.forcedSpecialRole && this.forcedSpecialRole !== 'none'
           ? 'parabasi'
@@ -262,6 +302,7 @@ export class SoloMatchEngine {
       const sp = SPAWN_RING[idx % SPAWN_RING.length];
       p.x = sp.x;
       p.z = sp.z;
+      p.y = 0;
       p.vx = 0;
       p.vz = 0;
       p.yaw = sp.yaw;
@@ -280,7 +321,9 @@ export class SoloMatchEngine {
         p.specialRole === 'bohurupi' ||
         p.specialRole === 'kobiraj' ||
         p.specialRole === 'daroga' ||
-        p.specialRole === 'jharudar'
+        p.specialRole === 'jharudar' ||
+        p.specialRole === 'hatur_daktar' ||
+        p.specialRole === 'dalal'
           ? 6
           : 0;
       p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
@@ -290,6 +333,13 @@ export class SoloMatchEngine {
       p.pranksLeft = 1;
       p.jharuTargetBodyId = null;
       p.jharuTimer = 0;
+      p.haturProtectedUntil = 0;
+      p.supariTargetId =
+        p.specialRole === 'supari_killer' ? pickSupariContractTarget(p, assigned)?.id ?? null : null;
+      p.chamchaPatronId = null;
+      p.chandabazTargets = [];
+      p.tiktokZones = [];
+      p.ghotokPartnerId = null;
       p.emergencyMeetingsLeft =
         p.specialRole === 'neta'
           ? sanitized.settings.emergencyMeetingsPerPlayer + 1
@@ -321,6 +371,8 @@ export class SoloMatchEngine {
     this.snapshot.outcome = null;
     this.snapshot.netaRevealedId = null;
     this.snapshot.prankedLampUntil = 0;
+    this.snapshot.commsJammedUntil = 0;
+    this.snapshot.ghotokLinkedIds = null;
     this.snapshot.taskProgress = stats.progress;
     this.snapshot.totalTasks = stats.totalTasks;
     this.snapshot.completedTasks = stats.completedTasks;
@@ -475,6 +527,8 @@ export class SoloMatchEngine {
     this.lobbyCountdownTimer = 0;
     this.snapshot.netaRevealedId = null;
     this.snapshot.prankedLampUntil = 0;
+    this.snapshot.commsJammedUntil = 0;
+    this.snapshot.ghotokLinkedIds = null;
     this.snapshot.emergencyCooldownRemaining = 0;
     this.snapshot.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
     this.snapshot.doorLocks = makeEmptyDoorLocks();
@@ -482,6 +536,7 @@ export class SoloMatchEngine {
       const sp = SPAWN_RING[idx % SPAWN_RING.length];
       p.x = sp.x;
       p.z = sp.z;
+      p.y = 0;
       p.vx = 0;
       p.vz = 0;
       p.yaw = sp.yaw;
@@ -504,6 +559,12 @@ export class SoloMatchEngine {
       p.pranksLeft = 1;
       p.jharuTargetBodyId = null;
       p.jharuTimer = 0;
+      p.haturProtectedUntil = 0;
+      p.supariTargetId = null;
+      p.chamchaPatronId = null;
+      p.chandabazTargets = [];
+      p.tiktokZones = [];
+      p.ghotokPartnerId = null;
       p.killCooldownRemaining = 0;
       p.emergencyMeetingsLeft = this.snapshot.settings.emergencyMeetingsPerPlayer;
       p.ready = true;
@@ -569,16 +630,27 @@ export class SoloMatchEngine {
     }
   }
 
-  public moveLocal(x: number, z: number, vx: number, vz: number, yaw: number): void {
+  public moveLocal(x: number, z: number, vx: number, vz: number, yaw: number, y?: number): void {
     if (this.snapshot.phase !== 'playing' && this.snapshot.phase !== 'lobby') return;
     const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
     if (!lp || lp.inVent) return;
+    const prevY = lp.y ?? 0;
     const resolved = lp.alive
-      ? resolveCircleWallCollision(x, z, PLAYER_RADIUS, WALLS, this.snapshot.doorLocks)
-      : { x, z };
+      ? resolvePlayerMoveWithElevation(
+          lp.x,
+          lp.z,
+          y ?? prevY,
+          x,
+          z,
+          PLAYER_RADIUS,
+          WALLS,
+          this.snapshot.doorLocks,
+        )
+      : { x, z, y: y ?? prevY };
     const moved = Math.hypot(resolved.x - lp.x, resolved.z - lp.z);
     lp.x = resolved.x;
     lp.z = resolved.z;
+    lp.y = resolved.y;
     lp.vx = vx;
     lp.vz = vz;
     lp.yaw = yaw;
@@ -764,6 +836,7 @@ export class SoloMatchEngine {
           `${target.name} niraparadh Para-basi chilo! Ulto tomar job gelo!`,
         );
       }
+      this.handleDeathSideEffects(res.hitVondo ? target : lp);
       this.checkWin();
       return;
     }
@@ -791,7 +864,7 @@ export class SoloMatchEngine {
       return;
     }
 
-    if (lp.specialRole === 'jharudar') {
+      if (lp.specialRole === 'jharudar') {
       if ((lp.cleansLeft ?? JHARUDAR_CLEAN_USES) <= 0) {
         this.onClueNotice?.('Safai Batpar', 'Shob clean (3/3) use hoye gese!');
         return;
@@ -808,6 +881,163 @@ export class SoloMatchEngine {
         'Jharu Dichhe...',
         `Hold steady near ${body.victimName} for 2s to sweep the body!`,
       );
+      return;
+    }
+
+    if (lp.specialRole === 'ghotok_khala') {
+      if (this.snapshot.ghotokLinkedIds) {
+        const [aId, bId] = this.snapshot.ghotokLinkedIds;
+        const aName = this.snapshot.players.find((p) => p.id === aId)?.name ?? 'Player A';
+        const bName = this.snapshot.players.find((p) => p.id === bId)?.name ?? 'Player B';
+        this.onClueNotice?.('Ghotok Bond Active', `${aName} & ${bName} already bonded!`);
+        return;
+      }
+      const pair = findGhotokPairCandidates(lp, this.snapshot.players);
+      if (!pair) {
+        this.onClueNotice?.('Ghotok Khala', 'Move close to 2 neighbors to form a Ghotok Bond!');
+        return;
+      }
+      this.snapshot.ghotokLinkedIds = [pair[0].id, pair[1].id];
+      pair[0].ghotokPartnerId = pair[1].id;
+      pair[1].ghotokPartnerId = pair[0].id;
+      soundEngine.playClueScan();
+      this.onClueNotice?.(
+        'Moholla Bond Formed!',
+        `Linked ${pair[0].name} & ${pair[1].name} — ekjon morle arekjon alert pabe!`,
+      );
+      return;
+    }
+
+    if (lp.specialRole === 'master_moshai') {
+      if (lp.abilityCooldown > 0.05) return;
+      const target = findNearestMasterTarget(lp, this.snapshot.players);
+      if (!target) {
+        this.onClueNotice?.('Master Moshai', 'Move near a neighbor to check their Moholla Khata!');
+        return;
+      }
+      const res = inspectPlayerTaskAuthenticity(target);
+      lp.abilityCooldown = MASTER_COOLDOWN_SEC;
+      soundEngine.playClueScan();
+      this.onClueNotice?.(res.title, res.detail);
+      return;
+    }
+
+    if (lp.specialRole === 'cctv_kaku') {
+      if (lp.abilityCooldown > 0.05) return;
+      lp.watchingCams = true;
+      lp.abilityCooldown = CCTV_KAKU_COOLDOWN_SEC;
+      soundEngine.playClueScan();
+      this.onClueNotice?.('Remote CCTV Feed', 'Pocket Security Monitor activated!');
+      return;
+    }
+
+    if (lp.specialRole === 'hatur_daktar') {
+      if (lp.abilityCooldown > 0.05) return;
+      const nowMs = Date.now();
+      const target = findNearestHaturTarget(lp, this.snapshot.players, nowMs);
+      const receiver = target ?? ((lp.haturProtectedUntil ?? 0) <= nowMs ? lp : null);
+      if (!receiver) {
+        this.onClueNotice?.('Hatur Daktar', 'Target already protected by Jhajhro Injection!');
+        return;
+      }
+      receiver.haturProtectedUntil = nowMs + HATUR_DURATION_MS;
+      lp.abilityCooldown = HATUR_COOLDOWN_SEC;
+      soundEngine.playShieldBlock();
+      this.onClueNotice?.(
+        'Jhajhro Injection Active!',
+        receiver.id === lp.id
+          ? 'Self-injected! You survive any Batpar attack for the next 12s!'
+          : `Injected ${receiver.name} — 12s death protection active!`,
+      );
+      return;
+    }
+
+    if (lp.specialRole === 'supari_killer') {
+      if (lp.abilityCooldown > 0.05) return;
+      const nextTarget = pickSupariContractTarget(lp, this.snapshot.players, lp.supariTargetId);
+      if (!nextTarget) {
+        this.onClueNotice?.('Supari Contract', 'No valid live contract target remaining!');
+        return;
+      }
+      lp.supariTargetId = nextTarget.id;
+      lp.abilityCooldown = SUPARI_COOLDOWN_SEC;
+      soundEngine.playClueScan();
+      this.onClueNotice?.(
+        'New Supari Contract!',
+        `Target: ${nextTarget.name} — take them out for 50% kill cooldown!`,
+      );
+      return;
+    }
+
+    if (lp.specialRole === 'dalal') {
+      if (lp.abilityCooldown > 0.05) return;
+      const res = applyDalalBrokerJam(this.snapshot.doorLocks);
+      this.snapshot.commsJammedUntil = Date.now() + DALAL_JAM_DURATION_MS;
+      lp.abilityCooldown = DALAL_COOLDOWN_SEC;
+      soundEngine.playDoorSlam();
+      this.onClueNotice?.(
+        'Broker Jam Activated!',
+        `Comms jammed for 10s! ${res.newlyLockedZone ? `Slammed ${res.newlyLockedZone} shutter!` : 'Extended active shutters +8s!'}`,
+      );
+      return;
+    }
+
+    if (lp.specialRole === 'chamcha') {
+      if (lp.abilityCooldown > 0.05) return;
+      const patron = findNearestChamchaPatron(lp, this.snapshot.players);
+      if (!patron) {
+        this.onClueNotice?.('Chamcha Sidekick', 'Move close to someone to pledge loyalty as your Patron!');
+        return;
+      }
+      lp.chamchaPatronId = patron.id;
+      lp.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
+      soundEngine.playClueScan();
+      this.onClueNotice?.(
+        'Patron Locked!',
+        `${patron.name} is now your Patron — survive to win whenever ${patron.name}'s team wins!`,
+      );
+      return;
+    }
+
+    if (lp.specialRole === 'chandabaz') {
+      if (lp.abilityCooldown > 0.05) return;
+      const target = findNearestChandabazTarget(lp, this.snapshot.players);
+      if (!target) {
+        this.onClueNotice?.('Chandabaz', 'Move near a new neighbor to collect Chanda!');
+        return;
+      }
+      const res = collectChandaFromTarget(lp, target);
+      if (!res.ok) return;
+      lp.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+      soundEngine.playTaskComplete();
+      this.onClueNotice?.(
+        `Chanda Vasool (${res.count}/${CHANDABAZ_GOAL})!`,
+        `Collected Chanda from ${target.name}!`,
+      );
+      this.checkWin();
+      return;
+    }
+
+    if (lp.specialRole === 'tiktok_star') {
+      if (lp.abilityCooldown > 0.05) return;
+      const zoneId = getZoneIdAt(lp.x, lp.z);
+      const res = recordTiktokReelInZone(lp, zoneId);
+      if (!res.ok) {
+        this.onClueNotice?.(
+          'TikTok Star',
+          res.reason === 'already_filmed'
+            ? 'Ei zone e already reel banano hoye gese! Onno zone e jao!'
+            : 'Walk inside a named Moholla building/zone to film a Viral Reel!',
+        );
+        return;
+      }
+      lp.abilityCooldown = TIKTOK_COOLDOWN_SEC;
+      soundEngine.playDisguise();
+      this.onClueNotice?.(
+        `Viral Reel Filmed (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
+        `Filmed in ${getZoneNameAt(lp.x, lp.z)}! Survive to final 4 to win!`,
+      );
+      this.checkWin();
     }
   }
 
@@ -818,35 +1048,55 @@ export class SoloMatchEngine {
     const check = canExecuteKill(lp, target);
     if (!check.allowed) return false;
 
-    if (target.shielded) {
+    const nowMs = Date.now();
+    if (isPlayerShieldedNow(target, nowMs)) {
       target.shielded = false;
+      target.haturProtectedUntil = 0;
       lp.killCooldownRemaining = 6;
       soundEngine.playShieldBlock();
       this.onClueNotice?.(
-        'Tabiz Shield Shattered!',
-        `${target.name} was protected by the Kobiraj's Tabiz! Strike blocked!`,
+        'Protection Shattered!',
+        `${target.name} was protected by Tabiz/Jhajhro Injection! Strike blocked!`,
       );
       return false;
     }
 
     target.alive = false;
     target.watchingCams = false;
-    lp.killCooldownRemaining = this.snapshot.settings.killCooldownSec;
+    const hitSupariContract = lp.specialRole === 'supari_killer' && target.id === lp.supariTargetId;
+    lp.killCooldownRemaining = hitSupariContract
+      ? this.snapshot.settings.killCooldownSec * 0.5
+      : this.snapshot.settings.killCooldownSec;
+    if (lp.specialRole === 'supari_killer') {
+      lp.supariTargetId =
+        pickSupariContractTarget(lp, this.snapshot.players, lp.supariTargetId)?.id ?? null;
+    }
     lp.x = target.x;
     lp.z = target.z;
     this.snapshot.bodies.push({
-      id: `body_${Date.now()}`,
+      id: `body_${nowMs}`,
       victimId: target.id,
       victimName: target.name,
       color: target.color,
       x: target.x,
       z: target.z,
       reported: false,
-      killedAt: Date.now(),
+      killedAt: nowMs,
       killerColorHint: getColorShadeHint(lp.color),
       killerZoneHint: getZoneNameAt(target.x, target.z),
     });
     soundEngine.playKill();
+    const ghotokInfo = findGhotokPartnerOnDeath(
+      target.id,
+      this.snapshot.ghotokLinkedIds,
+      this.snapshot.players,
+    );
+    if (
+      ghotokInfo.partner?.id === this.localPlayerId ||
+      ghotokInfo.ghotok?.id === this.localPlayerId
+    ) {
+      this.onClueNotice?.('Ghotok Bond Alert!', `Bonded neighbor ${target.name} just fell in Moholla!`);
+    }
     recordKillWitnesses(
       this.brains,
       this.snapshot.players,
@@ -994,6 +1244,10 @@ export class SoloMatchEngine {
     lp.votedFor = targetId;
     lp.hasVoted = true;
     soundEngine.playVoteClick();
+    const alive = this.snapshot.players.filter((p) => p.alive);
+    if (alive.length > 0 && alive.every((p) => p.hasVoted)) {
+      this.resolveVotes();
+    }
   }
 
   private startMeeting(caller: PlayerState, reason: 'body' | 'emergency', victimName?: string): void {
@@ -1012,6 +1266,7 @@ export class SoloMatchEngine {
     }
     this.snapshot.footprints = [];
     this.justEjectedPlayer = null;
+    this.snapshot.commsJammedUntil = 0;
     this.snapshot.doorLocks = makeEmptyDoorLocks();
 
     for (const p of this.snapshot.players) {
@@ -1083,13 +1338,36 @@ export class SoloMatchEngine {
       this.snapshot.phase = 'gameover';
       const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
       const localWon =
-        outcome.winner === 'pagol'
-          ? lp?.specialRole === 'pagol' && outcome.winnerPlayerId === lp.id
-          : lp?.role === outcome.winner && lp?.specialRole !== 'pagol';
+        outcome.winner === 'pagol' || outcome.winner === 'chandabaz' || outcome.winner === 'tiktok_star'
+          ? outcome.winnerPlayerId === lp?.id
+          : Boolean(
+              (lp && !isNeutralRole(lp.specialRole) && lp.role === outcome.winner) ||
+                (lp && outcome.coWinnerIds?.includes(lp.id)),
+            );
       soundEngine.playOutcome(Boolean(localWon));
       return true;
     }
     return false;
+  }
+
+  private handleDeathSideEffects(victim: PlayerState): void {
+    const ghotokInfo = findGhotokPartnerOnDeath(
+      victim.id,
+      this.snapshot.ghotokLinkedIds,
+      this.snapshot.players,
+    );
+    if (
+      ghotokInfo.partner?.id === this.localPlayerId ||
+      ghotokInfo.ghotok?.id === this.localPlayerId
+    ) {
+      this.onClueNotice?.('Ghotok Bond Alert!', `Bonded neighbor ${victim.name} just fell in Moholla!`);
+    }
+    for (const pl of this.snapshot.players) {
+      if (pl.alive && pl.specialRole === 'supari_killer' && pl.supariTargetId === victim.id) {
+        pl.supariTargetId =
+          pickSupariContractTarget(pl, this.snapshot.players, victim.id)?.id ?? null;
+      }
+    }
   }
 
   public step(dt: number): void {
@@ -1184,12 +1462,13 @@ export class SoloMatchEngine {
             soundEngine.playShieldBlock();
             if (victim.id === this.localPlayerId) {
               this.onClueNotice?.(
-                'Tabiz Saved You!',
-                'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz Babar shield bachay dise!',
+                'Protection Saved You!',
+                'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz/Injection bachay dise!',
               );
             }
           } else {
             soundEngine.playKill();
+            this.handleDeathSideEffects(victim);
           }
         },
         onSabotage: () => soundEngine.playSabotage(),
@@ -1257,8 +1536,17 @@ export class SoloMatchEngine {
       });
 
       const alive = this.snapshot.players.filter((p) => p.alive);
+      if ((this.snapshot.discussionTimer ?? 0) <= 0 && this.snapshot.meetingTimer <= 1.2) {
+        for (const p of alive) {
+          if (p.isBot && !p.hasVoted) {
+            p.hasVoted = true;
+            p.votedFor = 'skip';
+          }
+        }
+      }
       if (
-        ((this.snapshot.discussionTimer ?? 0) <= 0 && alive.every((p) => p.hasVoted)) ||
+        ((this.snapshot.discussionTimer ?? 0) <= 0 &&
+          (alive.length === 0 || alive.every((p) => p.hasVoted))) ||
         this.snapshot.meetingTimer <= 0
       ) {
         this.resolveVotes();
@@ -1272,6 +1560,7 @@ export class SoloMatchEngine {
           if (target) {
             target.alive = false;
             this.justEjectedPlayer = target;
+            this.handleDeathSideEffects(target);
             if (this.snapshot.ejection?.reason === 'voted') {
               soundEngine.playEjectBuildup();
             }
@@ -1290,6 +1579,7 @@ export class SoloMatchEngine {
             const sp = SPAWN_RING[idx % SPAWN_RING.length];
             p.x = sp.x;
             p.z = sp.z;
+            p.y = 0;
             p.yaw = sp.yaw;
             p.hasVoted = false;
             p.votedFor = null;

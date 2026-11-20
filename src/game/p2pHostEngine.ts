@@ -22,23 +22,34 @@ import {
   VENTS,
   WALLS,
   distance2D,
+  getZoneIdAt,
   getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePlayerMoveWithElevation,
 } from '../shared/mapData';
 import {
   BOHURUPI_COOLDOWN_SEC,
   BOHURUPI_DISGUISE_DURATION_SEC,
+  CCTV_KAKU_COOLDOWN_SEC,
+  CHAMCHA_COOLDOWN_SEC,
+  CHANDABAZ_COOLDOWN_SEC,
+  CHANDABAZ_GOAL,
+  DALAL_COOLDOWN_SEC,
+  DALAL_JAM_DURATION_MS,
   DAROGA_COOLDOWN_SEC,
   DEFAULT_ROOM_SETTINGS,
   DOOR_LOCK_COOLDOWN_SEC,
   DOOR_LOCK_DURATION_SEC,
+  HATUR_COOLDOWN_SEC,
+  HATUR_DURATION_MS,
   INITIAL_KILL_COOLDOWN_SEC,
   JHARUDAR_CLEAN_CHANNEL_SEC,
   JHARUDAR_CLEAN_COOLDOWN_SEC,
   JHARUDAR_CLEAN_USES,
   KOBIRAJ_COOLDOWN_SEC,
   LOBBY_CHAT_MAX_CHARS,
+  MASTER_COOLDOWN_SEC,
   MAX_MATCH_PLAYERS,
   MIN_MATCH_PLAYERS,
   MISTRI_FIX_RANGE,
@@ -47,8 +58,12 @@ import {
   SABOTAGE_COOLDOWN_SEC,
   SABOTAGE_FIX_RANGE,
   SABOTAGE_INITIAL_LOCKOUT_SEC,
+  SUPARI_COOLDOWN_SEC,
+  TIKTOK_COOLDOWN_SEC,
+  TIKTOK_ZONE_GOAL,
   VENT_RANGE,
   advanceSabotageState,
+  applyDalalBrokerJam,
   assignMatchTasks,
   assignRoles,
   assignSpecialRoles,
@@ -56,26 +71,38 @@ import {
   canExecuteKill,
   canStartLobbyMatch,
   canUseVent,
+  collectChandaFromTarget,
   computeTaskProgress,
   createEmptySabotageState,
   createSabotageState,
   evaluateMatchOutcome,
   executeGoyendaScan,
+  findGhotokPairCandidates,
+  findGhotokPartnerOnDeath,
+  findNearestChamchaPatron,
+  findNearestChandabazTarget,
   findNearestCleanableBody,
   findNearestDarogaTarget,
   findNearestGasValve,
+  findNearestHaturTarget,
   findNearestInspectableBody,
   findNearestKillTarget,
+  findNearestMasterTarget,
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
   getColorShadeHint,
   inspectBodyClue,
+  inspectPlayerTaskAuthenticity,
   isCriticalSabotage,
   isMistriVentAudibleTo,
+  isNeutralRole,
+  isPlayerShieldedNow,
   isTaskLockedBySabotage,
   makeDefaultPlayerState,
   makeEmptyDoorLocks,
+  pickSupariContractTarget,
+  recordTiktokReelInZone,
   redactSnapshotForPlayer,
   resolveDarogaShot,
   resolveVentHopTarget,
@@ -106,6 +133,14 @@ const BOT_NAMES = [
   'Raju Rickshaw',
   'Kallu Ustad',
   'Mitu Moni',
+  'Golapi Rani',
+  'Akashi Tara',
+  'Badami Mama',
+  'Tute Chacha',
+  'Jam Kaka',
+  'Pata Bhai',
+  'Shona Babu',
+  'Lal Mia',
 ];
 
 const BOT_BANTER = [
@@ -184,6 +219,8 @@ export class P2PHostRoomEngine {
   private outcome: RoomSnapshot['outcome'] = null;
   private netaRevealedId: string | null = null;
   private prankedLampUntil = 0;
+  private commsJammedUntil = 0;
+  private ghotokLinkedIds: [string, string] | null = null;
   private settings: RoomSettings = { ...DEFAULT_ROOM_SETTINGS };
   private transport: P2PHostTransport;
 
@@ -223,6 +260,8 @@ export class P2PHostRoomEngine {
       completedTasks: taskStats.completedTasks,
       netaRevealedId: this.netaRevealedId,
       prankedLampUntil: this.prankedLampUntil,
+      commsJammedUntil: this.commsJammedUntil,
+      ghotokLinkedIds: this.ghotokLinkedIds,
     };
   }
 
@@ -398,7 +437,7 @@ export class P2PHostRoomEngine {
       if (this.players.size + this.disconnectedSlots.size >= MAX_PLAYERS) {
         this.transport.sendToClient(clientId, {
           type: 'room:error',
-          message: 'Room bhorti! Max 8 jon (room is full).',
+          message: `Room bhorti! Max ${MAX_PLAYERS} jon (room is full).`,
         });
         return false;
       }
@@ -547,6 +586,8 @@ export class P2PHostRoomEngine {
     this.meetingReason = null;
     this.netaRevealedId = null;
     this.prankedLampUntil = 0;
+    this.commsJammedUntil = 0;
+    this.ghotokLinkedIds = null;
     this.doorLocks = makeEmptyDoorLocks();
     this.emergencyCooldownRemaining = this.settings.emergencyCooldownSec;
     this.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
@@ -566,7 +607,9 @@ export class P2PHostRoomEngine {
         p.specialRole === 'bohurupi' ||
         p.specialRole === 'kobiraj' ||
         p.specialRole === 'daroga' ||
-        p.specialRole === 'jharudar'
+        p.specialRole === 'jharudar' ||
+        p.specialRole === 'hatur_daktar' ||
+        p.specialRole === 'dalal'
           ? 6
           : 0;
       p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
@@ -578,6 +621,13 @@ export class P2PHostRoomEngine {
       p.disguiseColor = null;
       p.disguiseName = null;
       p.disguiseTimer = 0;
+      p.haturProtectedUntil = 0;
+      p.supariTargetId =
+        p.specialRole === 'supari_killer' ? pickSupariContractTarget(p, assigned)?.id ?? null : null;
+      p.chamchaPatronId = null;
+      p.chandabazTargets = [];
+      p.tiktokZones = [];
+      p.ghotokPartnerId = null;
       p.hasVoted = false;
       p.votedFor = null;
       p.emergencyMeetingsLeft =
@@ -594,6 +644,30 @@ export class P2PHostRoomEngine {
     this.broadcastState();
   }
 
+  private handleDeathSideEffects(victim: PlayerState): void {
+    const allPlayers = Array.from(this.players.values());
+    const ghotokInfo = findGhotokPartnerOnDeath(victim.id, this.ghotokLinkedIds, allPlayers);
+    if (ghotokInfo.partner && !ghotokInfo.partner.isBot) {
+      this.sendToPlayer(ghotokInfo.partner.id, {
+        type: 'clue:result',
+        title: 'Ghotok Bond Alert!',
+        detail: `Tomar Ghotok-bonded partner ${victim.name} ei muhurte mara gese!`,
+      });
+    }
+    if (ghotokInfo.ghotok && !ghotokInfo.ghotok.isBot && ghotokInfo.ghotok.id !== ghotokInfo.partner?.id) {
+      this.sendToPlayer(ghotokInfo.ghotok.id, {
+        type: 'clue:result',
+        title: 'Ghotok Bond Alert!',
+        detail: `Bonded neighbor ${victim.name} just fell in Moholla!`,
+      });
+    }
+    for (const pl of allPlayers) {
+      if (pl.alive && pl.specialRole === 'supari_killer' && pl.supariTargetId === victim.id) {
+        pl.supariTargetId = pickSupariContractTarget(pl, allPlayers, victim.id)?.id ?? null;
+      }
+    }
+  }
+
   private startMeeting(caller: PlayerState, reason: 'body' | 'emergency', victimName?: string): void {
     if (this.phase !== 'playing') return;
     this.phase = 'meeting';
@@ -604,6 +678,7 @@ export class P2PHostRoomEngine {
     this.ejection = null;
     this.justEjectedPlayer = null;
     this.footprints = [];
+    this.commsJammedUntil = 0;
     this.holdingFixMap.clear();
     if (isCriticalSabotage(this.sabotage.active)) {
       this.sabotage = createEmptySabotageState(SABOTAGE_COOLDOWN_SEC);
@@ -680,11 +755,12 @@ export class P2PHostRoomEngine {
             this.broadcastState({ type: 'sfx:event', kind: 'shield' });
             this.sendToPlayer(victim.id, {
               type: 'clue:result',
-              title: 'Tabiz Saved You!',
-              detail: 'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz shield bachay dise!',
+              title: 'Protection Saved You!',
+              detail: 'Ekjon Batpar attack korsilo, kintu Tabiz/Injection bachay dise!',
             });
           } else {
             this.broadcastState({ type: 'sfx:event', kind: 'kill' });
+            this.handleDeathSideEffects(victim);
           }
         },
         onSabotage: () => this.broadcastState({ type: 'sfx:event', kind: 'sabotage' }),
@@ -825,7 +901,15 @@ export class P2PHostRoomEngine {
       } else {
         this.meetingTimer -= dt;
         const alivePlayers = Array.from(this.players.values()).filter((p) => p.alive);
-        const allVoted = alivePlayers.length > 0 && alivePlayers.every((p) => p.hasVoted);
+        if (this.meetingTimer <= 1.2) {
+          for (const p of alivePlayers) {
+            if (p.isBot && !p.hasVoted) {
+              p.hasVoted = true;
+              p.votedFor = 'skip';
+            }
+          }
+        }
+        const allVoted = alivePlayers.length === 0 || alivePlayers.every((p) => p.hasVoted);
         if (allVoted || this.meetingTimer <= 0) {
           this.resolveMeetingVotes();
         } else {
@@ -841,6 +925,7 @@ export class P2PHostRoomEngine {
           if (ejected) {
             ejected.alive = false;
             this.justEjectedPlayer = ejected;
+            this.handleDeathSideEffects(ejected);
           }
         }
         this.bodies = [];
@@ -861,6 +946,7 @@ export class P2PHostRoomEngine {
             const sp = SPAWN_RING[idx % SPAWN_RING.length];
             p.x = sp.x;
             p.z = sp.z;
+            p.y = 0;
             p.yaw = sp.yaw;
             p.hasVoted = false;
             p.votedFor = null;
@@ -1055,12 +1141,23 @@ export class P2PHostRoomEngine {
       case 'player:move': {
         if (this.phase !== 'playing' && this.phase !== 'lobby') return;
         if (player.inVent) return;
+        const prevY = player.y ?? 0;
         const resolved = player.alive
-          ? resolveCircleWallCollision(msg.x, msg.z, PLAYER_RADIUS, WALLS, this.doorLocks)
-          : { x: msg.x, z: msg.z };
+          ? resolvePlayerMoveWithElevation(
+              player.x,
+              player.z,
+              msg.y ?? prevY,
+              msg.x,
+              msg.z,
+              PLAYER_RADIUS,
+              WALLS,
+              this.doorLocks,
+            )
+          : { x: msg.x, z: msg.z, y: msg.y ?? prevY };
         const moved = Math.hypot(resolved.x - player.x, resolved.z - player.z);
         player.x = resolved.x;
         player.z = resolved.z;
+        player.y = resolved.y;
         player.vx = msg.vx;
         player.vz = msg.vz;
         player.yaw = msg.yaw;
@@ -1076,7 +1173,7 @@ export class P2PHostRoomEngine {
           this.phase !== 'playing' ||
           !this.settings.visualTasks ||
           player.role !== 'parabasi' ||
-          player.specialRole === 'pagol'
+          isNeutralRole(player.specialRole)
         ) {
           return;
         }
@@ -1265,6 +1362,7 @@ export class P2PHostRoomEngine {
               detail: `${target.name} niraparadh Para-basi chilo! Ulto tomar job gelo!`,
             });
           }
+          this.handleDeathSideEffects(res.hitVondo ? target : player);
           if (!this.checkWin()) {
             this.broadcastState();
           }
@@ -1325,6 +1423,218 @@ export class P2PHostRoomEngine {
             detail: `Hold steady near ${body.victimName} for 2s to sweep the body!`,
           });
           this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'ghotok_khala') {
+          if (this.ghotokLinkedIds) {
+            const [aId, bId] = this.ghotokLinkedIds;
+            const aName = this.players.get(aId)?.name ?? 'Player A';
+            const bName = this.players.get(bId)?.name ?? 'Player B';
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'Ghotok Bond Active',
+              detail: `${aName} & ${bName} already bonded!`,
+            });
+            return;
+          }
+          const pair = findGhotokPairCandidates(player, Array.from(this.players.values()));
+          if (!pair) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'Ghotok Khala',
+              detail: 'Move close to 2 neighbors to form a Ghotok Bond!',
+            });
+            return;
+          }
+          this.ghotokLinkedIds = [pair[0].id, pair[1].id];
+          pair[0].ghotokPartnerId = pair[1].id;
+          pair[1].ghotokPartnerId = pair[0].id;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'clue' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: 'Moholla Bond Formed!',
+            detail: `Linked ${pair[0].name} & ${pair[1].name} — ekjon morle arekjon alert pabe!`,
+          });
+          this.sendToPlayer(pair[0].id, {
+            type: 'clue:result',
+            title: 'Ghotok Bonded!',
+            detail: `Ghotok Khala linked you with ${pair[1].name}!`,
+          });
+          if (pair[1].id !== player.id) {
+            this.sendToPlayer(pair[1].id, {
+              type: 'clue:result',
+              title: 'Ghotok Bonded!',
+              detail: `Ghotok Khala linked you with ${pair[0].name}!`,
+            });
+          }
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'master_moshai') {
+          if (player.abilityCooldown > 0.05) return;
+          const target = msg.targetId
+            ? this.players.get(msg.targetId)
+            : findNearestMasterTarget(player, Array.from(this.players.values()));
+          if (!target) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'Master Moshai',
+              detail: 'Move near a neighbor to check their Moholla Khata!',
+            });
+            return;
+          }
+          const res = inspectPlayerTaskAuthenticity(target);
+          player.abilityCooldown = MASTER_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'clue' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: res.title,
+            detail: res.detail,
+          });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'cctv_kaku') {
+          if (player.abilityCooldown > 0.05) return;
+          player.watchingCams = true;
+          player.abilityCooldown = CCTV_KAKU_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'clue' });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'hatur_daktar') {
+          if (player.abilityCooldown > 0.05) return;
+          const nowMs = Date.now();
+          const allPlayers = Array.from(this.players.values());
+          const nearby = msg.targetId
+            ? this.players.get(msg.targetId)
+            : findNearestHaturTarget(player, allPlayers, nowMs);
+          const receiver =
+            nearby && nearby.alive && !nearby.inVent
+              ? nearby
+              : (player.haturProtectedUntil ?? 0) <= nowMs
+                ? player
+                : null;
+          if (!receiver) return;
+          receiver.haturProtectedUntil = nowMs + HATUR_DURATION_MS;
+          player.abilityCooldown = HATUR_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'shield' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: 'Jhajhro Injection Active!',
+            detail:
+              receiver.id === player.id
+                ? 'Self-injected! You survive Batpar attacks for 12s!'
+                : `Injected ${receiver.name} — 12s death protection active!`,
+          });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'supari_killer') {
+          if (player.abilityCooldown > 0.05) return;
+          const nextTarget = pickSupariContractTarget(
+            player,
+            Array.from(this.players.values()),
+            player.supariTargetId,
+          );
+          if (!nextTarget) return;
+          player.supariTargetId = nextTarget.id;
+          player.abilityCooldown = SUPARI_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'clue' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: 'New Supari Contract!',
+            detail: `Target: ${nextTarget.name} — 50% kill cooldown bonus!`,
+          });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'dalal') {
+          if (player.abilityCooldown > 0.05) return;
+          const res = applyDalalBrokerJam(this.doorLocks);
+          this.commsJammedUntil = Date.now() + DALAL_JAM_DURATION_MS;
+          player.abilityCooldown = DALAL_COOLDOWN_SEC;
+          this.broadcastState({ type: 'sfx:event', kind: 'door' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: 'Broker Jam Activated!',
+            detail: `Comms jammed 10s! ${res.newlyLockedZone ? `Slammed ${res.newlyLockedZone}!` : 'Extended shutters +8s!'}`,
+          });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'chamcha') {
+          if (player.abilityCooldown > 0.05) return;
+          const patron = findNearestChamchaPatron(player, Array.from(this.players.values()));
+          if (!patron) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'Chamcha Sidekick',
+              detail: 'Move close to someone to pledge loyalty as your Patron!',
+            });
+            return;
+          }
+          player.chamchaPatronId = patron.id;
+          player.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'clue' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: 'Patron Locked!',
+            detail: `${patron.name} is now your Patron!`,
+          });
+          this.broadcastState();
+          return;
+        }
+        if (player.specialRole === 'chandabaz') {
+          if (player.abilityCooldown > 0.05) return;
+          const target = findNearestChandabazTarget(player, Array.from(this.players.values()));
+          if (!target) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'Chandabaz',
+              detail: 'Move near a new neighbor to collect Chanda!',
+            });
+            return;
+          }
+          const res = collectChandaFromTarget(player, target);
+          if (!res.ok) return;
+          player.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'task' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: `Chanda Vasool (${res.count}/${CHANDABAZ_GOAL})!`,
+            detail: `Collected Chanda from ${target.name}!`,
+          });
+          if (!this.checkWin()) {
+            this.broadcastState();
+          }
+          return;
+        }
+        if (player.specialRole === 'tiktok_star') {
+          if (player.abilityCooldown > 0.05) return;
+          const zoneId = getZoneIdAt(player.x, player.z);
+          const res = recordTiktokReelInZone(player, zoneId);
+          if (!res.ok) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'TikTok Star',
+              detail:
+                res.reason === 'already_filmed'
+                  ? 'Ei zone e already reel banano hoye gese! Onno zone e jao!'
+                  : 'Walk inside a named Moholla building/zone to film a Viral Reel!',
+            });
+            return;
+          }
+          player.abilityCooldown = TIKTOK_COOLDOWN_SEC;
+          this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'disguise' });
+          this.transport.sendToClient(clientId, {
+            type: 'clue:result',
+            title: `Viral Reel (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
+            detail: `Filmed in ${getZoneNameAt(player.x, player.z)}! Survive to final 4 to win!`,
+          });
+          if (!this.checkWin()) {
+            this.broadcastState();
+          }
         }
         break;
       }
@@ -1334,41 +1644,55 @@ export class P2PHostRoomEngine {
         if (!target) return;
         const check = canExecuteKill(player, target);
         if (!check.allowed) return;
-        if (target.shielded) {
+        const nowMs = Date.now();
+        if (isPlayerShieldedNow(target, nowMs)) {
           target.shielded = false;
+          target.haturProtectedUntil = 0;
           player.killCooldownRemaining = 6;
           this.broadcastState({ type: 'sfx:event', kind: 'shield' });
           this.transport.sendToClient(clientId, {
             type: 'clue:result',
-            title: 'Tabiz Shield Shattered!',
-            detail: `${target.name} was protected by the Kobiraj!`,
+            title: 'Protection Shattered!',
+            detail: `${target.name} was protected by Tabiz/Jhajhro Injection!`,
           });
           this.sendToPlayer(target.id, {
             type: 'clue:result',
-            title: 'Tabiz Saved You!',
-            detail: 'Ekjon Batpar attack korsilo, kintu tomar Tabiz shield bachay dise!',
+            title: 'Protection Saved You!',
+            detail: 'Ekjon Batpar attack korsilo, kintu tomar Tabiz/Injection bachay dise!',
           });
           this.broadcastState();
           return;
         }
         target.alive = false;
         target.watchingCams = false;
-        player.killCooldownRemaining = this.settings.killCooldownSec;
+        const hitSupari = player.specialRole === 'supari_killer' && target.id === player.supariTargetId;
+        player.killCooldownRemaining = hitSupari
+          ? this.settings.killCooldownSec * 0.5
+          : this.settings.killCooldownSec;
+        if (player.specialRole === 'supari_killer') {
+          player.supariTargetId =
+            pickSupariContractTarget(
+              player,
+              Array.from(this.players.values()),
+              player.supariTargetId,
+            )?.id ?? null;
+        }
         player.x = target.x;
         player.z = target.z;
         this.bodies.push({
-          id: `body_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: `body_${nowMs}_${Math.random().toString(36).slice(2, 6)}`,
           victimId: target.id,
           victimName: target.name,
           color: target.color,
           x: target.x,
           z: target.z,
           reported: false,
-          killedAt: Date.now(),
+          killedAt: nowMs,
           killerColorHint: getColorShadeHint(player.color),
           killerZoneHint: getZoneNameAt(target.x, target.z),
         });
         this.broadcastState({ type: 'sfx:event', kind: 'kill' });
+        this.handleDeathSideEffects(target);
         recordKillWitnesses(
           this.botMemories,
           Array.from(this.players.values()),
@@ -1521,7 +1845,12 @@ export class P2PHostRoomEngine {
         }
         player.votedFor = msg.targetId;
         player.hasVoted = true;
-        this.broadcastState();
+        const alivePlayers = Array.from(this.players.values()).filter((p) => p.alive);
+        if (alivePlayers.length === 0 || alivePlayers.every((p) => p.hasVoted)) {
+          this.resolveMeetingVotes();
+        } else {
+          this.broadcastState();
+        }
         break;
       }
       case 'player:meme_sfx': {
@@ -1549,6 +1878,8 @@ export class P2PHostRoomEngine {
         this.lobbyCountdownSec = null;
         this.netaRevealedId = null;
         this.prankedLampUntil = 0;
+        this.commsJammedUntil = 0;
+        this.ghotokLinkedIds = null;
         this.emergencyCooldownRemaining = 0;
         this.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
         this.doorLocks = makeEmptyDoorLocks();
@@ -1557,6 +1888,7 @@ export class P2PHostRoomEngine {
           const sp = SPAWN_RING[idx % SPAWN_RING.length];
           p.x = sp.x;
           p.z = sp.z;
+          p.y = 0;
           p.vx = 0;
           p.vz = 0;
           p.yaw = sp.yaw;
@@ -1579,6 +1911,12 @@ export class P2PHostRoomEngine {
           p.pranksLeft = 1;
           p.jharuTargetBodyId = null;
           p.jharuTimer = 0;
+          p.haturProtectedUntil = 0;
+          p.supariTargetId = null;
+          p.chamchaPatronId = null;
+          p.chandabazTargets = [];
+          p.tiktokZones = [];
+          p.ghotokPartnerId = null;
           p.killCooldownRemaining = 0;
           p.emergencyMeetingsLeft = this.settings.emergencyMeetingsPerPlayer;
           p.ready = p.isHost || p.isBot;

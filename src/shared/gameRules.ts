@@ -82,7 +82,7 @@ export const TIKTOK_ZONE_GOAL = 3;
 export const TIKTOK_MAX_ALIVE_TO_WIN = 4;
 
 export const MIN_MATCH_PLAYERS = 5;
-export const MAX_MATCH_PLAYERS = 8;
+export const MAX_MATCH_PLAYERS = 15;
 export const PLAYER_NAME_MAX_CHARS = 12;
 export const LOBBY_CHAT_MAX_CHARS = 120;
 
@@ -273,6 +273,7 @@ export function makeDefaultPlayerState(
   return {
     x: 0,
     z: 3.8,
+    y: 0,
     vx: 0,
     vz: 0,
     yaw: 0,
@@ -468,7 +469,12 @@ export function assignRoles<T extends Pick<PlayerState, 'id' | 'role'>>(
   rng: () => number = Math.random,
 ): T[] {
   if (players.length === 0) return players;
-  const maxAllowed = players.length >= 6 ? Math.min(2, Math.floor((players.length - 1) / 2)) : 1;
+  const maxAllowed =
+    players.length >= 11
+      ? Math.min(3, Math.floor((players.length - 1) / 3))
+      : players.length >= 6
+        ? Math.min(2, Math.floor((players.length - 1) / 2))
+        : 1;
   const targetVondos = Math.max(1, Math.min(requestedVondoCount, maxAllowed));
   const indices = shuffleWithRng(
     players.map((_, idx) => idx),
@@ -492,7 +498,7 @@ export interface RolePoolPreview {
 
 export function getRolePoolPreview(playerCount: number, settings: RoomSettings): RolePoolPreview {
   const clamped = Math.max(MIN_MATCH_PLAYERS, Math.min(MAX_MATCH_PLAYERS, playerCount));
-  const maxVondo = clamped >= 6 ? 2 : 1;
+  const maxVondo = clamped >= 11 ? 3 : clamped >= 6 ? 2 : 1;
   const batparCount = Math.max(1, Math.min(maxVondo, settings.vondoCount));
 
   if (!settings.enableSpecialRoles) {
@@ -509,7 +515,7 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
   let specialCrewRange = '1';
   let neutralLabel = '0';
   let plainCrewMin = 3;
-  const specialBatparRange = clamped <= 7 ? '0–1' : batparCount > 1 ? '1–2' : '1';
+  const specialBatparRange = clamped <= 7 ? '0–1' : batparCount >= 3 ? '1–2' : batparCount > 1 ? '1–2' : '1';
 
   if (clamped === 5) {
     specialCrewRange = '1';
@@ -519,14 +525,14 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
     specialCrewRange = '2';
     neutralLabel = settings.enableNeutralRoles ? '0–1 (60%)' : '0';
     plainCrewMin = settings.enableNeutralRoles ? 2 : 3;
-  } else if (clamped === 7) {
+  } else if (clamped <= 10) {
     specialCrewRange = settings.enableNeutralRoles ? '2–3' : '3';
     neutralLabel = settings.enableNeutralRoles ? '0–1 (60%)' : '0';
-    plainCrewMin = 2;
+    plainCrewMin = Math.max(2, Math.ceil((clamped - batparCount) * 0.4));
   } else {
-    specialCrewRange = settings.enableNeutralRoles ? '2–3' : '3';
-    neutralLabel = settings.enableNeutralRoles ? '0–1 (60%)' : '0';
-    plainCrewMin = 2;
+    specialCrewRange = settings.enableNeutralRoles ? '3–5' : '4–5';
+    neutralLabel = settings.enableNeutralRoles ? '0–2' : '0';
+    plainCrewMin = Math.max(4, Math.ceil((clamped - batparCount) * 0.4));
   }
 
   return {
@@ -540,11 +546,11 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
 }
 
 /**
- * Balanced distribution per Section 4.6:
+ * Balanced distribution (5–15 players):
  * 5P: 1 Batpar, 1 special crew, 0 neutral, 3 plain Parabasi
  * 6P: 1 Batpar, 2 special crew, 0-1 neutral (60%), 2-3 plain Parabasi
- * 7P: 1 Batpar, 2-3 special crew, 0-1 neutral (60%), 2+ plain Parabasi
- * 8P: 2 Batpar, 2-3 special crew, 0-1 neutral (60%), 2+ plain Parabasi
+ * 7-10P: 1-2 Batpar, 2-3 special crew, 0-1 neutral (60%), >=40% plain Parabasi
+ * 11-15P: 2-3 Batpar, 3-5 special crew, 0-2 neutrals, >=40% plain Parabasi
  */
 export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | 'specialRole'>>(
   players: T[],
@@ -566,7 +572,7 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
     }
   }
 
-  // Batpar specials: max 1 special Batpar when total players <= 7
+  // Batpar specials: max 1 special Batpar when total players <= 7, up to 2 when >= 8
   const vondoCandidates = shuffleWithRng(
     out.filter((p) => p.role === 'vondo' && p.specialRole === 'none'),
     rng,
@@ -590,27 +596,33 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
   const totalNonVondo = out.filter((p) => p.role === 'parabasi').length;
   const minPlainCrew = out.length <= 5 ? 3 : Math.max(2, Math.ceil(totalNonVondo * 0.4));
 
-  const alreadyNeutral = out.some((p) => isNeutralRole(p.specialRole));
+  const alreadyNeutralCount = out.filter((p) => isNeutralRole(p.specialRole)).length;
   const alreadyCrewSpecial = out.filter(
     (p) => p.role === 'parabasi' && p.specialRole !== 'none' && !isNeutralRole(p.specialRole),
   ).length;
 
-  let neutralCount = alreadyNeutral ? 1 : 0;
-  if (!alreadyNeutral && enableNeutralRoles && out.length >= 6) {
-    // 60% chance of 1 Neutral (Pagol / Chamcha / Chandabaz / TikTok Star) when enabled and >= 6 players
+  let targetNeutralTotal = alreadyNeutralCount;
+  if (alreadyNeutralCount === 0 && enableNeutralRoles && out.length >= 6) {
     if (rng() < 0.6) {
-      neutralCount = 1;
+      targetNeutralTotal = 1;
+      if (out.length >= 11 && rng() < 0.35) {
+        targetNeutralTotal = 2;
+      }
     }
   }
 
   let targetCrewSpecials = 1;
   if (out.length === 6) targetCrewSpecials = 2;
-  else if (out.length >= 7) targetCrewSpecials = neutralCount > 0 ? 2 : 3;
+  else if (out.length >= 7 && out.length <= 10) targetCrewSpecials = targetNeutralTotal > 0 ? 2 : 3;
+  else if (out.length >= 11) targetCrewSpecials = Math.max(3, 5 - targetNeutralTotal);
 
   // Guarantee plain Parabasi minimum never gets violated
   const maxAllowedNonPlain = Math.max(0, totalNonVondo - minPlainCrew);
-  if (targetCrewSpecials + neutralCount > maxAllowedNonPlain) {
-    targetCrewSpecials = Math.max(0, maxAllowedNonPlain - neutralCount);
+  if (targetNeutralTotal > maxAllowedNonPlain) {
+    targetNeutralTotal = maxAllowedNonPlain;
+  }
+  if (targetCrewSpecials + targetNeutralTotal > maxAllowedNonPlain) {
+    targetCrewSpecials = Math.max(0, maxAllowedNonPlain - targetNeutralTotal);
   }
 
   const nonVondoPool = shuffleWithRng(
@@ -618,14 +630,17 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
     rng,
   );
 
-  if (neutralCount > 0 && !alreadyNeutral) {
+  const neutralPool = shuffleWithRng(NEUTRAL_SPECIAL_ROLES, rng);
+  const neededNeutrals = Math.max(0, targetNeutralTotal - alreadyNeutralCount);
+  let addedNeutrals = 0;
+  for (const nr of neutralPool) {
+    if (addedNeutrals >= neededNeutrals) break;
+    if (takenSpecials.has(nr)) continue;
     const p = nonVondoPool.shift();
-    if (p) {
-      const neutralPool = shuffleWithRng(NEUTRAL_SPECIAL_ROLES, rng);
-      const pickedNeutral = neutralPool[0] ?? 'pagol';
-      p.specialRole = pickedNeutral;
-      takenSpecials.add(pickedNeutral);
-    }
+    if (!p) break;
+    p.specialRole = nr;
+    takenSpecials.add(nr);
+    addedNeutrals++;
   }
 
   const crewSpecialPool = shuffleWithRng(CREW_SPECIAL_ROLES, rng);
@@ -766,7 +781,7 @@ export function sanitizeSoloConfig(
 ): { playerCount: number; settings: RoomSettings } {
   const playerCount = Math.max(MIN_MATCH_PLAYERS, Math.min(MAX_MATCH_PLAYERS, Math.round(playerCountInput)));
   const merged: RoomSettings = { ...DEFAULT_ROOM_SETTINGS, ...partialSettings };
-  const maxVondos = playerCount >= 6 ? 2 : 1;
+  const maxVondos = playerCount >= 11 ? 3 : playerCount >= 6 ? 2 : 1;
   merged.vondoCount = Math.max(1, Math.min(maxVondos, Math.round(merged.vondoCount)));
   merged.killCooldownSec = Math.max(10, Math.min(35, Math.round(merged.killCooldownSec)));
   merged.tasksPerPlayer = Math.max(3, Math.min(10, Math.round(merged.tasksPerPlayer)));
@@ -872,9 +887,11 @@ export function getColorShadeHint(color: PlayerColorId): string {
     case 'holud':
     case 'komola':
     case 'sada':
-      return 'Light / Warm suit pigment (Lal, Holud, Komola, or Sada)';
+    case 'golapi':
+    case 'tan':
+      return 'Light / Warm suit pigment (Lal, Holud, Komola, Sada, Golapi, or Shona)';
     default:
-      return 'Dark / Cool suit pigment (Neel, Shobuj, Beguni, or Kalo)';
+      return 'Dark / Cool suit pigment (Neel, Shobuj, Beguni, Kalo, Akashi, Badami, Tute, Jam, or Pata)';
   }
 }
 

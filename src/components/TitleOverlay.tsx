@@ -10,6 +10,7 @@ import {
 import { getLoadedCustomCount, subscribeMemePack } from '../audio/memePackStore';
 import { soundEngine } from '../audio/soundEngine';
 import { loadCareerStats } from '../game/statsStore';
+import { BATPAR_SPECIAL_ROLES, isNeutralRole } from '../shared/gameRules';
 import {
   Users,
   Play,
@@ -50,7 +51,7 @@ export interface TitleOverlayProps {
   onCreateRoom: () => void;
   onJoinRoom: (code: string) => void;
   onRefreshRooms: () => void;
-  onOpenMemePack: () => void;
+  onOpenMemePack?: () => void;
   onOpenGuide: () => void;
   initialJoinCode?: string | null;
 }
@@ -63,9 +64,18 @@ const SOLO_SPECIAL_OPTIONS: Array<{ value: SpecialRole | 'random'; label: string
   { value: 'daroga', label: 'Para Daroga (Sheriff)' },
   { value: 'neta', label: 'Moholla Neta (Mayor 2x)' },
   { value: 'daktar', label: 'Para Daktar (Doctor)' },
+  { value: 'ghotok_khala', label: 'Ghotok Khala (Matchmaker)' },
+  { value: 'master_moshai', label: 'Master Moshai (Teacher)' },
+  { value: 'cctv_kaku', label: 'CCTV Kaku (Remote Cam)' },
+  { value: 'hatur_daktar', label: 'Hatur Daktar (Quack Shield)' },
   { value: 'bohurupi', label: 'Bohurupi Batpar (Shapeshifter)' },
   { value: 'jharudar', label: 'Jharudar Batpar (Cleaner)' },
+  { value: 'supari_killer', label: 'Supari Killer (Hitman)' },
+  { value: 'dalal', label: 'Dalal Batpar (Broker Jam)' },
   { value: 'pagol', label: 'Pagla Baba (Jester Chaos)' },
+  { value: 'chamcha', label: 'Chamcha (Sidekick Co-Win)' },
+  { value: 'chandabaz', label: 'Chandabaz (Extortionist)' },
+  { value: 'tiktok_star', label: 'TikTok Star (Viral Chaos)' },
 ];
 
 export function TitleOverlay({
@@ -266,7 +276,7 @@ export function TitleOverlay({
                 <span className="block text-xs font-semibold text-slate-300 mb-1.5 [@media(max-height:540px)]:mb-1">
                   Avatar Color · {selectedSpec.label}
                 </span>
-                <div className="flex flex-wrap gap-2 [@media(max-height:540px)]:gap-1.5" role="radiogroup" aria-label="Choose avatar color">
+                <div className="grid grid-cols-5 gap-1.5 w-fit [@media(max-height:540px)]:gap-1" role="radiogroup" aria-label="Choose avatar color">
                   {PLAYER_COLORS.map((c) => {
                     const active = c.id === playerColor;
                     return (
@@ -277,7 +287,7 @@ export function TitleOverlay({
                         aria-label={`Color ${c.label}`}
                         aria-checked={active}
                         role="radio"
-                        className={`w-7 h-7 [@media(max-height:540px)]:w-5 [@media(max-height:540px)]:h-5 rounded-full border-2 transition-transform ${
+                        className={`w-6 h-6 [@media(max-height:540px)]:w-5 [@media(max-height:540px)]:h-5 rounded-full border-2 transition-transform ${
                           active ? 'border-amber-300 scale-110' : 'border-white/25 hover:scale-105'
                         }`}
                         style={{ backgroundColor: c.hex }}
@@ -419,10 +429,11 @@ export function TitleOverlay({
                       onChange={(e) => onChangeSoloPlayerCount(Number(e.target.value))}
                       className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
                     >
-                      <option value={5}>5 Players</option>
-                      <option value={6}>6 Players</option>
-                      <option value={7}>7 Players</option>
-                      <option value={8}>8 Players</option>
+                      {[5, 6, 7, 8, 9, 10, 12, 15].map((cnt) => (
+                        <option key={cnt} value={cnt}>
+                          {cnt} Players
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1.5">
@@ -435,6 +446,9 @@ export function TitleOverlay({
                       <option value={1}>1 Batpar</option>
                       <option value={2} disabled={soloPlayerCount < 6}>
                         2 Batpars {soloPlayerCount < 6 ? '(6P+)' : ''}
+                      </option>
+                      <option value={3} disabled={soloPlayerCount < 11}>
+                        3 Batpars {soloPlayerCount < 11 ? '(11P+)' : ''}
                       </option>
                     </select>
                   </label>
@@ -519,7 +533,9 @@ export function TitleOverlay({
                   onClick={() =>
                     onStartSolo(
                       'parabasi',
-                      soloSpecial !== 'random' && soloSpecial !== 'bohurupi' && soloSpecial !== 'jharudar'
+                      soloSpecial !== 'random' &&
+                        !BATPAR_SPECIAL_ROLES.includes(soloSpecial) &&
+                        !isNeutralRole(soloSpecial)
                         ? soloSpecial
                         : undefined,
                     )
@@ -533,7 +549,7 @@ export function TitleOverlay({
                   onClick={() =>
                     onStartSolo(
                       'vondo',
-                      soloSpecial === 'bohurupi' || soloSpecial === 'jharudar'
+                      soloSpecial !== 'random' && BATPAR_SPECIAL_ROLES.includes(soloSpecial)
                         ? soloSpecial
                         : undefined,
                     )
@@ -639,25 +655,27 @@ export function TitleOverlay({
             </div>
           )}
 
-          {/* Original Meme Pack & Rules Guide Bar */}
+          {/* Original Meme Pack (Admin only) & Rules Guide Bar */}
           <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenMemePack}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-400/35 text-amber-200 text-xs font-bold flex items-center justify-between gap-2 transition-colors cursor-pointer"
-            >
-              <span className="flex items-center gap-2 truncate">
-                <Music2 className="w-4 h-4 text-amber-300 shrink-0" />
-                <span className="truncate">Meme Pack</span>
-              </span>
-              <span className="px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 font-mono-tabular text-[11px] shrink-0">
-                {customMemeCount > 0 ? `${customMemeCount} Clips` : 'Upload'}
-              </span>
-            </button>
+            {onOpenMemePack && (
+              <button
+                type="button"
+                onClick={onOpenMemePack}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-400/35 text-amber-200 text-xs font-bold flex items-center justify-between gap-2 transition-colors cursor-pointer"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Music2 className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span className="truncate">Meme Pack</span>
+                </span>
+                <span className="px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 font-mono-tabular text-[11px] shrink-0">
+                  {customMemeCount > 0 ? `${customMemeCount} Clips` : 'Upload'}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenGuide}
-              className="py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              className={`${onOpenMemePack ? '' : 'flex-1 justify-center '}py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0`}
             >
               <BookOpen className="w-4 h-4 text-sky-300 shrink-0" />
               Rules &amp; Roles

@@ -382,8 +382,12 @@ export function useMultiplayerClient(
       peer.on('open', () => {
         if (peerRef.current !== peer) return;
         engine.addClient(HOST_LOCAL_CLIENT_ID, name, color, true);
+        let lastHostTick = performance.now();
         hostTickRef.current = window.setInterval(() => {
-          hostEngineRef.current?.step(0.05);
+          const now = performance.now();
+          const dt = Math.min(0.5, Math.max(0.016, (now - lastHostTick) / 1000));
+          lastHostTick = now;
+          hostEngineRef.current?.step(dt);
         }, 50);
       });
 

@@ -135,39 +135,48 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
             joystickInputRef.current = { x: 0, y: 0 };
           }}
           className={`relative ${
-            isLandscapeCompact ? 'w-[98px] h-[98px]' : 'w-[112px] h-[112px] sm:w-[122px] sm:h-[122px]'
+            isLandscapeCompact ? 'w-[96px] h-[96px]' : 'w-[110px] h-[110px] sm:w-[120px] sm:h-[120px]'
           } rounded-full border-2 ${
-            sprinting ? 'border-emerald-400/90' : 'border-amber-300/50'
-          } flex items-center justify-center shadow-2xl transition-colors`}
-          style={{ backgroundColor: 'rgba(12, 18, 30, 0.72)', touchAction: 'none' }}
+            sprinting
+              ? 'border-emerald-400 shadow-[0_0_22px_rgba(52,211,153,0.45)]'
+              : 'border-amber-300/60 shadow-[0_0_18px_rgba(251,191,36,0.18)]'
+          } flex items-center justify-center transition-colors`}
+          style={{ backgroundColor: 'rgba(9, 14, 24, 0.78)', touchAction: 'none' }}
         >
           {sprinting && (
-            <span className="absolute -top-2.5 px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950 font-display text-[8px] font-extrabold tracking-wider pointer-events-none shadow">
+            <span className="absolute -top-2.5 px-1.5 py-0.5 rounded bg-emerald-400 text-slate-950 font-display text-[8px] font-black tracking-wider pointer-events-none shadow">
               SPRINT
             </span>
           )}
+          {/* PUBG tactical directional crosshairs inside thumbpad */}
+          <span className="absolute top-1.5 w-1 h-1.5 rounded-full bg-white/30 pointer-events-none" />
+          <span className="absolute bottom-1.5 w-1 h-1.5 rounded-full bg-white/30 pointer-events-none" />
+          <span className="absolute left-1.5 w-1.5 h-1 rounded-full bg-white/30 pointer-events-none" />
+          <span className="absolute right-1.5 w-1.5 h-1 rounded-full bg-white/30 pointer-events-none" />
           <div
             className={`${
-              isLandscapeCompact ? 'w-[62px] h-[62px]' : 'w-[72px] h-[72px]'
-            } rounded-full border border-white/15 pointer-events-none`}
+              isLandscapeCompact ? 'w-[60px] h-[60px]' : 'w-[70px] h-[70px]'
+            } rounded-full border border-dashed border-white/20 pointer-events-none`}
           />
-          <div className="w-1.5 h-1.5 rounded-full bg-white/25 pointer-events-none" />
+          <div className="w-2 h-2 rounded-full bg-amber-300/35 pointer-events-none" />
           <div
             ref={knobRef}
             className={`absolute ${
               isLandscapeCompact ? 'w-10 h-10' : 'w-11 h-11 sm:w-12 sm:h-12'
             } rounded-full ${
               sprinting ? 'bg-emerald-400' : 'bg-amber-400'
-            } border-2 border-white/90 shadow-lg pointer-events-none will-change-transform`}
+            } border-2 border-white shadow-xl pointer-events-none will-change-transform flex items-center justify-center`}
             style={{
               transform: 'translate3d(0px, 0px, 0)',
             }}
-          />
+          >
+            <div className="w-3.5 h-3.5 rounded-full bg-slate-950/35 border border-white/40" />
+          </div>
         </div>
         {!isLandscapeCompact && (
           <span
-            className="text-[10px] font-semibold text-slate-300 px-2 py-0.5 rounded-md border border-white/10 max-w-[124px] text-center leading-tight"
-            style={{ backgroundColor: 'rgba(12, 18, 30, 0.72)' }}
+            className="text-[10px] font-semibold text-slate-200 px-2 py-0.5 rounded-md border border-white/15 max-w-[124px] text-center leading-tight"
+            style={{ backgroundColor: 'rgba(9, 14, 24, 0.78)' }}
           >
             Right: 360° · Pinch
           </span>
@@ -184,16 +193,17 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
           }}
           aria-label="Jump"
           className={`fixed z-20 pointer-events-auto select-none ${
-            isLandscapeCompact ? 'w-12 h-12 bottom-[4.5rem]' : 'w-14 h-14 bottom-24'
-          } rounded-full border-2 border-amber-300/65 flex flex-col items-center justify-center text-amber-200 active:scale-90 transition-transform shadow-2xl`}
+            isLandscapeCompact ? 'w-[48px] h-[48px] bottom-[5.05rem]' : 'w-[54px] h-[54px] bottom-[5.85rem]'
+          } rounded-full border-2 border-amber-300/75 flex flex-col items-center justify-center text-amber-200 active:scale-90 transition-transform shadow-[0_6px_20px_rgba(0,0,0,0.65)]`}
           style={{
             right: 'max(0.75rem, env(safe-area-inset-right))',
-            backgroundColor: 'rgba(12, 18, 30, 0.84)',
+            backgroundColor: 'rgba(10, 16, 28, 0.88)',
             touchAction: 'none',
           }}
         >
+          <span className="absolute inset-[3px] rounded-full border border-white/15 pointer-events-none" />
           <ArrowUp className={isLandscapeCompact ? 'w-4 h-4' : 'w-5 h-5'} />
-          <span className="text-[8px] sm:text-[9px] font-display font-bold tracking-wider">JUMP</span>
+          <span className="text-[8px] font-display font-black tracking-wider leading-none mt-0.5">JUMP</span>
         </button>
       )}
     </>

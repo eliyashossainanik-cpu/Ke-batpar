@@ -2,9 +2,11 @@ import type {
   DoorLockState,
   DoorSpec,
   GasValveState,
+  RoofDeckDef,
   SabotageSeverity,
   SabotageType,
   SecurityCamDef,
+  StairRampDef,
   TaskStation,
   VentNode,
   WallAABB,
@@ -306,6 +308,163 @@ export const DOORS: DoorSpec[] = [
     minZ: 22.5,
     maxZ: 23.4,
     height: 2.9,
+  },
+];
+
+// Walkable Moholla Building Rooftops + Exterior Stepped Staircases
+export const ROOFTOPS: RoofDeckDef[] = [
+  {
+    id: 'cha_roof',
+    zoneId: 'cha_dokan',
+    label: 'Cha-er Dokan Chhad',
+    minX: -45.0,
+    maxX: -25.0,
+    minZ: -41.0,
+    maxZ: -33.8,
+    elevationY: 3.15,
+    stairOpenings: [{ minX: -45.6, maxX: -44.0, minZ: -36.8, maxZ: -33.8 }],
+  },
+  {
+    id: 'rick_roof',
+    zoneId: 'rickshaw_garage',
+    label: 'Rickshaw Garage Chhad',
+    minX: 25.0,
+    maxX: 45.0,
+    minZ: -41.0,
+    maxZ: -33.8,
+    elevationY: 3.15,
+    stairOpenings: [{ minX: 44.0, maxX: 45.6, minZ: -36.8, maxZ: -33.8 }],
+  },
+  {
+    id: 'desco_roof',
+    zoneId: 'desco_power',
+    label: 'DESCO Chhad',
+    minX: -45.0,
+    maxX: -25.0,
+    minZ: 33.8,
+    maxZ: 41.0,
+    elevationY: 3.15,
+    stairOpenings: [{ minX: -45.6, maxX: -44.0, minZ: 33.8, maxZ: 36.8 }],
+  },
+  {
+    id: 'dish_deck',
+    zoneId: 'dish_roof',
+    label: 'Dish Hub Terrace',
+    minX: 37.6,
+    maxX: 45.0,
+    minZ: 22.5,
+    maxZ: 41.0,
+    elevationY: 3.15,
+    stairOpenings: [{ minX: 44.0, maxX: 45.6, minZ: 33.8, maxZ: 36.8 }],
+  },
+  {
+    id: 'saloon_roof',
+    zoneId: 'saloon_goli',
+    label: 'Hero Saloon Chhad',
+    minX: -75.0,
+    maxX: -67.5,
+    minZ: -35.0,
+    maxZ: -17.0,
+    elevationY: 3.25,
+    stairOpenings: [{ minX: -70.8, maxX: -67.5, minZ: -35.6, maxZ: -34.0 }],
+  },
+  {
+    id: 'pharm_roof',
+    zoneId: 'pharmacy_mor',
+    label: 'Dadu Pharmacy Chhad',
+    minX: -75.0,
+    maxX: -67.5,
+    minZ: 17.0,
+    maxZ: 35.0,
+    elevationY: 3.25,
+    stairOpenings: [{ minX: -70.8, maxX: -67.5, minZ: 34.0, maxZ: 35.6 }],
+  },
+];
+
+export const STAIR_RAMPS: StairRampDef[] = [
+  {
+    id: 'cha_stair',
+    roofId: 'cha_roof',
+    label: 'Cha Dokan Stairs',
+    minX: -47.4,
+    maxX: -44.6,
+    minZ: -36.6,
+    maxZ: -26.5,
+    axis: 'z',
+    bottomCoord: -26.5,
+    topCoord: -33.8,
+    topY: 3.15,
+    steps: 14,
+  },
+  {
+    id: 'rick_stair',
+    roofId: 'rick_roof',
+    label: 'Rickshaw Garage Stairs',
+    minX: 44.6,
+    maxX: 47.4,
+    minZ: -36.6,
+    maxZ: -26.5,
+    axis: 'z',
+    bottomCoord: -26.5,
+    topCoord: -33.8,
+    topY: 3.15,
+    steps: 14,
+  },
+  {
+    id: 'desco_stair',
+    roofId: 'desco_roof',
+    label: 'DESCO Stairs',
+    minX: -47.4,
+    maxX: -44.6,
+    minZ: 26.5,
+    maxZ: 36.6,
+    axis: 'z',
+    bottomCoord: 26.5,
+    topCoord: 33.8,
+    topY: 3.15,
+    steps: 14,
+  },
+  {
+    id: 'dish_stair',
+    roofId: 'dish_deck',
+    label: 'Dish Hub Stairs',
+    minX: 44.6,
+    maxX: 47.4,
+    minZ: 26.5,
+    maxZ: 36.6,
+    axis: 'z',
+    bottomCoord: 26.5,
+    topCoord: 33.8,
+    topY: 3.15,
+    steps: 14,
+  },
+  {
+    id: 'saloon_stair',
+    roofId: 'saloon_roof',
+    label: 'Saloon Stairs',
+    minX: -70.6,
+    maxX: -60.5,
+    minZ: -37.4,
+    maxZ: -34.6,
+    axis: 'x',
+    bottomCoord: -60.5,
+    topCoord: -67.8,
+    topY: 3.25,
+    steps: 14,
+  },
+  {
+    id: 'pharm_stair',
+    roofId: 'pharm_roof',
+    label: 'Pharmacy Stairs',
+    minX: -70.6,
+    maxX: -60.5,
+    minZ: 34.6,
+    maxZ: 37.4,
+    axis: 'x',
+    bottomCoord: -60.5,
+    topCoord: -67.8,
+    topY: 3.25,
+    steps: 14,
   },
 ];
 
@@ -724,16 +883,17 @@ export const SABOTAGE_TARGETS: Record<
   },
 };
 
-export const SPAWN_RING: Array<{ x: number; z: number; yaw: number }> = [
-  { x: 0, z: 4.5, yaw: Math.PI },
-  { x: 3.3, z: 3.3, yaw: (Math.PI * 5) / 4 },
-  { x: 4.5, z: 0, yaw: -Math.PI / 2 },
-  { x: 3.3, z: -3.3, yaw: -Math.PI / 4 },
-  { x: 0, z: -4.5, yaw: 0 },
-  { x: -3.3, z: -3.3, yaw: Math.PI / 4 },
-  { x: -4.5, z: 0, yaw: Math.PI / 2 },
-  { x: -3.3, z: 3.3, yaw: (Math.PI * 3) / 4 },
-];
+export const SPAWN_RING: Array<{ x: number; z: number; yaw: number }> = Array.from(
+  { length: 15 },
+  (_, idx) => {
+    const theta = (idx * Math.PI * 2) / 15;
+    const radius = 5.2;
+    const x = Number((Math.sin(theta) * radius).toFixed(2));
+    const z = Number((Math.cos(theta) * radius).toFixed(2));
+    const yaw = Number(Math.atan2(-x, -z).toFixed(3));
+    return { x, z, yaw };
+  },
+);
 
 export const BOT_WAYPOINTS: Array<{ x: number; z: number }> = [
   { x: 0, z: 7.2 },
@@ -819,6 +979,108 @@ export function resolveCircleWallCollision(
   }
 
   return { x: nx, z: nz };
+}
+
+function getRampHeightAt(r: StairRampDef, x: number, z: number): number {
+  const coord = r.axis === 'x' ? x : z;
+  const span = r.topCoord - r.bottomCoord;
+  if (Math.abs(span) < 1e-5) return r.topY;
+  const t = Math.max(0, Math.min(1, (coord - r.bottomCoord) / span));
+  return t * r.topY;
+}
+
+export function getWalkableFloorY(x: number, z: number, currentY = 0): number {
+  for (let i = 0; i < STAIR_RAMPS.length; i++) {
+    const r = STAIR_RAMPS[i];
+    if (x >= r.minX - 0.15 && x <= r.maxX + 0.15 && z >= r.minZ - 0.15 && z <= r.maxZ + 0.15) {
+      const rampY = getRampHeightAt(r, x, z);
+      if (Math.abs(rampY - currentY) <= 1.35) {
+        return rampY;
+      }
+    }
+  }
+  if (currentY >= 1.55) {
+    for (let i = 0; i < ROOFTOPS.length; i++) {
+      const d = ROOFTOPS[i];
+      if (x >= d.minX - 0.25 && x <= d.maxX + 0.25 && z >= d.minZ - 0.25 && z <= d.maxZ + 0.25) {
+        if (Math.abs(d.elevationY - currentY) <= 1.45) {
+          return d.elevationY;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+export function resolvePlayerMoveWithElevation(
+  prevX: number,
+  prevZ: number,
+  prevY: number,
+  targetX: number,
+  targetZ: number,
+  radius: number = PLAYER_RADIUS,
+  walls: WallAABB[] = WALLS,
+  doorLocks?: DoorLockState,
+): { x: number; z: number; y: number } {
+  const safePrevY = Math.max(0, prevY);
+  let nx = Math.max(-MAP_HALF_SIZE + radius, Math.min(MAP_HALF_SIZE - radius, targetX));
+  let nz = Math.max(-MAP_HALF_SIZE + radius, Math.min(MAP_HALF_SIZE - radius, targetZ));
+
+  // If currently on a rooftop deck, keep player safely inside parapet rails unless walking onto stair landing
+  if (safePrevY >= 2.2) {
+    const activeDeck = ROOFTOPS.find(
+      (d) =>
+        prevX >= d.minX - 0.25 &&
+        prevX <= d.maxX + 0.25 &&
+        prevZ >= d.minZ - 0.25 &&
+        prevZ <= d.maxZ + 0.25 &&
+        Math.abs(d.elevationY - safePrevY) <= 1.2,
+    );
+    const activeStair = STAIR_RAMPS.find(
+      (r) =>
+        prevX >= r.minX - 0.2 &&
+        prevX <= r.maxX + 0.2 &&
+        prevZ >= r.minZ - 0.2 &&
+        prevZ <= r.maxZ + 0.2,
+    );
+
+    if (activeDeck) {
+      const steppingThroughOpening = activeDeck.stairOpenings.some(
+        (op) => nx >= op.minX && nx <= op.maxX && nz >= op.minZ && nz <= op.maxZ,
+      );
+      if (!steppingThroughOpening && !activeStair) {
+        nx = Math.max(activeDeck.minX + radius, Math.min(activeDeck.maxX - radius, nx));
+        nz = Math.max(activeDeck.minZ + radius, Math.min(activeDeck.maxZ - radius, nz));
+      }
+    }
+    if (activeStair) {
+      const rampY = getRampHeightAt(activeStair, prevX, prevZ);
+      const linkedDeck = ROOFTOPS.find((d) => d.id === activeStair.roofId);
+      const enteringDeck =
+        linkedDeck &&
+        nx >= linkedDeck.minX + 0.1 &&
+        nx <= linkedDeck.maxX - 0.1 &&
+        nz >= linkedDeck.minZ + 0.1 &&
+        nz <= linkedDeck.maxZ - 0.1;
+      if (!enteringDeck && rampY >= 0.7) {
+        if (activeStair.axis === 'z') {
+          nx = Math.max(activeStair.minX + 0.38, Math.min(activeStair.maxX - 0.38, nx));
+        } else {
+          nz = Math.max(activeStair.minZ + 0.38, Math.min(activeStair.maxZ - 0.38, nz));
+        }
+      }
+    }
+  }
+
+  // Only collide with walls taller than the current elevated walkable surface (or outer perimeter)
+  const effectiveWalls =
+    safePrevY >= 1.6
+      ? walls.filter((w) => w.height > safePrevY + 0.32 || w.id.startsWith('outer_'))
+      : walls;
+  const activeDoors = safePrevY >= 2.2 ? undefined : doorLocks;
+  const res = resolveCircleWallCollision(nx, nz, radius, effectiveWalls, activeDoors);
+  const nextY = getWalkableFloorY(res.x, res.z, safePrevY);
+  return { x: res.x, z: res.z, y: nextY };
 }
 
 export function distance2D(ax: number, az: number, bx: number, bz: number): number {

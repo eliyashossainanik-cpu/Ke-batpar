@@ -1,3 +1,4 @@
+import { isNeutralRole } from '../shared/gameRules';
 import type { MatchOutcome, RoomSnapshot } from '../shared/types';
 
 export interface CareerStats {
@@ -66,9 +67,12 @@ export function recordCareerMatchOutcome(
   const current = loadCareerStats();
   const lp = snapshot.players.find((p) => p.id === localPlayerId);
   const won =
-    outcome.winner === 'pagol'
-      ? lp?.specialRole === 'pagol' && outcome.winnerPlayerId === lp.id
-      : lp?.role === outcome.winner && lp?.specialRole !== 'pagol';
+    outcome.winner === 'pagol' || outcome.winner === 'chandabaz' || outcome.winner === 'tiktok_star'
+      ? outcome.winnerPlayerId === lp?.id
+      : Boolean(
+          (lp && !isNeutralRole(lp.specialRole) && lp.role === outcome.winner) ||
+            (lp && outcome.coWinnerIds?.includes(lp.id)),
+        );
 
   const next: CareerStats = {
     ...current,
@@ -76,7 +80,11 @@ export function recordCareerMatchOutcome(
     wins: current.wins + (won ? 1 : 0),
     crewWins: current.crewWins + (won && outcome.winner === 'parabasi' ? 1 : 0),
     batparWins: current.batparWins + (won && outcome.winner === 'vondo' ? 1 : 0),
-    pagolWins: current.pagolWins + (won && outcome.winner === 'pagol' ? 1 : 0),
+    pagolWins:
+      current.pagolWins +
+      (won && (outcome.winner === 'pagol' || outcome.winner === 'chandabaz' || outcome.winner === 'tiktok_star')
+        ? 1
+        : 0),
   };
   saveCareerStats(next);
   return next;

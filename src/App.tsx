@@ -39,7 +39,13 @@ import { LobbyOverlay } from './components/LobbyOverlay';
 import { GameHud } from './components/GameHud';
 import { TaskModal } from './components/TaskModal';
 import { MeetingModal } from './components/MeetingModal';
-import { EjectionModal, OutcomeModal, PauseModal, RoleRevealModal } from './components/MatchModals';
+import {
+  EjectionModal,
+  MatchLoadingOverlay,
+  OutcomeModal,
+  PauseModal,
+  RoleRevealModal,
+} from './components/MatchModals';
 import { MobileControls } from './components/MobileControls';
 import { StationModal, type StationModalKind } from './components/StationModals';
 import { MemePackModal } from './components/MemePackModal';
@@ -68,11 +74,40 @@ export default function App() {
   const [showGuide, setShowGuide] = useState(false);
   const [killFlash, setKillFlash] = useState(false);
   const [showOutcomeModal, setShowOutcomeModal] = useState(false);
+  const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
+  const [compassYaw, setCompassYaw] = useState(0);
   const touchOverrideRef = useRef(false);
   const recordedOutcomeRef = useRef(false);
+  const loadingTimerRef = useRef<number | null>(null);
   const [touchControlsEnabled, setTouchControlsEnabled] = useState<boolean>(() =>
     isTouchOrMobileDevice(),
   );
+  const [isAdminMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const param = params.get('admin');
+    if (param === '1' || param === 'true') {
+      try {
+        window.localStorage.setItem('kb_admin_mode', '1');
+      } catch {
+        // ignore storage errors
+      }
+      return true;
+    }
+    if (param === '0' || param === 'false') {
+      try {
+        window.localStorage.removeItem('kb_admin_mode');
+      } catch {
+        // ignore storage errors
+      }
+      return false;
+    }
+    try {
+      return window.localStorage.getItem('kb_admin_mode') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [initialJoinCode] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const code = new URLSearchParams(window.location.search).get('room')?.trim().toUpperCase();
@@ -115,6 +150,7 @@ export default function App() {
   useEffect(() => {
     return () => {
       if (clueTimerRef.current !== null) window.clearTimeout(clueTimerRef.current);
+      if (loadingTimerRef.current !== null) window.clearTimeout(loadingTimerRef.current);
     };
   }, []);
 
@@ -153,14 +189,17 @@ export default function App() {
     );
   }, [derivedPhase]);
 
-  // Clear open station/task/map modals whenever gameplay is interrupted (meeting, ejection, gameover)
+  // Clear open station/task/map/pause modals whenever gameplay is interrupted (meeting, ejection, gameover)
   useEffect(() => {
+    if (activeSnapshot && activeSnapshot.phase !== 'playing' && paused) {
+      setPaused(false);
+    }
     if (derivedPhase !== 'playing') {
       setActiveTaskId(null);
       setActiveStationModal(null);
       setShowTacticalMap(false);
     }
-  }, [derivedPhase]);
+  }, [derivedPhase, activeSnapshot, paused]);
 
   // Persist Career Stats once per match when entering gameover + 3s dramatic finale hold beat
   useEffect(() => {
@@ -203,26 +242,44 @@ export default function App() {
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
-      const engine = new SoloMatchEngine(
-        playerName,
-        playerColor,
-        forceRole,
-        skipRoleReveal,
-        forceSpecialRole,
-        showClueNotice,
-        soloSettings,
-        soloPlayerCount,
-      );
-      soloEngineRef.current = engine;
-      recordedOutcomeRef.current = false;
-      setSoloSnapshot(engine.getSnapshot());
-      setMode('solo');
-      setPaused(false);
-      setActiveTaskId(null);
-      setActiveStationModal(null);
-      setShowTacticalMap(false);
-      setShowGuide(false);
-      setClueNotice(null);
+      const launch = () => {
+        const engine = new SoloMatchEngine(
+          playerName,
+          playerColor,
+          forceRole,
+          skipRoleReveal,
+          forceSpecialRole,
+          showClueNotice,
+          soloSettings,
+          soloPlayerCount,
+        );
+        soloEngineRef.current = engine;
+        recordedOutcomeRef.current = false;
+        setSoloSnapshot(engine.getSnapshot());
+        setMode('solo');
+        setPaused(false);
+        setActiveTaskId(null);
+        setActiveStationModal(null);
+        setShowTacticalMap(false);
+        setShowGuide(false);
+        setClueNotice(null);
+      };
+
+      if (skipRoleReveal) {
+        setLoadingSubtitle(null);
+        launch();
+        return;
+      }
+
+      if (loadingTimerRef.current !== null) {
+        window.clearTimeout(loadingTimerRef.current);
+      }
+      setLoadingSubtitle(`Preparing ${soloPlayerCount}P Moholla Lobby...`);
+      loadingTimerRef.current = window.setTimeout(() => {
+        loadingTimerRef.current = null;
+        setLoadingSubtitle(null);
+        launch();
+      }, 650);
     },
     [playerName, playerColor, showClueNotice, soloSettings, soloPlayerCount],
   );
@@ -235,24 +292,31 @@ export default function App() {
     }
   }, [startSoloMatch]);
 
-  // Solo 15Hz snapshot loop (3D scene interpolates & renders at native 60fps)
+  // Solo 15Hz snapshot loop with wall-clock clamped dt (3D scene interpolates & renders at native 60fps)
   useEffect(() => {
     if (mode !== 'solo') return;
+    let lastTick = performance.now();
     const timer = window.setInterval(() => {
+      const now = performance.now();
+      const dt = Math.min(0.5, Math.max(0.016, (now - lastTick) / 1000));
+      lastTick = now;
       const engine = soloEngineRef.current;
-      if (!engine || paused) return;
-      engine.step(0.066);
+      if (!engine) return;
+      const snap = engine.getSnapshot();
+      // Never pause meeting/voting/ejection/role_reveal phases so Shalish can never freeze
+      if (paused && snap.phase === 'playing') return;
+      engine.step(dt);
       setSoloSnapshot(engine.getSnapshot());
     }, 66);
     return () => clearInterval(timer);
   }, [mode, paused]);
 
   const handleLocalMove = useCallback(
-    (x: number, z: number, vx: number, vz: number, yaw: number) => {
+    (x: number, z: number, vx: number, vz: number, yaw: number, y?: number) => {
       if (mode === 'solo') {
-        soloEngineRef.current?.moveLocal(x, z, vx, vz, yaw);
+        soloEngineRef.current?.moveLocal(x, z, vx, vz, yaw, y);
       } else if (mode === 'multi') {
-        mp.send({ type: 'player:move', x, z, vx, vz, yaw });
+        mp.send({ type: 'player:move', x, z, y, vx, vz, yaw });
       }
     },
     [mode, mp],
@@ -628,6 +692,11 @@ export default function App() {
           handleUseAbility();
           return;
         }
+        if (lp.specialRole === 'cctv_kaku' && lp.abilityCooldown <= 0.05 && !lp.inVent) {
+          handleUseAbility();
+          handleOpenStation('cams');
+          return;
+        }
         if (lp.specialRole === 'bohurupi' && !lp.disguiseColor) {
           const firstTarget = activeSnapshot.players.find(
             (p) => p.alive && p.id !== lp.id && p.role !== 'vondo',
@@ -723,6 +792,7 @@ export default function App() {
         onPointerLookChange={setPointerLookEnabled}
         resetCameraRef={resetCameraRef}
         jumpTriggerRef={jumpTriggerRef}
+        onCompassYawChange={setCompassYaw}
       />
 
       {/* Title Screen */}
@@ -763,7 +833,7 @@ export default function App() {
             mp.joinRoom(code, playerName, playerColor);
           }}
           onRefreshRooms={mp.refreshRooms}
-          onOpenMemePack={() => setShowMemePack(true)}
+          onOpenMemePack={isAdminMode ? () => setShowMemePack(true) : undefined}
           onOpenGuide={() => setShowGuide(true)}
           initialJoinCode={initialJoinCode}
         />
@@ -879,6 +949,7 @@ export default function App() {
             pointerLookEnabled={pointerLookEnabled}
             clueNotice={clueNotice}
             killFlash={killFlash}
+            compassYaw={compassYaw}
             onToggleTouchControls={() => {
               touchOverrideRef.current = true;
               setTouchControlsEnabled((v) => !v);
@@ -907,7 +978,7 @@ export default function App() {
             onVentToggle={handleVentToggle}
             onUseAbility={handleUseAbility}
             onPlayMeme={handlePlayMeme}
-            onOpenMemePack={() => setShowMemePack(true)}
+            onOpenMemePack={isAdminMode ? () => setShowMemePack(true) : undefined}
           />
           <MobileControls
             visible={
@@ -1002,7 +1073,7 @@ export default function App() {
             }
           }}
           onTitle={handleReturnToTitle}
-          onOpenMemePack={() => setShowMemePack(true)}
+          onOpenMemePack={isAdminMode ? () => setShowMemePack(true) : undefined}
         />
       )}
 
@@ -1014,7 +1085,9 @@ export default function App() {
           className="fixed inset-0 z-30 flex flex-col items-center justify-center p-4 text-center animate-fade-in"
           style={{
             background:
-              activeSnapshot.outcome.winner === 'pagol'
+              activeSnapshot.outcome.winner === 'pagol' ||
+              activeSnapshot.outcome.winner === 'chandabaz' ||
+              activeSnapshot.outcome.winner === 'tiktok_star'
                 ? 'radial-gradient(circle at center, rgba(88,28,135,0.92), rgba(5,9,17,0.97))'
                 : activeSnapshot.outcome.winner === 'parabasi'
                   ? 'radial-gradient(circle at center, rgba(6,78,59,0.92), rgba(5,9,17,0.97))'
@@ -1026,7 +1099,9 @@ export default function App() {
           </span>
           <h1
             className={`font-display text-4xl sm:text-6xl font-black tracking-tight drop-shadow-lg ${
-              activeSnapshot.outcome.winner === 'pagol'
+              activeSnapshot.outcome.winner === 'pagol' ||
+              activeSnapshot.outcome.winner === 'chandabaz' ||
+              activeSnapshot.outcome.winner === 'tiktok_star'
                 ? 'text-purple-300'
                 : activeSnapshot.outcome.winner === 'parabasi'
                   ? 'text-emerald-300'
@@ -1035,9 +1110,13 @@ export default function App() {
           >
             {activeSnapshot.outcome.winner === 'pagol'
               ? 'PAGLA BABA VICTORY!'
-              : activeSnapshot.outcome.winner === 'parabasi'
-                ? 'PARA-BASI VICTORY!'
-                : 'BATPAR VICTORY!'}
+              : activeSnapshot.outcome.winner === 'chandabaz'
+                ? 'CHANDABAZ VICTORY!'
+                : activeSnapshot.outcome.winner === 'tiktok_star'
+                  ? 'TIKTOK STAR VICTORY!'
+                  : activeSnapshot.outcome.winner === 'parabasi'
+                    ? 'PARA-BASI VICTORY!'
+                    : 'BATPAR VICTORY!'}
           </h1>
           <p className="mt-3 max-w-lg text-sm sm:text-base font-semibold text-slate-100">
             {activeSnapshot.outcome.reason === 'tasks_completed'
@@ -1048,8 +1127,17 @@ export default function App() {
                   ? 'Batpar ra pura Moholla dokhol kore nise!'
                   : activeSnapshot.outcome.reason === 'critical_sabotage_timeout'
                     ? 'Gas Phute Pura Para Uthhe Gese!'
-                    : `${activeSnapshot.outcome.winnerPlayerName ?? 'Pagla Baba'} shobai ke ullu banay cup niye gelo!`}
+                    : activeSnapshot.outcome.reason === 'chandabaz_extorted'
+                      ? `${activeSnapshot.outcome.winnerPlayerName ?? 'Chandabaz'} 3 jon theke Chanda tule jite gese!`
+                      : activeSnapshot.outcome.reason === 'tiktok_viral'
+                        ? `${activeSnapshot.outcome.winnerPlayerName ?? 'TikTok Star'} 3 ta Viral Reel chere cup niye nilo!`
+                        : `${activeSnapshot.outcome.winnerPlayerName ?? 'Pagla Baba'} shobai ke ullu banay cup niye gelo!`}
           </p>
+          {activeSnapshot.outcome.coWinnerNames && activeSnapshot.outcome.coWinnerNames.length > 0 && (
+            <p className="mt-2 text-xs font-bold text-purple-200">
+              + Chamcha Co-Win: {activeSnapshot.outcome.coWinnerNames.join(', ')}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => setShowOutcomeModal(true)}
@@ -1078,11 +1166,18 @@ export default function App() {
         />
       )}
 
-      {/* Original Bangla Meme Pack Manager Modal */}
-      {showMemePack && <MemePackModal onClose={() => setShowMemePack(false)} />}
+      {/* Original Bangla Meme Pack Manager Modal (Admin Only) */}
+      {isAdminMode && showMemePack && <MemePackModal onClose={() => setShowMemePack(false)} />}
 
       {/* Rules, Roles & Controls Guide Modal */}
       {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
+
+      {/* Among Us Style Moholla Loading Overlay */}
+      {(loadingSubtitle || (mode === 'multi' && mp.connecting && !activeSnapshot)) && (
+        <MatchLoadingOverlay
+          subtitle={loadingSubtitle ?? 'Connecting to Moholla Room...'}
+        />
+      )}
     </div>
   );
 }

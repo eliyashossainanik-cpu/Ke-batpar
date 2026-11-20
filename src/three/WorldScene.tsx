@@ -19,13 +19,16 @@ import {
   GAS_LEAK_VALVES,
   MAP_HALF_SIZE,
   PLAYER_RADIUS,
+  ROOFTOPS,
   SECURITY_CAMERAS,
+  STAIR_RAMPS,
   TASK_STATIONS,
   VENTS,
   VITALS_POS,
   WALLS,
   ZONES,
   resolveCircleWallCollision,
+  resolvePlayerMoveWithElevation,
 } from '../shared/mapData';
 import { BOHURUPI_GLITCH_RANGE, VISUAL_TASK_VISIBLE_RANGE } from '../shared/gameRules';
 import { createProceduralTextures } from './proceduralTextures';
@@ -82,12 +85,13 @@ export interface WorldSceneProps {
   moveSpeed: number;
   isModalOpen: boolean;
   joystickInputRef: React.MutableRefObject<{ x: number; y: number }>;
-  onLocalMove: (x: number, z: number, vx: number, vz: number, yaw: number) => void;
+  onLocalMove: (x: number, z: number, vx: number, vz: number, yaw: number, y?: number) => void;
   onShakeTriggerRef?: React.MutableRefObject<((amount: number) => void) | null>;
   pointerLookEnabled?: boolean;
   onPointerLookChange?: (enabled: boolean) => void;
   resetCameraRef?: React.MutableRefObject<(() => void) | null>;
   jumpTriggerRef?: React.MutableRefObject<(() => void) | null>;
+  onCompassYawChange?: (yawRad: number) => void;
 }
 
 const _desiredCamPos = new THREE.Vector3();
@@ -113,6 +117,7 @@ export function WorldScene({
   onPointerLookChange,
   resetCameraRef,
   jumpTriggerRef,
+  onCompassYawChange,
 }: WorldSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
 
@@ -124,6 +129,7 @@ export function WorldScene({
   const onLocalMoveRef = useRef(onLocalMove);
   const pointerLookEnabledRef = useRef(pointerLookEnabled);
   const onPointerLookChangeRef = useRef(onPointerLookChange);
+  const onCompassYawChangeRef = useRef(onCompassYawChange);
 
   phaseRef.current = phase;
   snapshotRef.current = snapshot;
@@ -133,6 +139,7 @@ export function WorldScene({
   onLocalMoveRef.current = onLocalMove;
   pointerLookEnabledRef.current = pointerLookEnabled;
   onPointerLookChangeRef.current = onPointerLookChange;
+  onCompassYawChangeRef.current = onCompassYawChange;
 
   useEffect(() => {
     const container = mountRef.current;
@@ -959,6 +966,328 @@ export function WorldScene({
       scene.add(interiorPool);
     }
 
+    // Architectural Finishing: Plinth Foundation Skirts, Recessed Glowing Windows with Grilles,
+    // Walkable Rooftop Terraces, Parapet Railings, Exterior Stepped Staircases & Rooftop Props
+    const archGroup = new THREE.Group();
+    const plinthMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.88, metalness: 0.05 });
+    const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.55, metalness: 0.45 });
+    const grilleMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.35, metalness: 0.78 });
+    const windowGlassMat = new THREE.MeshStandardMaterial({
+      color: '#fef08a',
+      emissive: '#fbbf24',
+      emissiveIntensity: 1.15,
+      roughness: 0.25,
+    });
+    shopTubeMats.push(windowGlassMat);
+
+    const concreteDeckMat = new THREE.MeshStandardMaterial({
+      map: textures.cobbleMap,
+      color: '#cbd5e1',
+      roughness: 0.78,
+      metalness: 0.06,
+    });
+    const stairTreadMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.72, metalness: 0.08 });
+    const handrailMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.32, metalness: 0.75 });
+    const sintexMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.38, metalness: 0.15 });
+    const pvcPipeMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.45 });
+    const roofAcBodyMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.5, metalness: 0.25 });
+    const roofAcFans: THREE.Group[] = [];
+
+    const addFramedWindow = (
+      wx: number,
+      wy: number,
+      wz: number,
+      rotY: number,
+      width = 2.3,
+      height = 1.15,
+    ) => {
+      const wg = new THREE.Group();
+      wg.position.set(wx, wy, wz);
+      wg.rotation.y = rotY;
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(width + 0.24, height + 0.22, 1.06), frameMat);
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, height - 0.12, 1.08), windowGlassMat);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(width + 0.38, 0.11, 1.24), plinthMat);
+      sill.position.y = -height * 0.5 - 0.06;
+      wg.add(frame, pane, sill);
+      // Security grille bars (classic Moholla iron window grills)
+      for (const gx of [-width * 0.26, 0, width * 0.26]) {
+        const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.045, height - 0.12, 1.12), grilleMat);
+        vBar.position.x = gx;
+        wg.add(vBar);
+      }
+      const hBar = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, 0.045, 1.12), grilleMat);
+      wg.add(hBar);
+      archGroup.add(wg);
+    };
+
+    for (const b of cornerBuildings) {
+      const [bx1, bx2, bz1, bz2] = b.bounds;
+      const midX = (bx1 + bx2) / 2;
+      const midZ = (bz1 + bz2) / 2;
+      const wSpan = bx2 - bx1;
+      const dSpan = bz2 - bz1;
+      const hasSouthDoor = b.id === 'cha_dokan' || b.id === 'rickshaw_garage';
+      const hasNorthDoor = b.id === 'desco_power' || b.id === 'dish_roof';
+      const hasEastDoor = b.id === 'saloon_goli' || b.id === 'pharmacy_mor';
+
+      // Ground plinth foundation skirts
+      if (!hasNorthDoor) {
+        const pn = new THREE.Mesh(new THREE.BoxGeometry(wSpan + 0.3, 0.38, 1.18), plinthMat);
+        pn.position.set(midX, 0.19, bz1 + 0.45);
+        archGroup.add(pn);
+        addFramedWindow(midX - 4.2, 1.78, bz1 + 0.45, 0);
+        addFramedWindow(midX + 4.2, 1.78, bz1 + 0.45, 0);
+      } else {
+        const pnStub = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.38, 1.18), plinthMat);
+        pnStub.position.set(b.id === 'desco_power' ? bx1 + 4.4 : bx2 - 4.4, 0.19, bz1 + 0.45);
+        archGroup.add(pnStub);
+      }
+      if (!hasSouthDoor) {
+        const ps = new THREE.Mesh(new THREE.BoxGeometry(wSpan + 0.3, 0.38, 1.18), plinthMat);
+        ps.position.set(midX, 0.19, bz2 - 0.45);
+        archGroup.add(ps);
+        addFramedWindow(midX - 4.2, 1.78, bz2 - 0.45, 0);
+        addFramedWindow(midX + 4.2, 1.78, bz2 - 0.45, 0);
+      } else {
+        const psStub = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.38, 1.18), plinthMat);
+        psStub.position.set(b.id === 'cha_dokan' ? bx1 + 4.4 : bx2 - 4.4, 0.19, bz2 - 0.45);
+        archGroup.add(psStub);
+      }
+      const pw = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, dSpan + 0.3), plinthMat);
+      pw.position.set(bx1 + 0.45, 0.19, midZ);
+      archGroup.add(pw);
+      addFramedWindow(bx1 + 0.45, 1.78, midZ - 4.0, Math.PI / 2);
+      addFramedWindow(bx1 + 0.45, 1.78, midZ + 4.0, Math.PI / 2);
+
+      if (!hasEastDoor) {
+        const pe = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, dSpan + 0.3), plinthMat);
+        pe.position.set(bx2 - 0.45, 0.19, midZ);
+        archGroup.add(pe);
+        addFramedWindow(bx2 - 0.45, 1.78, midZ - 4.0, Math.PI / 2);
+        addFramedWindow(bx2 - 0.45, 1.78, midZ + 4.0, Math.PI / 2);
+      }
+    }
+
+    // Walkable Rooftop Slabs + Parapet Railings + Rooftop Props
+    for (const deck of ROOFTOPS) {
+      const rw = deck.maxX - deck.minX;
+      const rd = deck.maxZ - deck.minZ;
+      const rcx = (deck.minX + deck.maxX) / 2;
+      const rcz = (deck.minZ + deck.maxZ) / 2;
+      const topY = deck.elevationY;
+      const capMat = zoneCopingMatMap[deck.zoneId] ?? copingMat;
+
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(rw + 0.25, 0.26, rd + 0.25), concreteDeckMat);
+      slab.position.set(rcx, topY - 0.13, rcz);
+      slab.receiveShadow = true;
+      slab.castShadow = !isSoftwareGl;
+      archGroup.add(slab);
+
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(rw + 0.42, 0.1, rd + 0.42), capMat);
+      trim.position.set(rcx, topY - 0.28, rcz);
+      archGroup.add(trim);
+
+      // Build Parapet walls around the 4 edges leaving openings where exterior stairs meet the deck
+      const paraH = 0.88;
+      const paraT = 0.28;
+      const paraY = topY + paraH / 2;
+
+      const addSegmentedEdge = (isNS: boolean, fixedCoord: number, start: number, end: number) => {
+        const cuts = deck.stairOpenings
+          .filter((op) =>
+            isNS
+              ? fixedCoord >= op.minZ - 0.4 && fixedCoord <= op.maxZ + 0.4
+              : fixedCoord >= op.minX - 0.4 && fixedCoord <= op.maxX + 0.4,
+          )
+          .map((op) => (isNS ? [op.minX, op.maxX] : [op.minZ, op.maxZ]) as [number, number])
+          .sort((a, b) => a[0] - b[0]);
+
+        let cursor = start;
+        const segments: Array<[number, number]> = [];
+        for (const [cs, ce] of cuts) {
+          if (cs > cursor + 0.25) segments.push([cursor, Math.min(end, cs)]);
+          cursor = Math.max(cursor, ce);
+        }
+        if (cursor < end - 0.25) segments.push([cursor, end]);
+
+        for (const [s0, s1] of segments) {
+          const len = s1 - s0;
+          if (len <= 0.2) continue;
+          const mid = (s0 + s1) / 2;
+          const para = new THREE.Mesh(
+            new THREE.BoxGeometry(isNS ? len : paraT, paraH, isNS ? paraT : len),
+            alleyWallMat,
+          );
+          para.position.set(isNS ? mid : fixedCoord, paraY, isNS ? fixedCoord : mid);
+          para.castShadow = !isSoftwareGl;
+          para.receiveShadow = true;
+          const rail = new THREE.Mesh(
+            new THREE.BoxGeometry(isNS ? len + 0.08 : paraT + 0.08, 0.09, isNS ? paraT + 0.08 : len + 0.08),
+            capMat,
+          );
+          rail.position.set(isNS ? mid : fixedCoord, topY + paraH + 0.045, isNS ? fixedCoord : mid);
+          archGroup.add(para, rail);
+        }
+      };
+
+      addSegmentedEdge(true, deck.minZ + paraT / 2, deck.minX, deck.maxX);
+      addSegmentedEdge(true, deck.maxZ - paraT / 2, deck.minX, deck.maxX);
+      addSegmentedEdge(false, deck.minX + paraT / 2, deck.minZ, deck.maxZ);
+      addSegmentedEdge(false, deck.maxX - paraT / 2, deck.minZ, deck.maxZ);
+
+      // Rooftop Props: Sintex Ribbed Water Tank (cha_roof, saloon_roof, pharm_roof)
+      if (deck.id === 'cha_roof' || deck.id === 'saloon_roof' || deck.id === 'pharm_roof') {
+        const tx = deck.minX + 1.85;
+        const tz = deck.minZ + 1.85;
+        const plinth = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, 2.0), plinthMat);
+        plinth.position.set(tx, topY + 0.13, tz);
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 1.55, 16), sintexMat);
+        tank.position.set(tx, topY + 1.03, tz);
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.76, 0.18, 16), capMat);
+        lid.position.set(tx, topY + 1.86, tz);
+        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), pvcPipeMat);
+        pipe.rotation.z = Math.PI / 2;
+        pipe.position.set(tx + 1.15, topY + 0.45, tz);
+        archGroup.add(plinth, tank, lid, pipe);
+      }
+
+      // Rooftop Props: Addis / Tea Benches + Warm Lanterns on Cha & Rickshaw Roofs
+      if (deck.id === 'cha_roof' || deck.id === 'rick_roof') {
+        const bx = rcx + 2.5;
+        const bz = rcz - 0.6;
+        const benchMat = new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.72 });
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.14, 0.9), benchMat);
+        bench.position.set(bx, topY + 0.48, bz);
+        for (const lx of [-1.0, 1.0]) {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.44, 0.8), handrailMat);
+          leg.position.set(bx + lx, topY + 0.22, bz);
+          archGroup.add(leg);
+        }
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.85, 8), handrailMat);
+        post.position.set(bx + 2.2, topY + 0.92, bz);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), windowGlassMat);
+        bulb.position.set(bx + 2.2, topY + 1.88, bz);
+        archGroup.add(bench, post, bulb);
+      }
+
+      // Rooftop Props: Spinning Outdoor AC Condenser Units on DESCO & Dish Terraces
+      if (deck.id === 'desco_roof' || deck.id === 'dish_deck') {
+        const acX = deck.id === 'desco_roof' ? deck.maxX - 2.2 : deck.minX + 1.4;
+        const acZ = deck.id === 'desco_roof' ? deck.maxZ - 1.4 : deck.minZ + 2.2;
+        const acBox = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.85, 0.65), roofAcBodyMat);
+        acBox.position.set(acX, topY + 0.44, acZ);
+        const grilleRing = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.035, 8, 18), frameMat);
+        grilleRing.position.set(acX - 0.15, topY + 0.45, acZ + 0.34);
+        const fanGrp = new THREE.Group();
+        fanGrp.position.set(acX - 0.15, topY + 0.45, acZ + 0.32);
+        const bladeA = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.03), sintexMat);
+        const bladeB = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.46, 0.03), sintexMat);
+        fanGrp.add(bladeA, bladeB);
+        scene.add(fanGrp);
+        roofAcFans.push(fanGrp);
+        archGroup.add(acBox, grilleRing);
+      }
+
+      // Rooftop Props: Dish Observatory Satellite Dish on Dish Terrace
+      if (deck.id === 'dish_deck') {
+        const dx = rcx - 0.4;
+        const dz = rcz - 3.6;
+        const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 1.1, 10), handrailMat);
+        stand.position.set(dx, topY + 0.55, dz);
+        const dishBowl = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.95, 0.25, 0.36, 18),
+          new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35, metalness: 0.3 }),
+        );
+        dishBowl.position.set(dx, topY + 1.28, dz);
+        dishBowl.rotation.x = 0.65;
+        dishBowl.rotation.z = -0.35;
+        const lnb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
+        lnb.position.set(dx + 0.22, topY + 1.72, dz + 0.42);
+        archGroup.add(stand, dishBowl, lnb);
+      }
+    }
+
+    // Exterior Stepped Staircases with Stringers, Upper Landings & Tubular Handrails
+    for (const st of STAIR_RAMPS) {
+      const isZ = st.axis === 'z';
+      const wX = st.maxX - st.minX;
+      const wZ = st.maxZ - st.minZ;
+      const cx = (st.minX + st.maxX) / 2;
+      const cz = (st.minZ + st.maxZ) / 2;
+      const stepSpan = st.topCoord - st.bottomCoord;
+      const stepAbsSpan = Math.abs(stepSpan);
+      const stepDepth = stepAbsSpan / st.steps;
+      const stepRise = st.topY / st.steps;
+
+      // Stepped solid concrete treads
+      for (let i = 0; i < st.steps; i++) {
+        const frac = (i + 0.5) / st.steps;
+        const coord = st.bottomCoord + stepSpan * frac;
+        const treadTop = stepRise * (i + 1);
+        const tread = new THREE.Mesh(
+          new THREE.BoxGeometry(isZ ? wX - 0.12 : stepDepth + 0.04, treadTop, isZ ? stepDepth + 0.04 : wZ - 0.12),
+          stairTreadMat,
+        );
+        tread.position.set(isZ ? cx : coord, treadTop / 2, isZ ? coord : cz);
+        tread.receiveShadow = true;
+        tread.castShadow = !isSoftwareGl;
+        archGroup.add(tread);
+      }
+
+      // Upper landing platform connecting flush into roof stairOpening
+      const landMin = isZ ? Math.min(st.minZ, st.topCoord) : Math.min(st.minX, st.topCoord);
+      const landMax = isZ ? Math.max(st.maxZ, st.topCoord) : Math.max(st.maxX, st.topCoord);
+      const landSpan =
+        Math.abs(st.topCoord - (st.bottomCoord > st.topCoord ? landMin : landMax));
+      if (landSpan > 0.25) {
+        const landMid =
+          st.bottomCoord > st.topCoord
+            ? (landMin + st.topCoord) / 2
+            : (st.topCoord + landMax) / 2;
+        const landing = new THREE.Mesh(
+          new THREE.BoxGeometry(isZ ? wX : landSpan, 0.26, isZ ? landSpan : wZ),
+          concreteDeckMat,
+        );
+        landing.position.set(isZ ? cx : landMid, st.topY - 0.13, isZ ? landMid : cz);
+        landing.receiveShadow = true;
+        archGroup.add(landing);
+      }
+
+      // Side Slanted Handrails + Vertical Stanchion Posts
+      const railLen = Math.hypot(stepAbsSpan, st.topY);
+      const slopeAngle = Math.atan2(st.topY, stepAbsSpan) * (stepSpan < 0 ? 1 : -1);
+      const midRampCoord = (st.bottomCoord + st.topCoord) / 2;
+      for (const side of [-1, 1]) {
+        const offset = (isZ ? wX : wZ) * 0.46 * side;
+        const rail = new THREE.Mesh(
+          new THREE.BoxGeometry(isZ ? 0.07 : railLen, 0.07, isZ ? railLen : 0.07),
+          handrailMat,
+        );
+        rail.position.set(
+          isZ ? cx + offset : midRampCoord,
+          st.topY * 0.5 + 0.92,
+          isZ ? midRampCoord : cz + offset,
+        );
+        if (isZ) rail.rotation.x = slopeAngle;
+        else rail.rotation.z = -slopeAngle;
+        archGroup.add(rail);
+
+        for (const pf of [0.1, 0.5, 0.92]) {
+          const pCoord = st.bottomCoord + stepSpan * pf;
+          const pBaseY = st.topY * pf;
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.92, 6), handrailMat);
+          post.position.set(
+            isZ ? cx + offset : pCoord,
+            pBaseY + 0.46,
+            isZ ? pCoord : cz + offset,
+          );
+          archGroup.add(post);
+        }
+      }
+    }
+
+    scene.add(optimizeStaticGroup(archGroup));
+
     // Overhead District Arch Signboards for Open-Air Plazas (Adda Chowk, Pukur Ghat, Bazar, Eidgah, WASA)
     addDoubleSidedBillboard(textures.addaSignMap, [0, 5.75, -9.5], 0, 5.2, 1.45, true, '#b45309');
     addDoubleSidedBillboard(textures.pukurSignMap, [-37.8, 4.15, -8.2], 0, 4.6, 1.3, true, '#0e7490');
@@ -1386,6 +1715,7 @@ export function WorldScene({
         prevZ: number;
         targetX: number;
         targetZ: number;
+        targetY: number;
         targetYaw: number;
         displayKey: string;
       }
@@ -1460,7 +1790,8 @@ export function WorldScene({
       (phaseRef.current === 'playing' || phaseRef.current === 'lobby') && !isModalOpenRef.current;
 
     let localPosX = 0;
-    let localPosY = 0;
+    let localFloorY = 0;
+    let localJumpY = 0;
     let localPosZ = 3.8;
     let localVelX = 0;
     let localVelY = 0;
@@ -1478,10 +1809,10 @@ export function WorldScene({
         lp &&
         !lp.inVent &&
         !isModalOpenRef.current &&
-        localPosY <= 0.04
+        localJumpY <= 0.04
       ) {
         localVelY = 8.4;
-        localPosY = 0.05;
+        localJumpY = 0.05;
         soundEngine.playJump();
       }
     };
@@ -1632,6 +1963,8 @@ export function WorldScene({
     let initializedLocalFromSnap = false;
     let footstepAccum = 0;
     let lastNetSendAt = 0;
+    let lastCompassSendAt = 0;
+    let lastSentCompassYaw = NaN;
     let elapsed = 0;
     let lastTime = performance.now();
     let frameId = 0;
@@ -1690,7 +2023,7 @@ export function WorldScene({
             textures.contactShadowMap,
             isSoftwareGl,
           );
-          rig.root.position.set(p.x, 0, p.z);
+          rig.root.position.set(p.x, p.y ?? 0, p.z);
           rig.root.rotation.y = p.yaw;
           scene.add(rig.root);
           entry = {
@@ -1699,6 +2032,7 @@ export function WorldScene({
             prevZ: p.z,
             targetX: p.x,
             targetZ: p.z,
+            targetY: p.y ?? 0,
             targetYaw: p.yaw,
             displayKey: nextDisplayKey,
           };
@@ -1711,6 +2045,8 @@ export function WorldScene({
         const isLocal = p.id === localId;
         if (isLocal && !initializedLocalFromSnap) {
           localPosX = p.x;
+          localFloorY = p.y ?? 0;
+          localJumpY = 0;
           localPosZ = p.z;
           localYaw = p.yaw;
           initializedLocalFromSnap = true;
@@ -1811,21 +2147,23 @@ export function WorldScene({
         }
 
         // Reset any cutscene tilt when back to normal gameplay
-        entry.rig.root.position.y = 0;
         entry.rig.root.rotation.x = 0;
         entry.rig.root.rotation.z = 0;
 
         if (isLocal) {
           entry.targetX = localPosX;
           entry.targetZ = localPosZ;
+          entry.targetY = localFloorY;
           entry.targetYaw = localYaw;
-          entry.rig.root.position.set(localPosX, 0, localPosZ);
+          entry.rig.root.position.set(localPosX, localFloorY, localPosZ);
           entry.rig.root.rotation.y = localYaw;
         } else {
           entry.targetX = p.x;
           entry.targetZ = p.z;
+          entry.targetY = p.y ?? 0;
           entry.targetYaw = p.yaw;
           entry.rig.root.position.x = THREE.MathUtils.damp(entry.rig.root.position.x, entry.targetX, 16, dt);
+          entry.rig.root.position.y = THREE.MathUtils.damp(entry.rig.root.position.y, entry.targetY, 16, dt);
           entry.rig.root.position.z = THREE.MathUtils.damp(entry.rig.root.position.z, entry.targetZ, 16, dt);
 
           let diff = entry.targetYaw - entry.rig.root.rotation.y;
@@ -1844,7 +2182,7 @@ export function WorldScene({
           dt,
           elapsed,
           isLocal ? localTurnBank : 0,
-          isLocal ? localPosY : 0,
+          isLocal ? localJumpY : 0,
           isLocal ? localVelY : 0,
           isLocal ? landSquash : 0,
         );
@@ -1943,6 +2281,9 @@ export function WorldScene({
       chaStall.ceilingFan.rotation.y = elapsed * 7.5;
       saloonProps.ceilingFan.rotation.y = elapsed * 6.8;
       desco.exhaustFan.rotation.x = elapsed * 8.2;
+      for (const acFan of roofAcFans) {
+        acFan.rotation.z = elapsed * 9.6;
+      }
       dishHub.serverLeds.forEach((led, idx) => {
         led.color.setHex((Math.floor(elapsed * 4 + idx) % 3 === 0) ? 0x38bdf8 : 0x22c55e);
       });
@@ -2043,6 +2384,8 @@ export function WorldScene({
             curPhase === 'role_reveal')
         ) {
           localPosX = localPlayer.x;
+          localFloorY = localPlayer.y ?? 0;
+          localJumpY = 0;
           localPosZ = localPlayer.z;
           localYaw = localPlayer.yaw;
         }
@@ -2079,7 +2422,17 @@ export function WorldScene({
         camPitch += (targetCamPitch - camPitch) * rotSmooth;
         camDist += (targetCamDist - camDist) * rotSmooth;
 
-        // Movement: Smoothed Momentum WASD + Joystick + Shift Sprint + 2-Substep Wall Sliding
+        if (
+          onCompassYawChangeRef.current &&
+          now - lastCompassSendAt >= 65 &&
+          (Number.isNaN(lastSentCompassYaw) || Math.abs(lastSentCompassYaw - camYaw) > 0.012)
+        ) {
+          lastCompassSendAt = now;
+          lastSentCompassYaw = camYaw;
+          onCompassYawChangeRef.current(camYaw);
+        }
+
+        // Movement: Smoothed Momentum WASD + Joystick + Shift Sprint + 2-Substep Wall & Rooftop Stair Sliding
         let isSprinting = false;
         localTurnBank = THREE.MathUtils.damp(localTurnBank, 0, 14, dt);
 
@@ -2133,10 +2486,14 @@ export function WorldScene({
           if (curSpd > 0.08) {
             let nextX = localPosX;
             let nextZ = localPosZ;
+            let nextFloorY = localFloorY;
             const subDt = dt * 0.5;
             for (let sub = 0; sub < 2; sub++) {
               if (localPlayer.alive) {
-                const res = resolveCircleWallCollision(
+                const res = resolvePlayerMoveWithElevation(
+                  nextX,
+                  nextZ,
+                  nextFloorY,
                   nextX + localVelX * subDt,
                   nextZ + localVelZ * subDt,
                   PLAYER_RADIUS,
@@ -2145,15 +2502,18 @@ export function WorldScene({
                 );
                 nextX = res.x;
                 nextZ = res.z;
+                nextFloorY = res.y;
               } else {
                 nextX = Math.max(-MAP_HALF_SIZE + 1, Math.min(MAP_HALF_SIZE - 1, nextX + localVelX * subDt));
                 nextZ = Math.max(-MAP_HALF_SIZE + 1, Math.min(MAP_HALF_SIZE - 1, nextZ + localVelZ * subDt));
+                nextFloorY = 0;
               }
             }
 
             const stepDist = Math.hypot(nextX - localPosX, nextZ - localPosZ);
             localPosX = nextX;
             localPosZ = nextZ;
+            localFloorY = nextFloorY;
 
             if (len > 0.05) {
               const targetYaw = Math.atan2(targetVx, targetVz);
@@ -2164,7 +2524,7 @@ export function WorldScene({
               localTurnBank = THREE.MathUtils.clamp(yawDiff * 0.28, -0.16, 0.16);
             }
 
-            if (localPlayer.alive && stepDist > 0.001 && localPosY <= 0.04) {
+            if (localPlayer.alive && stepDist > 0.001 && localJumpY <= 0.04) {
               footstepAccum += stepDist;
               if (footstepAccum > (isSprinting ? 1.5 : 1.65)) {
                 footstepAccum = 0;
@@ -2174,14 +2534,14 @@ export function WorldScene({
 
             if (now - lastNetSendAt > 45) {
               lastNetSendAt = now;
-              onLocalMoveRef.current(localPosX, localPosZ, localVelX, localVelZ, localYaw);
+              onLocalMoveRef.current(localPosX, localPosZ, localVelX, localVelZ, localYaw, localFloorY);
             }
           } else {
             localVelX = 0;
             localVelZ = 0;
             if (now - lastNetSendAt > 120 && (Math.abs(localPlayer.vx) > 0.1 || Math.abs(localPlayer.vz) > 0.1)) {
               lastNetSendAt = now;
-              onLocalMoveRef.current(localPosX, localPosZ, 0, 0, localYaw);
+              onLocalMoveRef.current(localPosX, localPosZ, 0, 0, localYaw, localFloorY);
             }
           }
         } else {
@@ -2189,17 +2549,17 @@ export function WorldScene({
           localVelZ = 0;
         }
 
-        // Vertical Jump & Landing Squash Kinematics
+        // Vertical Jump & Landing Squash Kinematics (relative to walkable floor/stair/roof elevation)
         landSquash = Math.max(0, landSquash - dt * 4.5);
-        if (localPosY > 0 || localVelY > 0) {
-          localPosY += localVelY * dt;
+        if (localJumpY > 0 || localVelY > 0) {
+          localJumpY += localVelY * dt;
           localVelY -= 22.0 * dt;
-          if (localPosY <= 0) {
+          if (localJumpY <= 0) {
             if (localVelY < -2.2) {
               landSquash = 0.85;
               soundEngine.playLand();
             }
-            localPosY = 0;
+            localJumpY = 0;
             localVelY = 0;
           }
         }
@@ -2265,13 +2625,13 @@ export function WorldScene({
           lb.intensity = THREE.MathUtils.damp(lb.intensity, targetLamp * prankFlicker, 12, dt);
         }
 
-        lanternLight.position.set(localPosX, 2.9, localPosZ);
+        lanternLight.position.set(localPosX, localFloorY + 2.9, localPosZ);
 
         // Dynamic Texel-Snapped Tight Shadow Frustum around local player for ultra-crisp shadows
         const sx = Math.round(localPosX);
         const sz = Math.round(localPosZ);
-        keyLight.target.position.set(sx, 0, sz);
-        keyLight.position.set(sx + 24, 38, sz + 20);
+        keyLight.target.position.set(sx, localFloorY, sz);
+        keyLight.position.set(sx + 24, localFloorY + 38, sz + 20);
         keyLight.target.updateMatrixWorld();
         if (keyLight.shadow.camera.right !== playShadowSpan) {
           keyLight.shadow.camera.left = -playShadowSpan;
@@ -2356,15 +2716,15 @@ export function WorldScene({
 
           const horizDist = camDist * Math.cos(camPitch);
           const skyLift = camPitch < 0.08 ? (0.08 - camPitch) * 9.5 : 0;
-          const jumpCamY = localPosY * 0.42;
-          _desiredLook.set(localPosX, 1.32 + jumpCamY + skyLift, localPosZ);
+          const playerCamY = localFloorY + localJumpY * 0.42;
+          _desiredLook.set(localPosX, 1.32 + playerCamY + skyLift, localPosZ);
           _desiredCamPos.set(
             localPosX + Math.sin(camYaw) * horizDist,
-            1.32 + jumpCamY + camDist * Math.sin(camPitch),
+            1.32 + playerCamY + camDist * Math.sin(camPitch),
             localPosZ + Math.cos(camYaw) * horizDist,
           );
 
-          _rayOrigin.set(localPosX, 1.32 + jumpCamY, localPosZ);
+          _rayOrigin.set(localPosX, 1.32 + playerCamY, localPosZ);
           _rayDir.subVectors(_desiredCamPos, _rayOrigin);
           const maxCamDist = _rayDir.length();
           _rayDir.normalize();

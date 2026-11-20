@@ -6,13 +6,17 @@ import {
 } from '../shared/types';
 import {
   ADMIN_TABLE_POS,
+  DOORS,
   EMERGENCY_BELL_POS,
   GAS_LEAK_VALVES,
   MAP_HALF_SIZE,
+  ROOFTOPS,
   SECURITY_CAMS_POS,
+  STAIR_RAMPS,
   TASK_STATIONS,
   VENTS,
   VITALS_POS,
+  WALLS,
   ZONES,
 } from '../shared/mapData';
 import { canCompleteTasks } from '../shared/gameRules';
@@ -110,9 +114,9 @@ export function TacticalMapModal({
                 rx="4"
               />
 
-              {/* Main Roads & Outer Boulevard */}
-              <rect x={-10} y={-MAP_HALF_SIZE} width={20} height={MAP_HALF_SIZE * 2} fill="#1e293b" opacity={0.65} />
-              <rect x={-MAP_HALF_SIZE} y={-10} width={MAP_HALF_SIZE * 2} height={20} fill="#1e293b" opacity={0.65} />
+              {/* Main Roads, Crosswalks, Outer Boulevard & South Rail Crossing */}
+              <rect x={-10} y={-MAP_HALF_SIZE} width={20} height={MAP_HALF_SIZE * 2} fill="#1e293b" opacity={0.68} />
+              <rect x={-MAP_HALF_SIZE} y={-10} width={MAP_HALF_SIZE * 2} height={20} fill="#1e293b" opacity={0.68} />
               <rect
                 x={-54}
                 y={-54}
@@ -120,9 +124,18 @@ export function TacticalMapModal({
                 height={108}
                 fill="none"
                 stroke="#334155"
-                strokeWidth="4"
+                strokeWidth="4.2"
                 strokeDasharray="3 2"
               />
+              {/* South Rail Crossing Tracks */}
+              <line x1={-MAP_HALF_SIZE + 4} y1={63.2} x2={MAP_HALF_SIZE - 4} y2={63.2} stroke="#64748b" strokeWidth="0.6" />
+              <line x1={-MAP_HALF_SIZE + 4} y1={65.4} x2={MAP_HALF_SIZE - 4} y2={65.4} stroke="#64748b" strokeWidth="0.6" />
+              <line x1={-MAP_HALF_SIZE + 4} y1={64.3} x2={MAP_HALF_SIZE - 4} y2={64.3} stroke="#475569" strokeWidth="2.4" strokeDasharray="0.9 1.6" />
+              {/* Center Adda Chowk Zebra Crosswalk Hints */}
+              <line x1={-7} y1={-11.5} x2={7} y2={-11.5} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
+              <line x1={-7} y1={11.5} x2={7} y2={11.5} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
+              <line x1={-11.5} y1={-7} x2={-11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
+              <line x1={11.5} y1={-7} x2={11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <text x={0} y={-51.8} textAnchor="middle" fill="#64748b" fontSize="2.3" fontWeight="700">
                 NORTH RING ROAD
               </text>
@@ -151,9 +164,9 @@ export function TacticalMapModal({
                       width={z.width}
                       height={z.depth}
                       fill={z.color}
-                      fillOpacity={0.62}
-                      stroke={lockedSec > 0 ? '#f59e0b' : '#94a3b8'}
-                      strokeWidth={lockedSec > 0 ? '1.3' : '0.7'}
+                      fillOpacity={0.54}
+                      stroke={lockedSec > 0 ? '#f59e0b' : '#64748b'}
+                      strokeWidth={lockedSec > 0 ? '1.3' : '0.55'}
                       rx="2"
                     />
                     {lockedSec > 0 && (
@@ -169,6 +182,130 @@ export function TacticalMapModal({
                       </text>
                     )}
                   </g>
+                );
+              })}
+
+              {/* Layer 1B: Precision Architecture — Pukur Water, Building Walls, Rooftops & Stairs */}
+              {WALLS.map((w) => {
+                if (w.id === 'pukur_water') {
+                  return (
+                    <g key={w.id}>
+                      <rect
+                        x={w.minX}
+                        y={w.minZ}
+                        width={w.maxX - w.minX}
+                        height={w.maxZ - w.minZ}
+                        fill="#0284c7"
+                        fillOpacity={0.78}
+                        stroke="#7dd3fc"
+                        strokeWidth="0.6"
+                        rx="1.2"
+                      />
+                      <line x1={w.maxX} y1={-4} x2={w.maxX} y2={4} stroke="#cbd5e1" strokeWidth="1.2" />
+                    </g>
+                  );
+                }
+                const isOuter = w.id.startsWith('outer_');
+                const isLowProp = w.height <= 1.9;
+                return (
+                  <rect
+                    key={w.id}
+                    x={w.minX}
+                    y={w.minZ}
+                    width={Math.max(0.9, w.maxX - w.minX)}
+                    height={Math.max(0.9, w.maxZ - w.minZ)}
+                    fill={isOuter ? '#475569' : isLowProp ? '#78350f' : '#94a3b8'}
+                    fillOpacity={isOuter ? 0.85 : isLowProp ? 0.72 : 0.88}
+                    rx="0.3"
+                  />
+                );
+              })}
+
+              {/* Walkable Chhad Rooftop Decks */}
+              {ROOFTOPS.map((r) => (
+                <rect
+                  key={r.id}
+                  x={r.minX}
+                  y={r.minZ}
+                  width={r.maxX - r.minX}
+                  height={r.maxZ - r.minZ}
+                  fill="#38bdf8"
+                  fillOpacity={0.09}
+                  stroke="#38bdf8"
+                  strokeOpacity={0.55}
+                  strokeWidth="0.55"
+                  strokeDasharray="1.8 1.2"
+                  rx="0.8"
+                />
+              ))}
+
+              {/* Exterior Staircases to Rooftops */}
+              {STAIR_RAMPS.map((st) => {
+                const w = st.maxX - st.minX;
+                const d = st.maxZ - st.minZ;
+                const treadLines = 5;
+                return (
+                  <g key={st.id}>
+                    <rect
+                      x={st.minX}
+                      y={st.minZ}
+                      width={w}
+                      height={d}
+                      fill="#f59e0b"
+                      fillOpacity={0.35}
+                      stroke="#fbbf24"
+                      strokeWidth="0.55"
+                      rx="0.4"
+                    />
+                    {Array.from({ length: treadLines }, (_, i) => {
+                      const t = (i + 1) / (treadLines + 1);
+                      if (st.axis === 'z') {
+                        const yPos = st.minZ + d * t;
+                        return (
+                          <line
+                            key={i}
+                            x1={st.minX + 0.3}
+                            y1={yPos}
+                            x2={st.maxX - 0.3}
+                            y2={yPos}
+                            stroke="#fde68a"
+                            strokeWidth="0.4"
+                          />
+                        );
+                      }
+                      const xPos = st.minX + w * t;
+                      return (
+                        <line
+                          key={i}
+                          x1={xPos}
+                          y1={st.minZ + 0.3}
+                          x2={xPos}
+                          y2={st.maxZ - 0.3}
+                          stroke="#fde68a"
+                          strokeWidth="0.4"
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })}
+
+              {/* Rolling Tin Shutters (Live Door Lock Status) */}
+              {DOORS.map((d) => {
+                const locked = snapshot.doorLocks[d.zoneId] > 0;
+                return (
+                  <rect
+                    key={d.id}
+                    x={d.minX}
+                    y={d.minZ}
+                    width={Math.max(1, d.maxX - d.minX)}
+                    height={Math.max(1, d.maxZ - d.minZ)}
+                    fill={locked ? '#f59e0b' : '#334155'}
+                    fillOpacity={locked ? 0.95 : 0.45}
+                    stroke={locked ? '#fef3c7' : '#64748b'}
+                    strokeWidth={locked ? '0.6' : '0.35'}
+                    rx="0.3"
+                  />
                 );
               })}
 
@@ -337,28 +474,27 @@ export function TacticalMapModal({
                 )
               )}
 
-              {/* Local Player Live Marker */}
+              {/* Local Player Live Directional Chevron & Vision Cone */}
               <g>
-                <circle
-                  cx={localPlayer.x}
-                  cy={localPlayer.z}
-                  r={4.5}
-                  fill="none"
-                  stroke="#ffffff"
-                  strokeWidth="0.8"
-                  strokeOpacity={0.75}
-                />
-                <circle
-                  cx={localPlayer.x}
-                  cy={localPlayer.z}
-                  r={2.6}
-                  fill={playerColorSpec.hex}
-                  stroke="#ffffff"
-                  strokeWidth="0.9"
-                />
+                <g
+                  transform={`translate(${localPlayer.x}, ${localPlayer.z}) rotate(${180 - (localPlayer.yaw * 180) / Math.PI})`}
+                >
+                  <path
+                    d="M 0 0 L -7 -14 A 15.5 15.5 0 0 1 7 -14 Z"
+                    fill="#38bdf8"
+                    fillOpacity={0.22}
+                  />
+                  <polygon
+                    points="0,-4.4 3.4,3.2 0,1.4 -3.4,3.2"
+                    fill={playerColorSpec.hex}
+                    stroke="#ffffff"
+                    strokeWidth="0.9"
+                    strokeLinejoin="round"
+                  />
+                </g>
                 <text
                   x={localPlayer.x}
-                  y={localPlayer.z + 6.4}
+                  y={localPlayer.z + 7.2}
                   textAnchor="middle"
                   fill="#ffffff"
                   stroke="#090f1d"
@@ -367,7 +503,7 @@ export function TacticalMapModal({
                   fontSize="2.4"
                   fontWeight="800"
                 >
-                  YOU
+                  YOU{(localPlayer.y ?? 0) >= 2.2 ? ' (CHHAD)' : ''}
                 </text>
               </g>
 
@@ -489,6 +625,9 @@ export function TacticalMapModal({
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> Vitals Clinic
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded bg-amber-400/70 border border-amber-300 inline-block" /> Rooftop Stairs
               </span>
               {showVents && (
                 <span className="flex items-center gap-1.5">

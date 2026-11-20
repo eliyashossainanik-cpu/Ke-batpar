@@ -8,21 +8,29 @@ import {
   JHARUDAR_CLEAN_USES,
   MISTRI_VENT_AUDIBLE_RANGE,
   advanceSabotageState,
+  applyDalalBrokerJam,
   assignMatchTasks,
   assignRoles,
   assignSpecialRoles,
   canCompleteTasks,
   canExecuteKill,
   canUseVent,
+  collectChandaFromTarget,
   computeTaskProgress,
   createEmptySabotageState,
   createPlayerTasks,
   createSabotageState,
   evaluateMatchOutcome,
   executeGoyendaScan,
+  findGhotokPairCandidates,
+  findGhotokPartnerOnDeath,
+  findNearestChamchaPatron,
+  findNearestChandabazTarget,
   findNearestCleanableBody,
   findNearestDarogaTarget,
+  findNearestHaturTarget,
   findNearestInspectableBody,
+  findNearestMasterTarget,
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
@@ -31,10 +39,14 @@ import {
   getDirectionCompass,
   getPlayerVoteWeight,
   inspectBodyClue,
+  inspectPlayerTaskAuthenticity,
   isCriticalSabotage,
   isMistriVentAudibleTo,
+  isPlayerShieldedNow,
   isTaskLockedBySabotage,
   makeDefaultPlayerState,
+  pickSupariContractTarget,
+  recordTiktokReelInZone,
   redactSnapshotForPlayer,
   resolveDarogaShot,
   resolveVentHopTarget,
@@ -45,13 +57,22 @@ import {
 import {
   BOT_WAYPOINTS,
   PLAYER_RADIUS,
+  ROOFTOPS,
   SPAWN_RING,
+  STAIR_RAMPS,
   TASK_STATIONS,
   VENTS,
   WALLS,
+  getWalkableFloorY,
   resolveCircleWallCollision,
+  resolvePlayerMoveWithElevation,
 } from './mapData';
-import type { BodyMarker, DoorLockState, PlayerState } from './types';
+import {
+  PLAYER_COLORS,
+  type BodyMarker,
+  type DoorLockState,
+  type PlayerState,
+} from './types';
 
 function makePlayer(overrides: Partial<PlayerState>): PlayerState {
   return makeDefaultPlayerState({
@@ -328,10 +349,14 @@ test('getDirectionCompass computes cardinal arrows and sanitizeSoloConfig clamps
   assert.equal(fivePlayer.settings.vondoCount, 1);
   assert.equal(fivePlayer.settings.tasksPerPlayer, 8);
 
-  const eightPlayer = sanitizeSoloConfig(12, { vondoCount: 2, killCooldownSec: 5 });
-  assert.equal(eightPlayer.playerCount, 8);
-  assert.equal(eightPlayer.settings.vondoCount, 2);
-  assert.equal(eightPlayer.settings.killCooldownSec, 10);
+  const twelvePlayer = sanitizeSoloConfig(12, { vondoCount: 3, killCooldownSec: 5 });
+  assert.equal(twelvePlayer.playerCount, 12);
+  assert.equal(twelvePlayer.settings.vondoCount, 3);
+  assert.equal(twelvePlayer.settings.killCooldownSec, 10);
+
+  const clampedMax = sanitizeSoloConfig(25, { vondoCount: 5 });
+  assert.equal(clampedMax.playerCount, 15);
+  assert.equal(clampedMax.settings.vondoCount, 3);
 });
 
 test('Daroga Sheriff shot hits Batpar cleanly and backfires on innocent Para-basi', () => {
@@ -705,5 +730,120 @@ test('Phase 3: Goyenda 2-scan limit, Daroga 1-shot limit, Jharudar 2s channel & 
   const redacted = redactSnapshotForPlayer(netaSnap, 'crew1');
   assert.equal(redacted.players.find((p) => p.id === 'neta1')?.specialRole, 'neta');
 });
+
+test('Phase 6: 15P capacity, 15 unique colors, 3 Batpars at 11P+, and all 9 extended special roles', () => {
+  assert.equal(PLAYER_COLORS.length, 15);
+  assert.equal(SPAWN_RING.length, 15);
+
+  const roster15 = Array.from({ length: 15 }, (_, i) =>
+    makePlayer({ id: `p15_${i}`, name: `Player ${i}`, color: PLAYER_COLORS[i].id, role: 'parabasi' }),
+  );
+  const with3Vondos = assignRoles(roster15, 3, () => 0.37);
+  assert.equal(with3Vondos.filter((p) => p.role === 'vondo').length, 3);
+  const assigned15 = assignSpecialRoles(with3Vondos, true, undefined, undefined, () => 0.25, true);
+  const plainCrew15 = assigned15.filter((p) => p.role === 'parabasi' && p.specialRole === 'none').length;
+  assert.ok(plainCrew15 >= 4, `Expected >=4 plain Parabasi in 15P, got ${plainCrew15}`);
+
+  // Ghotok Khala pairing & death detection
+  const ghotok = makePlayer({ id: 'gk', role: 'parabasi', specialRole: 'ghotok_khala', x: 0, z: 0 });
+  const a1 = makePlayer({ id: 'a1', name: 'A1', x: 2, z: 0 });
+  const a2 = makePlayer({ id: 'a2', name: 'A2', x: 4, z: 0 });
+  const pair = findGhotokPairCandidates(ghotok, [ghotok, a1, a2]);
+  assert.ok(pair && pair[0].id === 'a1' && pair[1].id === 'a2');
+  const deathNotice = findGhotokPartnerOnDeath('a1', ['a1', 'a2'], [ghotok, a1, a2]);
+  assert.equal(deathNotice.partner?.id, 'a2');
+  assert.equal(deathNotice.ghotok?.id, 'gk');
+
+  // Master Moshai Khata check
+  const master = makePlayer({ id: 'mm', role: 'parabasi', specialRole: 'master_moshai', x: 0, z: 0 });
+  const bat = makePlayer({ id: 'b1', name: 'Sus', role: 'vondo', x: 1.5, z: 0 });
+  assert.equal(findNearestMasterTarget(master, [master, bat])?.id, 'b1');
+  assert.equal(inspectPlayerTaskAuthenticity(bat).isSus, true);
+  assert.equal(inspectPlayerTaskAuthenticity(a1).isSus, false);
+
+  // Hatur Daktar Jhajhro temporary shield
+  const hatur = makePlayer({ id: 'hd', role: 'parabasi', specialRole: 'hatur_daktar', x: 0, z: 0 });
+  const patient = makePlayer({ id: 'pat', x: 2, z: 0, haturProtectedUntil: 5000 });
+  assert.equal(isPlayerShieldedNow(patient, 4000), true);
+  assert.equal(isPlayerShieldedNow(patient, 6000), false);
+  assert.equal(findNearestHaturTarget(hatur, [hatur, patient], 4000), null);
+  assert.equal(findNearestHaturTarget(hatur, [hatur, patient], 6000)?.id, 'pat');
+
+  // Supari Killer target & Dalal broker jam
+  const supari = makePlayer({ id: 'sk', role: 'vondo', specialRole: 'supari_killer' });
+  const firstTarget = pickSupariContractTarget(supari, [supari, a1, a2], null);
+  assert.equal(firstTarget?.id, 'a1');
+  assert.equal(pickSupariContractTarget(supari, [supari, a1, a2], 'a1')?.id, 'a2');
+
+  const doors: DoorLockState = {
+    cha_dokan: 5,
+    rickshaw_garage: 0,
+    desco_power: 0,
+    dish_roof: 0,
+    cooldownRemaining: 0,
+  };
+  const jamRes = applyDalalBrokerJam(doors, () => 0);
+  assert.ok(doors.cha_dokan > 5);
+  assert.ok(jamRes.newlyLockedZone !== null);
+
+  // Chamcha co-win attachment
+  const chamcha = makePlayer({ id: 'ch', role: 'parabasi', specialRole: 'chamcha', alive: true, chamchaPatronId: 'b1', x: 0, z: 0 });
+  assert.equal(findNearestChamchaPatron(chamcha, [chamcha, bat])?.id, 'b1');
+  const batWin = evaluateMatchOutcome([chamcha, bat], 0.2);
+  assert.equal(batWin?.winner, 'vondo');
+  assert.deepEqual(batWin?.coWinnerIds, ['ch']);
+
+  // Chandabaz 3 unique targets immediate win
+  const chandabaz = makePlayer({ id: 'cb', name: 'Chanda', role: 'parabasi', specialRole: 'chandabaz', alive: true, x: 0, z: 0 });
+  const n1 = makePlayer({ id: 'n1', x: 1, z: 0 });
+  const n2 = makePlayer({ id: 'n2', x: 1, z: 0 });
+  const n3 = makePlayer({ id: 'n3', x: 1, z: 0 });
+  assert.equal(findNearestChandabazTarget(chandabaz, [chandabaz, n1])?.id, 'n1');
+  assert.equal(collectChandaFromTarget(chandabaz, n1).count, 1);
+  assert.equal(collectChandaFromTarget(chandabaz, n1).ok, false);
+  assert.equal(collectChandaFromTarget(chandabaz, n2).count, 2);
+  assert.equal(collectChandaFromTarget(chandabaz, n3).reachedGoal, true);
+  assert.equal(evaluateMatchOutcome([chandabaz, bat, n1, n2, n3], 0.2)?.winner, 'chandabaz');
+
+  // TikTok Star 3 distinct zones + <= 4 alive
+  const tiktok = makePlayer({ id: 'tt', name: 'Reeler', role: 'parabasi', specialRole: 'tiktok_star', alive: true });
+  assert.equal(recordTiktokReelInZone(tiktok, null).reason, 'outside_zone');
+  assert.equal(recordTiktokReelInZone(tiktok, 'cha_dokan').zoneCount, 1);
+  assert.equal(recordTiktokReelInZone(tiktok, 'cha_dokan').reason, 'already_filmed');
+  assert.equal(recordTiktokReelInZone(tiktok, 'pukur_ghat').zoneCount, 2);
+  assert.equal(recordTiktokReelInZone(tiktok, 'bazar_stall').zoneCount, 3);
+  // 5 alive -> continues; 4 alive -> wins!
+  assert.equal(evaluateMatchOutcome([tiktok, bat, n1, n2, n3], 0.2), null);
+  n3.alive = false;
+  assert.equal(evaluateMatchOutcome([tiktok, bat, n1, n2, n3], 0.2)?.winner, 'tiktok_star');
+});
+
+test('Phase 4: Exterior staircases climb smoothly onto walkable Chhad rooftops with parapet containment', () => {
+  assert.equal(ROOFTOPS.length, 6);
+  assert.equal(STAIR_RAMPS.length, 6);
+
+  const chaStair = STAIR_RAMPS.find((r) => r.id === 'cha_stair')!;
+  const chaRoof = ROOFTOPS.find((d) => d.id === 'cha_roof')!;
+
+  // Start at bottom of Cha-er Dokan stairs (y = 0) and climb step-by-step to top landing
+  let pos = { x: -46.0, z: -26.5, y: 0 };
+  for (let z = -26.5; z >= -34.6; z -= 0.6) {
+    pos = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -46.0, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(pos.y >= 2.8, `Expected near top of cha_stair, got y=${pos.y}`);
+
+  // Step inward onto Cha Dokan rooftop terrace across stairOpening
+  const onRoof = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -42.5, -35.2, PLAYER_RADIUS, WALLS);
+  assert.equal(onRoof.y, chaRoof.elevationY);
+  assert.equal(getWalkableFloorY(onRoof.x, onRoof.z, onRoof.y), 3.15);
+
+  // Trying to walk straight off the North parapet edge (-41.5) is contained cleanly inside roof bounds
+  const clampedNorth = resolvePlayerMoveWithElevation(onRoof.x, onRoof.z, onRoof.y, -35.0, -43.0, PLAYER_RADIUS, WALLS);
+  assert.ok(clampedNorth.z >= chaRoof.minZ + PLAYER_RADIUS - 0.01);
+  assert.equal(clampedNorth.y, chaRoof.elevationY);
+  assert.ok(chaStair.steps === 14);
+});
+
+
 
 

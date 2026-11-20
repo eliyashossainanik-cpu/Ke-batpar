@@ -257,7 +257,7 @@ export function LobbyOverlay({
                 Save
               </button>
 
-              <div className="flex items-center gap-1.5 pl-1" role="radiogroup" aria-label="Pick lobby color">
+              <div className="flex flex-wrap items-center gap-1 pl-1 max-w-xs sm:max-w-md" role="radiogroup" aria-label="Pick lobby color">
                 {PLAYER_COLORS.map((c) => {
                   const isMine = localPlayer?.color === c.id;
                   const isTaken = takenColors.has(c.id);
@@ -271,7 +271,7 @@ export function LobbyOverlay({
                       aria-checked={isMine}
                       role="radio"
                       title={isTaken ? `${c.label} already taken` : c.label}
-                      className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-transform ${
                         isMine
                           ? 'border-amber-300 scale-110'
                           : isTaken
@@ -332,7 +332,7 @@ export function LobbyOverlay({
                 </span>
                 <span className="text-amber-300">{rolePreview.batparCount} Batpar</span>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 max-h-44 overflow-y-auto pr-0.5">
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
                 {snapshot.players.map((p) => {
                   const col = PLAYER_COLORS.find((c) => c.id === p.color) ?? PLAYER_COLORS[0];
                   const isReady = p.isHost || p.isBot || p.ready;
@@ -438,6 +438,9 @@ export function LobbyOverlay({
                       <option value={2} disabled={snapshot.players.length < 6} className="bg-slate-900">
                         2 {snapshot.players.length < 6 ? '(6P+)' : ''}
                       </option>
+                      <option value={3} disabled={snapshot.players.length < 11} className="bg-slate-900">
+                        3 {snapshot.players.length < 11 ? '(11P+)' : ''}
+                      </option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
@@ -519,7 +522,7 @@ export function LobbyOverlay({
                       ['anonymousVotes', 'Anon Votes'],
                       ['visualTasks', 'Visual Tasks'],
                       ['enableSpecialRoles', 'Special Roles'],
-                      ['enableNeutralRoles', 'Neutrals (Pagol)'],
+                      ['enableNeutralRoles', 'Neutrals (Chaos)'],
                       ['autoFillBots', 'Auto-fill Bots'],
                     ] as const
                   ).map(([key, label]) => (

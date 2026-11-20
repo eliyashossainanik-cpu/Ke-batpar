@@ -14,10 +14,13 @@ export const FUNNY_MULTIPLAYER_IDENTITIES: AutoIdentity[] = [
   { name: 'Pukur Pintu', color: 'beguni' },
   { name: 'Daktar Dulal', color: 'sada' },
   { name: 'Kalo Kalu', color: 'kalo' },
-  { name: 'Shingara Shafiq', color: 'holud' },
-  { name: 'Auto Akash', color: 'komola' },
-  { name: 'Biyer Bari Babul', color: 'lal' },
-  { name: 'Muri-Chana Mofiz', color: 'shobuj' },
+  { name: 'Golapi Sumi', color: 'golapi' },
+  { name: 'Akashi Raju', color: 'akashi' },
+  { name: 'Badami Bashir', color: 'badami' },
+  { name: 'Tute Tariq', color: 'tute' },
+  { name: 'Jam Jashim', color: 'jam' },
+  { name: 'Pata Polash', color: 'olive' },
+  { name: 'Shona Sohel', color: 'tan' },
 ];
 
 export function pickAutoMultiplayerIdentity(

@@ -10,26 +10,29 @@ Bangla "para / moholla" 3D social-deduction game (Among Us × Super Sus) built o
    - Solo enters the unified **Waiting Lobby** (`Solo Room`, host = local player, bots fill slots; `?autostart=1` jumps straight to active 3D gameplay for quick testing).
 2. **Waiting Lobby (`lobby`)**:
    - **3D Cha-er Dokan Corner**: Joined players idle around the Moholla intersection; local player can walk around freely.
-   - **Slots**: Minimum **5**, maximum **8** players. Host can **Add/Remove bots** and **Kick** human players.
-   - **Customize**: Any player can change their **name** (max 12 chars, profanity-filtered, auto-suffixed if duplicate) and pick from **8 distinct colors** (taken colors disabled).
+   - **Slots**: Minimum **5**, maximum **15** players. Host can **Add/Remove bots** and **Kick** human players.
+   - **Customize**: Any player can change their **name** (max 12 chars, profanity-filtered, auto-suffixed if duplicate) and pick from **15 distinct colors** (taken colors disabled).
    - **Ready System**: Non-host humans must toggle **Ready**. Host **Play** stays disabled until `players >= 5` AND all humans are Ready, showing the exact Banglish blocker reason (`"Aro X jon lagbe"` or `"{Name} ready na"`).
-   - **Host Settings**: Live-synced `Batpar Count (1–2)`, `Kill Cooldown`, `Discussion Time`, `Voting Time`, `Move Speed`, `Tasks Per Player`, `Emergency Meetings`, `Emergency Cooldown`, `Confirm Ejects`, `Anonymous Votes`, `Visual Tasks`, `Special Roles`, `Neutral Roles`, and `Auto-Fill Bots`. Displays a live **Role Pool Preview** for the active player count.
+   - **Host Settings**: Live-synced `Batpar Count (1–3, 3 unlocked at 11P+)`, `Kill Cooldown`, `Discussion Time`, `Voting Time`, `Move Speed`, `Tasks Per Player`, `Emergency Meetings`, `Emergency Cooldown`, `Confirm Ejects`, `Anonymous Votes`, `Visual Tasks`, `Special Roles`, `Neutral Roles`, and `Auto-Fill Bots`. Displays a live **Role Pool Preview** for the active player count.
    - **Lobby Chat**: Rate-limited (500ms cooldown), max 120 chars.
    - **Start Countdown**: 5-4-3-2-1 live countdown visible to all (host can cancel; unreadying cancels). Late joiners are blocked once countdown begins (`"Khela shuru hoye gese"`).
    - **Edge Cases**: Host disconnect promotes the oldest remaining human automatically; unexpected disconnect reserves the player's slot for **20 seconds** via `reconnectToken`; invalid room codes return `"Ei code e kono room nai"`.
 3. **Match Sequence**:
-   - `role_reveal` (8s skippable Role Card Reveal + Game Niyom rules overview) → `playing` → `meeting` (`discussionTimer` 15s lock → `meetingTimer` 30s voting) → `vote_results` (2.6s tally) → `ejecting` (7.5s Pukur Chubani splash if voted, 5.0s if tie/skip) → repeat or `gameover` (3s dramatic Finale Banner beat → full `OutcomeModal` breakdown with Play Again back to the **same lobby**).
+   - `MatchLoadingOverlay` (brief Among Us–style loading transition) → `role_reveal` (Among Us `SHHHHH!` roulette + spotlight reveal, 15s skippable in Solo) → `playing` → `meeting` (`discussionTimer` 15s lock → `meetingTimer` 30s voting) → `vote_results` (2.6s tally) → `ejecting` (7.5s Pukur Chubani splash if voted, 5.0s if tie/skip) → repeat or `gameover` (3s dramatic Finale Banner beat → full `OutcomeModal` breakdown with Play Again back to the **same lobby**).
 
 ---
 
 ## 2. Core Rules & Win Conditions (`src/shared/gameRules.ts`)
 
 ### 2.1 Win Priority Order (evaluated each tick)
-1. **Pagol Ejected (`pagol_ejected`)**: A Neutral role (e.g., `Pagla Baba` / `Pagol`) is ejected by vote → match ends immediately in Neutral victory.
-2. **Parabasi Task Completion (`tasks_completed`)**: 100% of assigned **Parabasi** tasks completed (dead Ghost Parabasi tasks continue to count; Batpar fake tasks & Neutral roles are excluded from task totals).
-3. **All Batpars Eliminated (`batpars_out`)**: Zero alive Batpar players remain.
-4. **Critical Sabotage Timeout (`critical_sabotage_timeout`)**: Only `gas_leak` reaching `0s` ends the game in Batpar victory (`"Gas Phute Pura Para Uthhe Gese!"`). Non-critical sabotages never end the game.
-5. **Batpar Parity (`batpars_outnumber`)**: `alive Batpar >= alive NON-Batpar` (counts **all** alive non-Batpar players, including Neutral roles).
+1. **Pagol Ejected (`pagol_ejected`)**: `Pagla Baba` ejected by vote → match ends immediately in Neutral victory.
+2. **Chandabaz Extorted (`chandabaz_extorted`)**: Alive `Chandabaz` collects `3` unique Chanda targets (`[G]`) → immediate Solo Neutral victory.
+3. **TikTok Star Viral (`tiktok_viral`)**: Alive `TikTok Star` films `3` distinct Moholla zones (`[G]`) AND `aliveCount <= 4` → immediate Solo Neutral victory.
+4. **All Batpars Eliminated (`batpars_out`)**: Zero alive Batpar players remain → Parabasi win.
+5. **Parabasi Task Completion (`tasks_completed`)**: 100% of assigned **Parabasi** tasks completed (dead Ghost Parabasi tasks continue to count; Batpar fake tasks & Neutral roles are excluded from task totals) → Parabasi win.
+6. **Critical Sabotage Timeout (`critical_sabotage_timeout`)**: Only `gas_leak` reaching `0s` ends the game in Batpar victory (`"Gas Phute Pura Para Uthhe Gese!"`). Non-critical sabotages never end the game.
+7. **Batpar Parity (`batpars_outnumber`)**: `alive Batpar >= alive NON-Batpar` (counts **all** alive non-Batpar players, including Neutral roles) → Batpar win.
+- **Chamcha Co-Win**: Whenever Parabasi or Batpar wins, an alive `Chamcha` whose marked `Patron` belongs to that winning faction earns a **Co-Win** alongside the winning team!
 
 ---
 
@@ -56,14 +59,14 @@ Bangla "para / moholla" 3D social-deduction game (Among Us × Super Sus) built o
 
 ---
 
-## 5. Role Distribution & Roster
+## 5. Role Distribution & Full 19-Role Roster
 
 ### Distribution Guardrails (`assignSpecialRoles`)
 - **5 players**: 1 Batpar, 1 Special Crew, 0 Neutral, 3 Plain Parabasi
 - **6 players**: 1 Batpar, 2 Special Crew, 0–1 Neutral (60%), 2–3 Plain Parabasi
-- **7 players**: 1 Batpar, 2–3 Special Crew, 0–1 Neutral (60%), 2+ Plain Parabasi
-- **8 players**: 2 Batpar, 2–3 Special Crew, 0–1 Neutral (60%), 2+ Plain Parabasi
-- Plain Parabasi always stays `>= 40%` of non-Batpar players (`>= 3` at 5P, `>= 2` at 6–8P). Maximum 1 Special Batpar for `<= 7` players, max 1 Neutral at `>= 6` players.
+- **7–10 players**: 1–2 Batpar, 2–3 Special Crew, 0–1 Neutral (60%), `>= 40%` Plain Parabasi
+- **11–15 players**: 2–3 Batpar (up to 2 Special Batpars), 3–5 Special Crew, 0–2 Neutrals, `>= 40%` Plain Parabasi
+- Plain Parabasi always stays `>= 40%` of non-Batpar players (`>= 3` at 5P, `>= 2` at 6–10P, `>= 4` at 11–15P).
 
 ### Core Roles
 - **Goyenda (`CID Mofiz`)** *(Crew)*: Sees fading footprints + **2 body clue scans per match** (`killerColorHint` + `killerZoneHint`).
@@ -77,19 +80,20 @@ Bangla "para / moholla" 3D social-deduction game (Among Us × Super Sus) built o
 - **Pagol (`Pagla Baba`)** *(Neutral)*: No tasks; wins immediately if ejected by vote.
 
 ### Extended Special Roles (Enabled when `enableSpecialRoles` is ON)
-- **Ghotok Khala** *(Crew)*: Links two neighbors once per match (or receives matchmaker bond info); if one dies, alerts the other.
-- **Master Moshai** *(Crew)*: Teacher check (`1/round`) inspects whether a nearby player has completed/progressed real tasks vs faking.
-- **CCTV Kaku** *(Crew)*: Can toggle remote Moholla Security CCTV feed anywhere (`[G]`, 18s cooldown) without walking to Dish Hub.
-- **Hatur Daktar** *(Crew)*: Emergency speed-patch / temporary survival boost to a nearby neighbor (`24s` cooldown) that delays/blocks 1 kill attempt for `10s`.
-- **Supari Killer** *(Batpar)*: Marks a contract target (`[G]`); killing the contract target cuts next kill cooldown in half.
-- **Dalal** *(Batpar)*: Broker sabotage — can jam emergency/door comms briefly or double-extend shutter locks (`[G]`).
-- **Chamcha** *(Neutral)*: Sidekick wildcard who guesses/latches onto a living patron (`[G]`) and wins alongside that patron's faction if alive at match end.
-- **Chandabaz** *(Neutral)*: Extorts "Chanda" (`[G]`) from adjacent unique players (`3` collections = solo Chaos Victory or bonus vote pressure).
-- **TikTok Star** *(Neutral)*: Wins if they survive to the final 3 players while pulling off `3` live Reel-viral stunts (`[G]`) across distinct zones!
+- **Ghotok Khala** *(Crew)*: Links two nearby neighbors once per match (`[G]`); if either dies by kill or ejection, the surviving partner & Khala receive an immediate death alert!
+- **Master Moshai** *(Crew)*: Khata check (`[G]`, 18s cooldown) inspects whether an adjacent player is a real task-doing Para-basi, faking Batpar, or taskless Neutral.
+- **CCTV Kaku** *(Crew)*: Opens live Security CCTV feed remotely from anywhere (`[G]`, 12s cooldown).
+- **Hatur Daktar** *(Crew)*: Gives a `12s` **Jhajhro Injection** (`[G]`, 24s cooldown) to a nearby neighbor (or self) that blocks 1 kill attempt while active.
+- **Supari Killer** *(Batpar)*: Auto-assigned a marked Supari Target (can cycle with `[G]`, 20s cooldown); killing the Supari Target cuts next kill cooldown in **half (50%)**!
+- **Dalal** *(Batpar)*: Broker Jam (`[G]`, 28s cooldown) adds `+8s` to locked shutters (or slams an unlocked shutter) AND jams Admin Radar & Vitals Comms for `10s`.
+- **Chamcha** *(Neutral)*: Picks a living Patron (`[G]`, 10s cooldown); if Chamcha survives to the end and Patron's faction wins, Chamcha **Co-Wins**!
+- **Chandabaz** *(Neutral)*: Extorts "Chanda" (`[G]`, 14s cooldown) from `3` unique living neighbors for an instant **Solo Victory**.
+- **TikTok Star** *(Neutral)*: Films `3` Viral Reels (`[G]`, 16s cooldown) in `3` distinct Moholla zones and survives to `<= 4` alive players for a **Viral Solo Victory**!
 
 ---
 
 ## 6. Design Decisions & Security Notes
 
-- **Authoritative Snapshot Redaction**: `redactSnapshotForPlayer` strips hidden `role`, `specialRole` (except revealed `Neta`), Batpar teammate identities from non-Batpar players, enemy task lists, and `ghostOnly` chat from living players across all transports.
+- **Authoritative Snapshot Redaction**: `redactSnapshotForPlayer` strips hidden `role`, `specialRole` (except revealed `Neta`), Batpar teammate identities & `supariTargetId` from non-Batpar players, `chamchaPatronId`/`chandabazTargets`/`tiktokZones`, `ghotokLinkedIds` from uninvolved players, enemy task lists, and `ghostOnly` chat from living players across all transports.
 - **Single Rule Source**: Solo, P2P WebRTC Host, Express/WS, and Cloudflare Durable Objects all invoke the exact same functions in `src/shared/gameRules.ts` and `src/shared/botAi.ts`.
+

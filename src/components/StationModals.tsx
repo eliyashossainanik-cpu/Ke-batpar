@@ -12,6 +12,7 @@ export interface StationModalProps {
 
 export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
   const wifiDown = snapshot.sabotage.active === 'wifi_down';
+  const commsJammed = (kind === 'admin' || kind === 'vitals') && (snapshot.commsJammedUntil ?? 0) > Date.now();
 
   return (
     <div
@@ -67,6 +68,14 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
               <h3 className="font-display text-xl font-bold text-rose-300">WI-FI CONNECTION LOST</h3>
               <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
                 Batpar Dish Cable Hub er tar kete dise! Reset the Dish Router before monitoring feeds.
+              </p>
+            </div>
+          ) : commsJammed ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center gap-3 rounded-xl bg-slate-950 border border-amber-500/45">
+              <WifiOff className="w-10 h-10 text-amber-400" />
+              <h3 className="font-display text-xl font-bold text-amber-300">COMMS JAMMED BY DALAL!</h3>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
+                Broker Jam cholche — kichu second por Admin Radar ar Vitals ECG signal phire ashbe.
               </p>
             </div>
           ) : kind === 'cams' ? (
@@ -181,7 +190,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
               })}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
               {snapshot.players.map((p) => {
                 const c = PLAYER_COLORS.find((col) => col.id === p.color) ?? PLAYER_COLORS[0];
                 const hasBody = snapshot.bodies.some((b) => b.victimId === p.id);

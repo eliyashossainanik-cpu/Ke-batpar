@@ -28,13 +28,40 @@ import {
   VENTS,
   WALLS,
   distance2D,
+  getZoneIdAt,
   getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePlayerMoveWithElevation,
 } from './src/shared/mapData.ts';
 import {
   BOHURUPI_COOLDOWN_SEC,
   BOHURUPI_DISGUISE_DURATION_SEC,
+  CCTV_KAKU_COOLDOWN_SEC,
+  CHAMCHA_COOLDOWN_SEC,
+  CHANDABAZ_COOLDOWN_SEC,
+  CHANDABAZ_GOAL,
+  DALAL_COOLDOWN_SEC,
+  DALAL_JAM_DURATION_MS,
+  HATUR_COOLDOWN_SEC,
+  HATUR_DURATION_MS,
+  MASTER_COOLDOWN_SEC,
+  SUPARI_COOLDOWN_SEC,
+  TIKTOK_COOLDOWN_SEC,
+  TIKTOK_ZONE_GOAL,
+  applyDalalBrokerJam,
+  collectChandaFromTarget,
+  findGhotokPairCandidates,
+  findGhotokPartnerOnDeath,
+  findNearestChamchaPatron,
+  findNearestChandabazTarget,
+  findNearestHaturTarget,
+  findNearestMasterTarget,
+  inspectPlayerTaskAuthenticity,
+  isNeutralRole,
+  isPlayerShieldedNow,
+  pickSupariContractTarget,
+  recordTiktokReelInZone,
   DAROGA_COOLDOWN_SEC,
   DEFAULT_ROOM_SETTINGS,
   DOOR_LOCK_COOLDOWN_SEC,
@@ -116,6 +143,14 @@ const BOT_NAMES = [
   'Raju Rickshaw',
   'Kallu Ustad',
   'Mitu Moni',
+  'Golapi Rani',
+  'Akashi Tara',
+  'Badami Mama',
+  'Tute Chacha',
+  'Jam Kaka',
+  'Pata Bhai',
+  'Shona Babu',
+  'Lal Mia',
 ];
 
 const BOT_BANTER = [
@@ -169,6 +204,8 @@ interface RoomInternal {
   outcome: RoomSnapshot['outcome'];
   netaRevealedId: string | null;
   prankedLampUntil: number;
+  commsJammedUntil: number;
+  ghotokLinkedIds: [string, string] | null;
   settings: RoomSettings;
 }
 
@@ -216,6 +253,8 @@ function buildSnapshot(room: RoomInternal): RoomSnapshot {
     lobbyCountdownSec: room.lobbyCountdownSec,
     netaRevealedId: room.netaRevealedId,
     prankedLampUntil: room.prankedLampUntil,
+    commsJammedUntil: room.commsJammedUntil,
+    ghotokLinkedIds: room.ghotokLinkedIds,
     meetingCallerId: room.meetingCallerId,
     meetingReason: room.meetingReason,
     meetingTimer: Math.max(0, Math.ceil(room.meetingTimer)),
@@ -323,6 +362,8 @@ function createEmptyRoom(code: string): RoomInternal {
     outcome: null,
     netaRevealedId: null,
     prankedLampUntil: 0,
+    commsJammedUntil: 0,
+    ghotokLinkedIds: null,
     settings: { ...DEFAULT_ROOM_SETTINGS },
   };
 }
@@ -450,6 +491,8 @@ function startMatch(room: RoomInternal): void {
   room.meetingReason = null;
   room.netaRevealedId = null;
   room.prankedLampUntil = 0;
+  room.commsJammedUntil = 0;
+  room.ghotokLinkedIds = null;
   room.lobbyCountdownSec = null;
   room.discussionTimer = 0;
   room.doorLocks = makeEmptyDoorLocks();
@@ -471,7 +514,9 @@ function startMatch(room: RoomInternal): void {
       p.specialRole === 'bohurupi' ||
       p.specialRole === 'kobiraj' ||
       p.specialRole === 'daroga' ||
-      p.specialRole === 'jharudar'
+      p.specialRole === 'jharudar' ||
+      p.specialRole === 'hatur_daktar' ||
+      p.specialRole === 'dalal'
         ? 6
         : 0;
     p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
@@ -483,6 +528,13 @@ function startMatch(room: RoomInternal): void {
     p.disguiseColor = null;
     p.disguiseName = null;
     p.disguiseTimer = 0;
+    p.haturProtectedUntil = 0;
+    p.supariTargetId =
+      p.specialRole === 'supari_killer' ? pickSupariContractTarget(p, assigned)?.id ?? null : null;
+    p.chamchaPatronId = null;
+    p.chandabazTargets = [];
+    p.tiktokZones = [];
+    p.ghotokPartnerId = null;
     p.hasVoted = false;
     p.votedFor = null;
     p.emergencyMeetingsLeft =
@@ -499,6 +551,36 @@ function startMatch(room: RoomInternal): void {
   broadcastRoom(room);
 }
 
+function handleRoomDeathSideEffects(room: RoomInternal, victim: PlayerState): void {
+  const allPlayers = Array.from(room.players.values());
+  const ghotokInfo = findGhotokPartnerOnDeath(victim.id, room.ghotokLinkedIds, allPlayers);
+  if (ghotokInfo.partner) {
+    const pWs = room.clients.get(ghotokInfo.partner.id);
+    if (pWs) {
+      sendToSocket(pWs, {
+        type: 'clue:result',
+        title: 'Ghotok Bond Alert!',
+        detail: `Tomar Ghotok-bonded partner ${victim.name} ei muhurte mara gese!`,
+      });
+    }
+  }
+  if (ghotokInfo.ghotok && ghotokInfo.ghotok.id !== ghotokInfo.partner?.id) {
+    const gWs = room.clients.get(ghotokInfo.ghotok.id);
+    if (gWs) {
+      sendToSocket(gWs, {
+        type: 'clue:result',
+        title: 'Ghotok Bond Alert!',
+        detail: `Bonded neighbor ${victim.name} just fell in Moholla!`,
+      });
+    }
+  }
+  for (const pl of allPlayers) {
+    if (pl.alive && pl.specialRole === 'supari_killer' && pl.supariTargetId === victim.id) {
+      pl.supariTargetId = pickSupariContractTarget(pl, allPlayers, victim.id)?.id ?? null;
+    }
+  }
+}
+
 function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 'emergency', victimName?: string): void {
   if (room.phase !== 'playing') return;
   room.phase = 'meeting';
@@ -509,6 +591,7 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
   room.ejection = null;
   room.justEjectedPlayer = null;
   room.footprints = [];
+  room.commsJammedUntil = 0;
   room.holdingFixMap.clear();
   if (isCriticalSabotage(room.sabotage.active)) {
     room.sabotage = createEmptySabotageState(SABOTAGE_COOLDOWN_SEC);
@@ -609,12 +692,13 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
           if (targetWs) {
             sendToSocket(targetWs, {
               type: 'clue:result',
-              title: 'Tabiz Saved You!',
-              detail: 'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz shield bachay dise!',
+              title: 'Protection Saved You!',
+              detail: 'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz/Injection bachay dise!',
             });
           }
         } else {
           broadcastRoom(room, { type: 'sfx:event', kind: 'kill' });
+          handleRoomDeathSideEffects(room, victim);
         }
       },
       onSabotage: () => broadcastRoom(room, { type: 'sfx:event', kind: 'sabotage' }),
@@ -647,8 +731,11 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
   }
 }
 
+let lastServerTickMs = Date.now();
 setInterval(() => {
-  const dt = TICK_RATE_MS / 1000;
+  const nowTickMs = Date.now();
+  const dt = Math.min(0.5, Math.max(0.016, (nowTickMs - lastServerTickMs) / 1000));
+  lastServerTickMs = nowTickMs;
   for (const room of rooms.values()) {
     if (room.clients.size === 0) continue;
 
@@ -765,7 +852,15 @@ setInterval(() => {
       } else {
         room.meetingTimer -= dt;
         const alivePlayers = Array.from(room.players.values()).filter((p) => p.alive);
-        const allVoted = alivePlayers.length > 0 && alivePlayers.every((p) => p.hasVoted);
+        if (room.meetingTimer <= 1.2) {
+          for (const p of alivePlayers) {
+            if (p.isBot && !p.hasVoted) {
+              p.hasVoted = true;
+              p.votedFor = 'skip';
+            }
+          }
+        }
+        const allVoted = alivePlayers.length === 0 || alivePlayers.every((p) => p.hasVoted);
         if (allVoted || room.meetingTimer <= 0) {
           resolveMeetingVotes(room);
         } else {
@@ -781,6 +876,7 @@ setInterval(() => {
           if (ejected) {
             ejected.alive = false;
             room.justEjectedPlayer = ejected;
+            handleRoomDeathSideEffects(room, ejected);
           }
         }
         room.bodies = [];
@@ -801,6 +897,7 @@ setInterval(() => {
             const sp = SPAWN_RING[idx % SPAWN_RING.length];
             p.x = sp.x;
             p.z = sp.z;
+            p.y = 0;
             p.yaw = sp.yaw;
             p.hasVoted = false;
             p.votedFor = null;
@@ -898,7 +995,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         return;
       }
       if (room.players.size + room.disconnectedSlots.size >= MAX_PLAYERS) {
-        sendToSocket(ws, { type: 'room:error', message: 'Room bhorti! Max 8 jon (room is full).' });
+        sendToSocket(ws, { type: 'room:error', message: `Room bhorti! Max ${MAX_PLAYERS} jon (room is full).` });
         return;
       }
     }
@@ -1113,12 +1210,23 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
     case 'player:move': {
       if (room.phase !== 'playing' && room.phase !== 'lobby') return;
       if (player.inVent) return;
+      const prevY = player.y ?? 0;
       const resolved = player.alive
-        ? resolveCircleWallCollision(msg.x, msg.z, PLAYER_RADIUS, WALLS, room.doorLocks)
-        : { x: msg.x, z: msg.z };
+        ? resolvePlayerMoveWithElevation(
+            player.x,
+            player.z,
+            msg.y ?? prevY,
+            msg.x,
+            msg.z,
+            PLAYER_RADIUS,
+            WALLS,
+            room.doorLocks,
+          )
+        : { x: msg.x, z: msg.z, y: msg.y ?? prevY };
       const moved = Math.hypot(resolved.x - player.x, resolved.z - player.z);
       player.x = resolved.x;
       player.z = resolved.z;
+      player.y = resolved.y;
       player.vx = msg.vx;
       player.vz = msg.vz;
       player.yaw = msg.yaw;
@@ -1134,7 +1242,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         room.phase !== 'playing' ||
         !room.settings.visualTasks ||
         player.role !== 'parabasi' ||
-        player.specialRole === 'pagol'
+        isNeutralRole(player.specialRole)
       ) {
         return;
       }
@@ -1319,6 +1427,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
             detail: `${target.name} niraparadh Para-basi chilo! Ulto tomar job gelo!`,
           });
         }
+        handleRoomDeathSideEffects(room, res.hitVondo ? target : player);
         if (!checkAndApplyWinCondition(room)) {
           broadcastRoom(room);
         }
@@ -1379,6 +1488,220 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
           detail: `Hold steady near ${body.victimName} for 2s to sweep the body!`,
         });
         broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'ghotok_khala') {
+        if (room.ghotokLinkedIds) {
+          const [aId, bId] = room.ghotokLinkedIds;
+          const aName = room.players.get(aId)?.name ?? 'Player A';
+          const bName = room.players.get(bId)?.name ?? 'Player B';
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'Ghotok Bond Active',
+            detail: `${aName} & ${bName} already bonded!`,
+          });
+          return;
+        }
+        const pair = findGhotokPairCandidates(player, Array.from(room.players.values()));
+        if (!pair) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'Ghotok Khala',
+            detail: 'Move close to 2 neighbors to form a Ghotok Bond!',
+          });
+          return;
+        }
+        room.ghotokLinkedIds = [pair[0].id, pair[1].id];
+        pair[0].ghotokPartnerId = pair[1].id;
+        pair[1].ghotokPartnerId = pair[0].id;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: 'Moholla Bond Formed!',
+          detail: `Linked ${pair[0].name} & ${pair[1].name} — ekjon morle arekjon alert pabe!`,
+        });
+        const p0Ws = room.clients.get(pair[0].id);
+        if (p0Ws) {
+          sendToSocket(p0Ws, {
+            type: 'clue:result',
+            title: 'Ghotok Bonded!',
+            detail: `Ghotok Khala linked you with ${pair[1].name}!`,
+          });
+        }
+        if (pair[1].id !== player.id) {
+          const p1Ws = room.clients.get(pair[1].id);
+          if (p1Ws) {
+            sendToSocket(p1Ws, {
+              type: 'clue:result',
+              title: 'Ghotok Bonded!',
+              detail: `Ghotok Khala linked you with ${pair[0].name}!`,
+            });
+          }
+        }
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'master_moshai') {
+        if (player.abilityCooldown > 0.05) return;
+        const target = msg.targetId
+          ? room.players.get(msg.targetId)
+          : findNearestMasterTarget(player, Array.from(room.players.values()));
+        if (!target) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'Master Moshai',
+            detail: 'Move near a neighbor to check their Moholla Khata!',
+          });
+          return;
+        }
+        const res = inspectPlayerTaskAuthenticity(target);
+        player.abilityCooldown = MASTER_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
+        sendToSocket(ws, { type: 'clue:result', title: res.title, detail: res.detail });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'cctv_kaku') {
+        if (player.abilityCooldown > 0.05) return;
+        player.watchingCams = true;
+        player.abilityCooldown = CCTV_KAKU_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'hatur_daktar') {
+        if (player.abilityCooldown > 0.05) return;
+        const nowMs = Date.now();
+        const allPlayers = Array.from(room.players.values());
+        const nearby = msg.targetId
+          ? room.players.get(msg.targetId)
+          : findNearestHaturTarget(player, allPlayers, nowMs);
+        const receiver =
+          nearby && nearby.alive && !nearby.inVent
+            ? nearby
+            : (player.haturProtectedUntil ?? 0) <= nowMs
+              ? player
+              : null;
+        if (!receiver) return;
+        receiver.haturProtectedUntil = nowMs + HATUR_DURATION_MS;
+        player.abilityCooldown = HATUR_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'shield' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: 'Jhajhro Injection Active!',
+          detail:
+            receiver.id === player.id
+              ? 'Self-injected! You survive Batpar attacks for 12s!'
+              : `Injected ${receiver.name} — 12s death protection active!`,
+        });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'supari_killer') {
+        if (player.abilityCooldown > 0.05) return;
+        const nextTarget = pickSupariContractTarget(
+          player,
+          Array.from(room.players.values()),
+          player.supariTargetId,
+        );
+        if (!nextTarget) return;
+        player.supariTargetId = nextTarget.id;
+        player.abilityCooldown = SUPARI_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: 'New Supari Contract!',
+          detail: `Target: ${nextTarget.name} — 50% kill cooldown bonus!`,
+        });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'dalal') {
+        if (player.abilityCooldown > 0.05) return;
+        const res = applyDalalBrokerJam(room.doorLocks);
+        room.commsJammedUntil = Date.now() + DALAL_JAM_DURATION_MS;
+        player.abilityCooldown = DALAL_COOLDOWN_SEC;
+        broadcastRoom(room, { type: 'sfx:event', kind: 'door' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: 'Broker Jam Activated!',
+          detail: `Comms jammed 10s! ${res.newlyLockedZone ? `Slammed ${res.newlyLockedZone}!` : 'Extended shutters +8s!'}`,
+        });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'chamcha') {
+        if (player.abilityCooldown > 0.05) return;
+        const patron = findNearestChamchaPatron(player, Array.from(room.players.values()));
+        if (!patron) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'Chamcha Sidekick',
+            detail: 'Move close to someone to pledge loyalty as your Patron!',
+          });
+          return;
+        }
+        player.chamchaPatronId = patron.id;
+        player.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: 'Patron Locked!',
+          detail: `${patron.name} is now your Patron!`,
+        });
+        broadcastRoom(room);
+        return;
+      }
+      if (player.specialRole === 'chandabaz') {
+        if (player.abilityCooldown > 0.05) return;
+        const target = findNearestChandabazTarget(player, Array.from(room.players.values()));
+        if (!target) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'Chandabaz',
+            detail: 'Move near a new neighbor to collect Chanda!',
+          });
+          return;
+        }
+        const res = collectChandaFromTarget(player, target);
+        if (!res.ok) return;
+        player.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'task' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: `Chanda Vasool (${res.count}/${CHANDABAZ_GOAL})!`,
+          detail: `Collected Chanda from ${target.name}!`,
+        });
+        if (!checkAndApplyWinCondition(room)) {
+          broadcastRoom(room);
+        }
+        return;
+      }
+      if (player.specialRole === 'tiktok_star') {
+        if (player.abilityCooldown > 0.05) return;
+        const zoneId = getZoneIdAt(player.x, player.z);
+        const res = recordTiktokReelInZone(player, zoneId);
+        if (!res.ok) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'TikTok Star',
+            detail:
+              res.reason === 'already_filmed'
+                ? 'Ei zone e already reel banano hoye gese! Onno zone e jao!'
+                : 'Walk inside a named Moholla building/zone to film a Viral Reel!',
+          });
+          return;
+        }
+        player.abilityCooldown = TIKTOK_COOLDOWN_SEC;
+        sendToSocket(ws, { type: 'sfx:event', kind: 'disguise' });
+        sendToSocket(ws, {
+          type: 'clue:result',
+          title: `Viral Reel (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
+          detail: `Filmed in ${getZoneNameAt(player.x, player.z)}! Survive to final 4 to win!`,
+        });
+        if (!checkAndApplyWinCondition(room)) {
+          broadcastRoom(room);
+        }
       }
       break;
     }
@@ -1388,21 +1711,23 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       if (!target) return;
       const check = canExecuteKill(player, target);
       if (!check.allowed) return;
-      if (target.shielded) {
+      const nowMs = Date.now();
+      if (isPlayerShieldedNow(target, nowMs)) {
         target.shielded = false;
+        target.haturProtectedUntil = 0;
         player.killCooldownRemaining = 6;
         broadcastRoom(room, { type: 'sfx:event', kind: 'shield' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Tabiz Shield Shattered!',
-          detail: `${target.name} was protected by the Kobiraj!`,
+          title: 'Protection Shattered!',
+          detail: `${target.name} was protected by Tabiz/Jhajhro Injection!`,
         });
         const targetWs = room.clients.get(target.id);
         if (targetWs) {
           sendToSocket(targetWs, {
             type: 'clue:result',
-            title: 'Tabiz Saved You!',
-            detail: 'Ekjon Batpar attack korsilo, kintu tomar Tabiz shield bachay dise!',
+            title: 'Protection Saved You!',
+            detail: 'Ekjon Batpar attack korsilo, kintu tomar Tabiz/Injection bachay dise!',
           });
         }
         broadcastRoom(room);
@@ -1410,22 +1735,34 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       }
       target.alive = false;
       target.watchingCams = false;
-      player.killCooldownRemaining = room.settings.killCooldownSec;
+      const hitSupari = player.specialRole === 'supari_killer' && target.id === player.supariTargetId;
+      player.killCooldownRemaining = hitSupari
+        ? room.settings.killCooldownSec * 0.5
+        : room.settings.killCooldownSec;
+      if (player.specialRole === 'supari_killer') {
+        player.supariTargetId =
+          pickSupariContractTarget(
+            player,
+            Array.from(room.players.values()),
+            player.supariTargetId,
+          )?.id ?? null;
+      }
       player.x = target.x;
       player.z = target.z;
       room.bodies.push({
-        id: `body_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: `body_${nowMs}_${Math.random().toString(36).slice(2, 6)}`,
         victimId: target.id,
         victimName: target.name,
         color: target.color,
         x: target.x,
         z: target.z,
         reported: false,
-        killedAt: Date.now(),
+        killedAt: nowMs,
         killerColorHint: getColorShadeHint(player.color),
         killerZoneHint: getZoneNameAt(target.x, target.z),
       });
       broadcastRoom(room, { type: 'sfx:event', kind: 'kill' });
+      handleRoomDeathSideEffects(room, target);
       recordKillWitnesses(
         room.botMemories,
         Array.from(room.players.values()),
@@ -1576,7 +1913,12 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       }
       player.votedFor = msg.targetId;
       player.hasVoted = true;
-      broadcastRoom(room);
+      const alivePlayers = Array.from(room.players.values()).filter((p) => p.alive);
+      if (alivePlayers.length === 0 || alivePlayers.every((p) => p.hasVoted)) {
+        resolveMeetingVotes(room);
+      } else {
+        broadcastRoom(room);
+      }
       break;
     }
     case 'player:meme_sfx': {
@@ -1604,6 +1946,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       room.lobbyCountdownSec = null;
       room.netaRevealedId = null;
       room.prankedLampUntil = 0;
+      room.commsJammedUntil = 0;
+      room.ghotokLinkedIds = null;
       room.emergencyCooldownRemaining = 0;
       room.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
       room.doorLocks = makeEmptyDoorLocks();
@@ -1612,6 +1956,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         const sp = SPAWN_RING[idx % SPAWN_RING.length];
         p.x = sp.x;
         p.z = sp.z;
+        p.y = 0;
         p.vx = 0;
         p.vz = 0;
         p.yaw = sp.yaw;
@@ -1634,6 +1979,12 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         p.pranksLeft = 1;
         p.jharuTargetBodyId = null;
         p.jharuTimer = 0;
+        p.haturProtectedUntil = 0;
+        p.supariTargetId = null;
+        p.chamchaPatronId = null;
+        p.chandabazTargets = [];
+        p.tiktokZones = [];
+        p.ghotokPartnerId = null;
         p.killCooldownRemaining = 0;
         p.emergencyMeetingsLeft = room.settings.emergencyMeetingsPerPlayer;
         p.ready = p.isHost || p.isBot;

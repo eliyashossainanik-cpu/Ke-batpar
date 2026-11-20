@@ -87,6 +87,7 @@ export function MeetingModal({
 }: MeetingModalProps) {
   const [chatText, setChatText] = useState('');
   const [selectedTargetId, setSelectedTargetId] = useState<string | 'skip' | null>(null);
+  const [queuedVoteTarget, setQueuedVoteTarget] = useState<string | 'skip' | null>(null);
   const [mobileTab, setMobileTab] = useState<'vote' | 'chat'>('vote');
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [, setPackVer] = useState(0);
@@ -100,7 +101,8 @@ export function MeetingModal({
   const isVoteResults = snapshot.phase === 'vote_results';
   const discussionSec = Math.max(0, Math.ceil(snapshot.discussionTimer ?? 0));
   const inDiscussion = !isVoteResults && discussionSec > 0;
-  const canVote = Boolean(!isVoteResults && !inDiscussion && localPlayer?.alive && !localPlayer?.hasVoted);
+  const canSelectSuspect = Boolean(!isVoteResults && localPlayer?.alive && !localPlayer?.hasVoted);
+  const canVote = Boolean(canSelectSuspect && !inDiscussion);
 
   const visibleChat = useMemo(
     () => snapshot.chat.filter((msg) => !msg.ghostOnly || !localPlayer?.alive),
@@ -120,11 +122,22 @@ export function MeetingModal({
     }
   }, [visibleChat.length, mobileTab]);
 
+  // Auto-submit queued pre-vote the moment Discussion ends
   useEffect(() => {
-    if (!canVote || isVoteResults) {
+    if (canVote && queuedVoteTarget) {
+      const target = queuedVoteTarget;
+      setQueuedVoteTarget(null);
       setSelectedTargetId(null);
+      onCastVote(target);
     }
-  }, [canVote, isVoteResults]);
+  }, [canVote, queuedVoteTarget, onCastVote]);
+
+  useEffect(() => {
+    if (!canSelectSuspect || isVoteResults) {
+      setSelectedTargetId(null);
+      setQueuedVoteTarget(null);
+    }
+  }, [canSelectSuspect, isVoteResults]);
 
   const unreadCount = mobileTab === 'vote' ? Math.max(0, visibleChat.length - seenChatCount) : 0;
   const quickMsgPool = localPlayer?.alive ? QUICK_BANGLISH_ALIVE : QUICK_BANGLISH_GHOST;
@@ -152,8 +165,14 @@ export function MeetingModal({
   };
 
   const confirmVote = (target: string | 'skip') => {
-    if (!canVote) return;
+    if (!canSelectSuspect) return;
+    if (inDiscussion) {
+      setQueuedVoteTarget(target);
+      setSelectedTargetId(null);
+      return;
+    }
     setSelectedTargetId(null);
+    setQueuedVoteTarget(null);
     onCastVote(target);
   };
 
@@ -283,12 +302,13 @@ export function MeetingModal({
                   </span>
                 </div>
               )}
-              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2 [@media(max-height:540px)]:gap-1.5">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 gap-2 [@media(max-height:540px)]:gap-1.5">
                 {sortedPlayers.map((p) => {
                   const c = PLAYER_COLORS.find((col) => col.id === p.color) ?? PLAYER_COLORS[0];
                   const isSelf = p.id === localPlayerId;
                   const isVotedByMe = localPlayer?.votedFor === p.id;
-                  const isSelected = canVote && selectedTargetId === p.id;
+                  const isQueuedByMe = inDiscussion && queuedVoteTarget === p.id;
+                  const isSelected = canSelectSuspect && selectedTargetId === p.id;
                   const isEjectedWinner = isVoteResults && snapshot.ejection?.ejectedId === p.id;
                   const votersForP = isVoteResults
                     ? snapshot.players.filter((v) => v.alive && v.votedFor === p.id)
@@ -306,7 +326,7 @@ export function MeetingModal({
                           ? 'bg-slate-950/75 border-slate-900 opacity-55'
                           : isEjectedWinner
                             ? 'bg-rose-950/75 border-rose-400'
-                            : isVotedByMe
+                            : isVotedByMe || isQueuedByMe
                               ? 'bg-amber-950/65 border-amber-400'
                               : isSelected
                                 ? 'bg-slate-800/95 border-amber-400'
@@ -316,9 +336,9 @@ export function MeetingModal({
                       {/* Big Tap-to-Select Suspect Row */}
                       <button
                         type="button"
-                        disabled={!p.alive || !canVote}
+                        disabled={!p.alive || !canSelectSuspect}
                         onClick={() => {
-                          if (!canVote || !p.alive) return;
+                          if (!canSelectSuspect || !p.alive) return;
                           setSelectedTargetId((prev) => (prev === p.id ? null : p.id));
                         }}
                         aria-label={`Select suspect ${p.name}`}
@@ -352,11 +372,13 @@ export function MeetingModal({
                                 ? 'Pukur e Chubani Khaise'
                                 : isVotedByMe
                                   ? 'Tomar Vote Locked'
-                                  : p.hasVoted
-                                    ? 'Vote Dise'
-                                    : snapshot.meetingCallerId === p.id
-                                      ? 'Shalish Dakse!'
-                                      : 'Katha boltese...'}
+                                  : isQueuedByMe
+                                    ? `Pre-Marked (${discussionSec}s)`
+                                    : p.hasVoted
+                                      ? 'Vote Dise'
+                                      : snapshot.meetingCallerId === p.id
+                                        ? 'Shalish Dakse!'
+                                        : 'Katha boltese...'}
                             </span>
                           </div>
                         </div>
@@ -368,7 +390,12 @@ export function MeetingModal({
                               <Check className="w-3 h-3" /> VOTED
                             </span>
                           )}
-                          {!isVotedByMe && p.alive && p.hasVoted && !isVoteResults && (
+                          {isQueuedByMe && !isVotedByMe && (
+                            <span className="px-2 py-1 rounded-lg bg-sky-400 text-slate-950 text-[10px] font-extrabold flex items-center gap-0.5">
+                              <Check className="w-3 h-3" /> PRE-MARK
+                            </span>
+                          )}
+                          {!isVotedByMe && !isQueuedByMe && p.alive && p.hasVoted && !isVoteResults && (
                             <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-bold">
                               Ready
                             </span>
@@ -388,10 +415,14 @@ export function MeetingModal({
                             type="button"
                             onClick={() => confirmVote(p.id)}
                             aria-label={`Confirm vote for ${p.name}`}
-                            className="flex-1 min-h-[38px] px-2.5 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 active:scale-95 text-white font-display font-bold text-xs flex items-center justify-center gap-1 transition-transform whitespace-nowrap"
+                            className={`flex-1 min-h-[38px] px-2.5 py-1.5 rounded-lg ${
+                              inDiscussion
+                                ? 'bg-sky-500 hover:bg-sky-400 text-slate-950'
+                                : 'bg-rose-500 hover:bg-rose-400 text-white'
+                            } active:scale-95 font-display font-bold text-xs flex items-center justify-center gap-1 transition-transform whitespace-nowrap`}
                           >
                             <Check className="w-3.5 h-3.5 shrink-0" />
-                            <span>Pukur e Felo!</span>
+                            <span>{inDiscussion ? `Lock Vote (${discussionSec}s)` : 'Pukur e Felo!'}</span>
                           </button>
                           <button
                             type="button"
@@ -475,20 +506,27 @@ export function MeetingModal({
                     {!localPlayer?.alive
                       ? 'Ghost mode: vote off, chat only.'
                       : inDiscussion
-                        ? `Discussion (${discussionSec}s) — Vote unlock hoite wait koro...`
+                        ? queuedVoteTarget
+                          ? `Pre-Vote Locked! Auto-submits in ${discussionSec}s`
+                          : `Discussion (${discussionSec}s) — Tap suspect to pre-mark!`
                         : localPlayer.hasVoted
                           ? 'Vote locked! Baki Shobar jonno wait...'
                           : 'Suspect tap kore Pukur e Felo, ba Skip maro!'}
                   </span>
 
-                  {selectedTargetId === 'skip' && canVote ? (
+                  {selectedTargetId === 'skip' && canSelectSuspect ? (
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         onClick={() => confirmVote('skip')}
-                        className="min-h-[42px] px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1 whitespace-nowrap"
+                        className={`min-h-[42px] px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 whitespace-nowrap ${
+                          inDiscussion
+                            ? 'bg-sky-400 hover:bg-sky-300 text-slate-950'
+                            : 'bg-amber-400 hover:bg-amber-300 text-slate-950'
+                        }`}
                       >
-                        <Check className="w-3.5 h-3.5" /> Confirm Skip
+                        <Check className="w-3.5 h-3.5" />{' '}
+                        {inDiscussion ? `Lock Skip (${discussionSec}s)` : 'Confirm Skip'}
                       </button>
                       <button
                         type="button"
@@ -502,16 +540,20 @@ export function MeetingModal({
                   ) : (
                     <button
                       type="button"
-                      disabled={!canVote}
+                      disabled={!canSelectSuspect}
                       onClick={() => setSelectedTargetId('skip')}
                       className={`min-h-[42px] [@media(max-height:540px)]:min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 whitespace-nowrap ${
-                        localPlayer?.votedFor === 'skip'
+                        localPlayer?.votedFor === 'skip' || (inDiscussion && queuedVoteTarget === 'skip')
                           ? 'bg-amber-400 text-slate-950'
                           : 'bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 border border-slate-700'
                       }`}
                     >
                       <SkipForward className="w-3.5 h-3.5 shrink-0" />
-                      <span>Kichu Bolbo Na (Skip)</span>
+                      <span>
+                        {inDiscussion && queuedVoteTarget === 'skip'
+                          ? `Skip Locked (${discussionSec}s)`
+                          : 'Kichu Bolbo Na (Skip)'}
+                      </span>
                     </button>
                   )}
                 </>

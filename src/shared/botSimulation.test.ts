@@ -59,7 +59,7 @@ export function runSimulatedMatch(playerCount: number, seed: number): SimResult 
   const rng = mulberry32(seed);
   const { playerCount: safeCount, settings } = sanitizeSoloConfig(playerCount, {
     ...DEFAULT_ROOM_SETTINGS,
-    vondoCount: playerCount >= 8 ? 2 : 1,
+    vondoCount: playerCount >= 11 ? 3 : playerCount >= 8 ? 2 : 1,
     tasksPerPlayer: 5,
   });
 

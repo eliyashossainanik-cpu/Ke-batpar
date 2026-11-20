@@ -408,4 +408,41 @@ test('Phase 3 Ghost harmless lamp-flicker prank triggers once per round and rese
   }
 });
 
+test('P2PHostRoomEngine syncs rooftop y elevation and resolves meeting votes cleanly at timer end without hanging', () => {
+  const engine = new P2PHostRoomEngine('R00F1', {
+    sendToClient: () => {},
+    broadcast: () => {},
+  });
+
+  engine.addClient('h1', 'Host Roof', 'lal', true);
+  engine.handleMessage('h1', { type: 'lobby:add_bot' });
+  engine.handleMessage('h1', { type: 'lobby:add_bot' });
+  engine.handleMessage('h1', { type: 'lobby:add_bot' });
+  engine.handleMessage('h1', { type: 'lobby:add_bot' });
+  engine.handleMessage('h1', { type: 'lobby:start' });
+
+  for (let i = 0; i < 102; i++) engine.step(0.05);
+  for (let i = 0; i < 170; i++) engine.step(0.05);
+  assert.equal(engine.getSnapshot().phase, 'playing');
+
+  // Walk host up Cha-er Dokan stairs onto rooftop
+  engine.handleMessage('h1', { type: 'player:move', x: -46.0, z: -33.6, y: 3.05, vx: 0, vz: -1, yaw: 0 });
+  engine.handleMessage('h1', { type: 'player:move', x: -42.5, z: -35.2, y: 3.15, vx: 1, vz: 0, yaw: 1.5 });
+  const hostOnRoof = engine.getSnapshot().players.find((p) => p.id === 'pl_host');
+  assert.ok(hostOnRoof && (hostOnRoof.y ?? 0) >= 3.0, `Expected host y >= 3.0 on rooftop, got ${hostOnRoof?.y}`);
+
+  // Advance past emergency cooldown and call meeting -> let meeting expire without human voting -> must resolve cleanly
+  for (let i = 0; i < 320; i++) engine.step(0.05);
+  engine.handleMessage('h1', { type: 'player:move', x: 0, z: 0, y: 0, vx: 0, vz: 0, yaw: 0 });
+  engine.handleMessage('h1', { type: 'player:emergency_meeting' });
+  assert.equal(engine.getSnapshot().phase, 'meeting');
+
+  for (let i = 0; i < 1000; i++) {
+    engine.step(0.05);
+    if (engine.getSnapshot().phase !== 'meeting') break;
+  }
+  assert.notEqual(engine.getSnapshot().phase, 'meeting', 'Meeting must never hang at 0s');
+});
+
+
 

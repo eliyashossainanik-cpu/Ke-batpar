@@ -8,6 +8,7 @@ import {
   type SpecialRole,
 } from '../shared/types';
 import { loadCareerStats } from '../game/statsStore';
+import { isNeutralRole } from '../shared/gameRules';
 import { getChubaniTaunts, ROLE_COMEDY_TAGLINES } from '../shared/banglaComedy';
 import { soundEngine } from '../audio/soundEngine';
 import {
@@ -45,8 +46,86 @@ const ROLE_ROULETTE_DECK: RouletteCardDef[] = [
   { id: 'mistri', label: 'MISTRI', bangla: 'মিস্ত্রি বাবু', faction: 'parabasi', accent: '#fbbf24' },
   { id: 'daktar', label: 'DAKTAR', bangla: 'ডাক্তার', faction: 'parabasi', accent: '#2dd4bf' },
   { id: 'neta', label: 'NETA', bangla: 'মহল্লা নেতা', faction: 'parabasi', accent: '#facc15' },
+  { id: 'ghotok_khala', label: 'GHOTOK KHALA', bangla: 'ঘটক খালা', faction: 'parabasi', accent: '#f472b6' },
+  { id: 'master_moshai', label: 'MASTER MOSHAI', bangla: 'মাস্টার মশাই', faction: 'parabasi', accent: '#60a5fa' },
+  { id: 'cctv_kaku', label: 'CCTV KAKU', bangla: 'সিসিটিভি কাকু', faction: 'parabasi', accent: '#fb923c' },
+  { id: 'hatur_daktar', label: 'HATUR DAKTAR', bangla: 'হাতুড়ে ডাক্তার', faction: 'parabasi', accent: '#a3e635' },
+  { id: 'supari_killer', label: 'SUPARI KILLER', bangla: 'সুপারি কিলার', faction: 'vondo', accent: '#ef4444' },
+  { id: 'dalal', label: 'DALAL', bangla: 'দালাল বাটপার', faction: 'vondo', accent: '#dc2626' },
   { id: 'pagol', label: 'PAGLA BABA', bangla: 'পাগলা বাবা', faction: 'neutral', accent: '#c084fc' },
+  { id: 'chamcha', label: 'CHAMCHA', bangla: 'চামচা', faction: 'neutral', accent: '#a855f7' },
+  { id: 'chandabaz', label: 'CHANDABAZ', bangla: 'চাঁদাবাজ', faction: 'neutral', accent: '#eab308' },
+  { id: 'tiktok_star', label: 'TIKTOK STAR', bangla: 'টিকটক স্টার', faction: 'neutral', accent: '#ec4899' },
 ];
+
+const LOADING_MOHOLLA_TIPS = [
+  'Cha-er dokan e dudh-cha er pani gorom hocche...',
+  'Pukur er pani clean kora hocche chubani er jonno...',
+  'DESCO er fuse box check kora hocche...',
+  'Ke asli Batpar sheta godhuli bela e bojha jabe!',
+];
+
+export function MatchLoadingOverlay({ subtitle }: { subtitle?: string }) {
+  const [tipIndex, setTipIndex] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTipIndex((i) => (i + 1) % LOADING_MOHOLLA_TIPS.length);
+    }, 1100);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Loading Moholla Match"
+      className="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 text-center overflow-hidden"
+      style={{
+        background: 'radial-gradient(circle at 50% 42%, rgba(15, 34, 66, 0.98) 0%, rgba(5, 8, 16, 1) 75%)',
+      }}
+    >
+      {/* Subtle Starfield Dots */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-35 pointer-events-none"
+        style={{
+          backgroundImage:
+            'radial-gradient(2px 2px at 18% 22%, #fff 50%, transparent 100%), radial-gradient(2px 2px at 78% 16%, #fde68a 50%, transparent 100%), radial-gradient(1.5px 1.5px at 34% 72%, #bae6fd 50%, transparent 100%), radial-gradient(2px 2px at 84% 68%, #fff 50%, transparent 100%), radial-gradient(1.5px 1.5px at 56% 30%, #fff 50%, transparent 100%)',
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center gap-4 max-w-md w-full animate-fade-in">
+        {/* Among Us Style Floating Runner */}
+        <div className="animate-amg-runner">
+          <svg viewBox="0 0 96 96" className="w-24 h-24 drop-shadow-[0_12px_28px_rgba(56,189,248,0.35)]" aria-hidden="true">
+            <rect x="18" y="36" width="13" height="32" rx="5" fill="#94a3b8" stroke="#0f172a" strokeWidth="3" />
+            <rect x="28" y="20" width="44" height="54" rx="21" fill="#e11d48" stroke="#0f172a" strokeWidth="3.2" />
+            <rect x="33" y="68" width="12" height="15" rx="5" fill="#e11d48" stroke="#0f172a" strokeWidth="2.8" />
+            <rect x="53" y="68" width="12" height="15" rx="5" fill="#e11d48" stroke="#0f172a" strokeWidth="2.8" />
+            <rect x="44" y="31" width="27" height="16" rx="8" fill="#7dd3fc" stroke="#0f172a" strokeWidth="2.8" />
+            <ellipse cx="62" cy="36" rx="5" ry="2.3" fill="#ffffff" opacity="0.88" />
+          </svg>
+        </div>
+
+        <div className="space-y-1">
+          <p className="font-mono-tabular text-[11px] uppercase tracking-[0.28em] text-amber-300 font-bold">
+            KE BATPAR? · MOHOLLA LOADING
+          </p>
+          <h2 className="font-display text-2xl sm:text-3xl font-black text-white">
+            {subtitle ?? 'Entering the Moholla...'}
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300">{LOADING_MOHOLLA_TIPS[tipIndex]}</p>
+        </div>
+
+        {/* Shimmering Progress Bar */}
+        <div className="w-64 h-2 rounded-full bg-slate-800/90 border border-white/10 overflow-hidden relative">
+          <div className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-gradient-to-r from-amber-400 via-sky-300 to-emerald-400 animate-amg-loading-bar" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ChibiRolePortrait({
   colorHex,
@@ -110,25 +189,47 @@ function ChibiRolePortrait({
   );
 }
 
-function getRoleHowToPlay(isVondo: boolean, isPagol: boolean, specialRole: SpecialRole): string[] {
+function getRoleHowToPlay(isVondo: boolean, specialRole: SpecialRole): string[] {
   if (isVondo) {
     const lines = [
       'Alada thaka Para-basi ke [Q / Gap e Naw] diye size koro ar [V] diye Dren diye palao!',
-      '[Tab / Map] theke DESCO Current ba Wi-Fi Sabotage dao jeno shobai chhutachhuti kore.',
+      '[Tab / Map] theke DESCO Current, Wi-Fi, ba Gas Leak Sabotage dao jeno shobai chhutachhuti kore.',
     ];
     if (specialRole === 'bohurupi') {
       lines.push('Bohurupi Power [G]: Onno player er chehara churi kore CCTV te tader ke fashao!');
     } else if (specialRole === 'jharudar') {
       lines.push('Jharudar Power [G]: Size korar por Lash gayeb kore daw jeno keu report na kore!');
+    } else if (specialRole === 'supari_killer') {
+      lines.push('Supari Killer [G]: Marked Supari target ke marle porer Kill Cooldown ORDHKE (50%) hobe!');
+    } else if (specialRole === 'dalal') {
+      lines.push('Dalal Power [G]: Shutter lock +8s baray ar 10s Admin Radar & Vitals jam kore dey!');
     } else {
       lines.push('Shalish e bhalo acting koro — nije sus hoile onno kaure dosh diye bachaw!');
     }
     return lines;
   }
-  if (isPagol) {
+  if (specialRole === 'pagol') {
     return [
       'Tumi kono team e nai! Tomar Goal: Shalish e shobai jeno TOMAKE Pukur e fele!',
       'Task na kore ektu shondhojonok bhabe ghuraghuri koro ar chat e ultapalta kotha bolo!',
+    ];
+  }
+  if (specialRole === 'chamcha') {
+    return [
+      'Match er moddhe [G] chepe ekjon Patron select koro — Patron er team jitle tumio CO-WIN korbe!',
+      'Jodi tomar Patron Batpar hoy tobe Batpar er sathei jite jabe; alive thaka must!',
+    ];
+  }
+  if (specialRole === 'chandabaz') {
+    return [
+      '3 jon alada neighbor er kache giye [G] chepe Chanda vasool koro — 3/3 hoilei Solo WIN!',
+      'Dhora na kheye stealth bhabe alada alada Para-basi er kach theke Chanda tule felo!',
+    ];
+  }
+  if (specialRole === 'tiktok_star') {
+    return [
+      '3 ta alada Moholla zone e giye [G] chepe Viral Reel shoot koro!',
+      '3 ta Reel complete kore sesh <= 4 jon e tike thaklei Viral Solo WIN!',
     ];
   }
   const lines = [
@@ -147,6 +248,14 @@ function getRoleHowToPlay(isVondo: boolean, isPagol: boolean, specialRole: Speci
     lines.push('Neta Power: Shalish e tomar Vote 2x count hobe ar +1 Extra Adda Bell pabe!');
   } else if (specialRole === 'daktar') {
     lines.push('Daktar Power [G]: Match e 1 bar unreported fallen neighbor ke Saline diye jinda koro!');
+  } else if (specialRole === 'ghotok_khala') {
+    lines.push('Ghotok Khala [G]: 2 jon ke Moholla Bond e joro koro — ekjon morle onnojon alert pabe!');
+  } else if (specialRole === 'master_moshai') {
+    lines.push('Master Moshai [G]: Kacher player er Khata check kore dekho shey fake natok kortese kina!');
+  } else if (specialRole === 'cctv_kaku') {
+    lines.push('CCTV Kaku [G]: Mohollar jekono jayga thekei pocket phone e live Security CCTV dekho!');
+  } else if (specialRole === 'hatur_daktar') {
+    lines.push('Hatur Daktar [G]: Neighbor ke 12s er Jhajhro Injection daw — Batpar marle bache jabe!');
   }
   return lines;
 }
@@ -180,14 +289,14 @@ export function RoleRevealModal({
   }, [localPlayerId, snapshot.roomCode]);
 
   const isVondo = localPlayer?.role === 'vondo';
-  const isPagol = localPlayer?.specialRole === 'pagol';
+  const isNeutral = Boolean(localPlayer && isNeutralRole(localPlayer.specialRole));
   const flipped = elapsedMs >= ROULETTE_END_MS;
 
   // Step-slowing Super Sus deck roulette index
   const rouletteIndex = useMemo(() => {
     if (elapsedMs >= ROULETTE_END_MS) return 0;
     const progress = elapsedMs / ROULETTE_END_MS;
-    const step = Math.floor(Math.pow(progress, 0.78) * 14);
+    const step = Math.floor(Math.pow(progress, 0.78) * 18);
     return step;
   }, [elapsedMs]);
 
@@ -202,9 +311,9 @@ export function RoleRevealModal({
     }
     if (!shhhhPlayedRef.current) {
       shhhhPlayedRef.current = true;
-      soundEngine.playShhhhSound(Boolean(isVondo), Boolean(isPagol));
+      soundEngine.playShhhhSound(Boolean(isVondo), Boolean(isNeutral));
     }
-  }, [flipped, rouletteIndex, isVondo, isPagol, localPlayer]);
+  }, [flipped, rouletteIndex, isVondo, isNeutral, localPlayer]);
 
   if (!localPlayer) return null;
 
@@ -212,35 +321,73 @@ export function RoleRevealModal({
   const colorSpec = PLAYER_COLORS.find((col) => col.id === localPlayer.color) ?? PLAYER_COLORS[0];
   const fellowVondos = snapshot.players.filter((p) => p.role === 'vondo');
   const parabasiCount = snapshot.players.filter(
-    (p) => p.role === 'parabasi' && p.specialRole !== 'pagol',
+    (p) => p.role === 'parabasi' && !isNeutralRole(p.specialRole),
   ).length;
-  const pagolCount = snapshot.players.filter((p) => p.specialRole === 'pagol').length;
+  const neutralCount = snapshot.players.filter((p) => isNeutralRole(p.specialRole)).length;
   const progressPct = Math.min(100, (elapsedMs / TOTAL_DISPLAY_MS) * 100);
-  const roleSteps = getRoleHowToPlay(isVondo, isPagol, localPlayer.specialRole);
+  const roleSteps = getRoleHowToPlay(isVondo, localPlayer.specialRole);
 
   const factionBg = !flipped
     ? 'radial-gradient(circle at center, rgba(30, 41, 59, 0.96) 0%, rgba(7, 10, 18, 0.99) 75%)'
-    : isPagol
+    : isNeutral
       ? 'radial-gradient(circle at center, rgba(88, 28, 135, 0.95) 0%, rgba(7, 10, 18, 0.99) 74%)'
       : isVondo
         ? 'radial-gradient(circle at center, rgba(127, 29, 29, 0.95) 0%, rgba(7, 10, 18, 0.99) 74%)'
         : 'radial-gradient(circle at center, rgba(12, 74, 110, 0.95) 0%, rgba(7, 10, 18, 0.99) 74%)';
+
+  const revealHeadline =
+    localPlayer.specialRole === 'pagol'
+      ? 'PAGLA BABA!'
+      : localPlayer.specialRole === 'chamcha'
+        ? 'MOHOLLA CHAMCHA!'
+        : localPlayer.specialRole === 'chandabaz'
+          ? 'CHANDABAZ!'
+          : localPlayer.specialRole === 'tiktok_star'
+            ? 'TIKTOK STAR!'
+            : isVondo
+              ? 'TUMI BATPAR!'
+              : 'TUMI PARA-BASI!';
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Role Reveal"
-      className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto overflow-x-hidden"
       style={{ background: factionBg }}
     >
-      <div className="max-w-2xl w-full max-h-[95dvh] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/75 shadow-2xl p-3.5 sm:p-6 space-y-3.5 sm:space-y-4">
+      {/* Among Us Style Angled Spotlight Beams */}
+      {flipped && (
+        <div aria-hidden="true" className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div
+            className="animate-amg-spotlight absolute -top-24 left-1/4 w-72 h-[140%] blur-2xl opacity-65"
+            style={{
+              background: isNeutral
+                ? 'linear-gradient(180deg, rgba(192,132,252,0.35), transparent 75%)'
+                : isVondo
+                  ? 'linear-gradient(180deg, rgba(244,63,94,0.35), transparent 75%)'
+                  : 'linear-gradient(180deg, rgba(56,189,248,0.32), transparent 75%)',
+            }}
+          />
+          <div
+            className="animate-amg-spotlight absolute -top-24 right-1/4 w-56 h-[135%] blur-2xl opacity-50"
+            style={{
+              background: 'linear-gradient(180deg, rgba(251,191,36,0.22), transparent 75%)',
+            }}
+          />
+        </div>
+      )}
+
+      <div className="relative z-10 max-w-2xl w-full max-h-[95dvh] overflow-y-auto rounded-2xl border border-white/15 bg-slate-950/80 shadow-2xl p-3.5 sm:p-6 space-y-3.5 sm:space-y-4">
         {!flipped ? (
-          /* STAGE 1: Super Sus Role Card Shuffle & Selection Roulette */
+          /* STAGE 1: Among Us SHHHHH! + Super Sus Role Card Shuffle Roulette */
           <div className="py-4 sm:py-8 text-center space-y-4">
+            <div className="animate-amg-shh font-display text-3xl sm:text-5xl font-black text-amber-300 drop-shadow-[0_4px_20px_rgba(251,191,36,0.4)]">
+              SHHHHH!
+            </div>
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-[11px] font-mono-tabular uppercase tracking-[0.22em] text-amber-300">
               <Sparkles className="w-3.5 h-3.5" />
-              SELECTING YOUR MOHOLLA CARD...
+              DEALING MOHOLLA DOSSIER...
             </span>
 
             {/* Fanned Shuffle Cards Row */}
@@ -270,7 +417,7 @@ export function RoleRevealModal({
                       ?
                     </span>
                     <span
-                      className="font-display font-extrabold text-xs sm:text-base tracking-wide text-center"
+                      className="font-display font-extrabold text-xs sm:text-base tracking-wide text-center leading-tight"
                       style={{ color: card.accent }}
                     >
                       {card.label}
@@ -286,45 +433,50 @@ export function RoleRevealModal({
             </p>
           </div>
         ) : (
-          /* STAGE 2: SHHHHH! Dramatic Card Reveal + Imposter Gang + Role & Rules Briefing */
+          /* STAGE 2: Among Us Spotlight Reveal + Faction Banner + Imposter Gang + Role & Rules Briefing */
           <>
-            <div className="text-center space-y-2">
+            <div className="animate-amg-slam text-center space-y-2.5">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-xs font-mono-tabular uppercase tracking-[0.26em] text-amber-300">
                 <Volume2 className="w-3.5 h-3.5" />
                 SHHHHH! · নিশ্চুপ!
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 pt-1">
+              {/* Wide Among Us Style Horizontal Faction Banner */}
+              <div
+                className={`rounded-2xl border px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 shadow-xl ${
+                  isNeutral
+                    ? 'bg-gradient-to-r from-purple-950/90 via-slate-900/90 to-amber-950/75 border-purple-400/45'
+                    : isVondo
+                      ? 'bg-gradient-to-r from-rose-950/90 via-slate-900/90 to-red-950/85 border-rose-500/45'
+                      : 'bg-gradient-to-r from-sky-950/90 via-slate-900/90 to-cyan-950/85 border-sky-400/45'
+                }`}
+              >
                 <ChibiRolePortrait
                   colorHex={colorSpec.hex}
                   visorTint={colorSpec.visorTint}
                   isVondo={isVondo}
-                  isPagol={isPagol}
+                  isPagol={isNeutral}
                   specialRole={localPlayer.specialRole}
                 />
 
                 <div className="text-center sm:text-left space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                    {isPagol
-                      ? 'CHAOS NEUTRAL CARD'
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
+                    {isNeutral
+                      ? 'CHAOS NEUTRAL ROLE'
                       : isVondo
-                        ? 'SECRET IMPOSTER CARD'
-                        : 'MOHOLLA CREW CARD'}
+                        ? 'SECRET BATPAR IMPOSTOR'
+                        : 'MOHOLLA CREW ROLE'}
                   </p>
                   <h2
-                    className={`font-display text-3xl sm:text-4xl font-extrabold leading-none ${
-                      isPagol ? 'text-purple-300' : isVondo ? 'text-rose-400' : 'text-sky-300'
+                    className={`font-display text-3xl sm:text-4xl font-black leading-none tracking-tight ${
+                      isNeutral ? 'text-purple-300' : isVondo ? 'text-rose-400' : 'text-sky-300'
                     }`}
                   >
-                    {isPagol
-                      ? 'PAGLA BABA!'
-                      : isVondo
-                        ? 'TUMI BATPAR!'
-                        : 'TUMI PARA-BASI!'}
+                    {revealHeadline}
                   </h2>
 
                   {localPlayer.specialRole !== 'none' ? (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-white/15 mt-1">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/80 border border-white/15 mt-1">
                       <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: specialMeta.accentHex }} />
                       <span className="text-xs sm:text-sm font-bold" style={{ color: specialMeta.accentHex }}>
                         {specialMeta.banglaTitle} · {specialMeta.title}
@@ -413,7 +565,7 @@ export function RoleRevealModal({
                     <span>
                       <strong className="text-rose-300">{fellowVondos.length} Batpar</strong> vs{' '}
                       <strong className="text-sky-300">{parabasiCount} Para-basi</strong>
-                      {pagolCount > 0 ? ' + 1 Pagla Baba' : ''}.
+                      {neutralCount > 0 ? ` + ${neutralCount} Neutral` : ''}.
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
@@ -818,10 +970,15 @@ export function OutcomeModal({
   onTitle: () => void;
 }) {
   const localPlayer = snapshot.players.find((p) => p.id === localPlayerId);
+  const isNeutralWin =
+    outcome.winner === 'pagol' || outcome.winner === 'chandabaz' || outcome.winner === 'tiktok_star';
   const won =
-    outcome.winner === 'pagol'
-      ? localPlayer?.specialRole === 'pagol'
-      : localPlayer?.role === outcome.winner && localPlayer?.specialRole !== 'pagol';
+    isNeutralWin
+      ? localPlayer?.specialRole === outcome.winner
+      : Boolean(
+          (localPlayer?.role === outcome.winner && !isNeutralRole(localPlayer.specialRole)) ||
+            outcome.coWinnerIds?.includes(localPlayerId),
+        );
   const vondos = snapshot.players.filter((p) => p.role === 'vondo');
 
   const career = loadCareerStats();
@@ -832,7 +989,20 @@ export function OutcomeModal({
     batpars_outnumber: 'Batpar ra pura Moholla dokhol kore nise — Cha-er dokan o bondho!',
     critical_sabotage_timeout: 'Gas Phute Pura Para Uthhe Gese! Chulha ar tanki dui-i Blast!',
     pagol_ejected: `${outcome.winnerPlayerName ?? 'Pagla Baba'} shobai ke ullu banay cup niye gelo!`,
+    chandabaz_extorted: `${outcome.winnerPlayerName ?? 'Chandabaz'} 3 joner kach theke Chanda tule cup niye gelo!`,
+    tiktok_viral: `${outcome.winnerPlayerName ?? 'TikTok Star'} 3 ta Viral Reel chere cup jite nilo!`,
   };
+
+  const winnerBannerLabel =
+    outcome.winner === 'pagol'
+      ? 'Pagla Baba Chaos Victory'
+      : outcome.winner === 'chandabaz'
+        ? 'Chandabaz Vasool Victory'
+        : outcome.winner === 'tiktok_star'
+          ? 'TikTok Star Viral Victory'
+          : outcome.winner === 'parabasi'
+            ? 'Para-basi Victory'
+            : 'Batpar Victory';
 
   return (
     <div
@@ -856,16 +1026,18 @@ export function OutcomeModal({
 
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
-            {outcome.winner === 'pagol'
-              ? 'Pagla Baba Chaos Victory'
-              : outcome.winner === 'parabasi'
-                ? 'Para-basi Victory'
-                : 'Batpar Victory'}
+            {winnerBannerLabel}
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-white mt-1">
             {won ? 'Khela Hobe! Jitsi Bhai!' : 'Dhora Khaisi! Khela Shesh!'}
           </h2>
           <p className="text-sm text-slate-300 mt-1">{reasonText[outcome.reason]}</p>
+          {outcome.coWinnerNames && outcome.coWinnerNames.length > 0 && (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-950/60 border border-purple-400/40 text-xs font-bold text-purple-200">
+              <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              Chamcha Co-Win: {outcome.coWinnerNames.join(', ')}
+            </p>
+          )}
         </div>
 
         {/* 3 Tabular Match Stats */}
@@ -893,12 +1065,12 @@ export function OutcomeModal({
         {/* Full Post-Match Player Role Reveal Roster */}
         <div className="rounded-xl p-3 bg-slate-900/90 border border-slate-800 text-left">
           <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-2">
-            <span>Full Moholla Role Reveal</span>
+            <span>Full Moholla Role Reveal ({snapshot.players.length}P)</span>
             <span className="font-mono-tabular text-amber-300">
               Career: {career.wins}W / {career.matchesPlayed}M · {career.tasksCompleted} Tasks
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
             {snapshot.players.map((p) => {
               const col = PLAYER_COLORS.find((c) => c.id === p.color) ?? PLAYER_COLORS[0];
               const meta = SPECIAL_ROLES[p.specialRole];

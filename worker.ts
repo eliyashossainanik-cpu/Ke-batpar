@@ -97,8 +97,12 @@ export class MohollaRoomDO {
 
   private startLoops(roomCode: string): void {
     if (this.tickTimer === null) {
+      let lastTickMs = Date.now();
       this.tickTimer = setInterval(() => {
-        this.session?.tick(0.05);
+        const nowMs = Date.now();
+        const dt = Math.min(0.5, Math.max(0.016, (nowMs - lastTickMs) / 1000));
+        lastTickMs = nowMs;
+        this.session?.tick(dt);
       }, 50);
     }
     if (this.heartbeatTimer === null) {

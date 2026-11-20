@@ -224,7 +224,14 @@ export type PlayerColorId =
   | 'beguni'
   | 'komola'
   | 'sada'
-  | 'kalo';
+  | 'kalo'
+  | 'golapi'
+  | 'akashi'
+  | 'badami'
+  | 'tute'
+  | 'jam'
+  | 'olive'
+  | 'tan';
 
 export interface PlayerColorSpec {
   id: PlayerColorId;
@@ -243,6 +250,13 @@ export const PLAYER_COLORS: PlayerColorSpec[] = [
   { id: 'komola', label: 'Komola Kaku', banglaName: 'কমলা কাকু', hex: '#ea580c', visorTint: '#fed7aa' },
   { id: 'sada', label: 'Sada Dada', banglaName: 'সাদা দাদা', hex: '#e2e8f0', visorTint: '#38bdf8' },
   { id: 'kalo', label: 'Kalo Ustad', banglaName: 'কালো ওস্তাদ', hex: '#334155', visorTint: '#67e8f9' },
+  { id: 'golapi', label: 'Golapi Rani', banglaName: 'গোলাপি রানী', hex: '#ec4899', visorTint: '#fbcfe8' },
+  { id: 'akashi', label: 'Akashi Tara', banglaName: 'আকাশী তারা', hex: '#06b6d4', visorTint: '#cffafe' },
+  { id: 'badami', label: 'Badami Mama', banglaName: 'বাদামী মামা', hex: '#92400e', visorTint: '#fde68a' },
+  { id: 'tute', label: 'Tute Chacha', banglaName: 'তুতে চাচা', hex: '#14b8a6', visorTint: '#ccfbf1' },
+  { id: 'jam', label: 'Jam Kaka', banglaName: 'জাম কাকা', hex: '#6d28d9', visorTint: '#ddd6fe' },
+  { id: 'olive', label: 'Pata Bhai', banglaName: 'পাতা ভাই', hex: '#65a30d', visorTint: '#ecfccb' },
+  { id: 'tan', label: 'Shona Babu', banglaName: 'সোনা বাবু', hex: '#d97706', visorTint: '#fef3c7' },
 ];
 
 export type TaskKind =
@@ -329,6 +343,33 @@ export interface SecurityCamDef {
   viewRadius: number;
 }
 
+export interface RoofDeckDef {
+  id: string;
+  zoneId: string;
+  label: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  elevationY: number;
+  stairOpenings: Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+}
+
+export interface StairRampDef {
+  id: string;
+  roofId: string;
+  label: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  axis: 'x' | 'z';
+  bottomCoord: number;
+  topCoord: number;
+  topY: number;
+  steps: number;
+}
+
 export interface PlayerTaskState {
   taskId: string;
   completed: boolean;
@@ -341,6 +382,7 @@ export interface PlayerState {
   color: PlayerColorId;
   x: number;
   z: number;
+  y?: number;
   vx: number;
   vz: number;
   yaw: number;
@@ -541,7 +583,7 @@ export type ClientMessage =
   | { type: 'lobby:remove_bots' }
   | { type: 'lobby:start' }
   | { type: 'lobby:cancel_start' }
-  | { type: 'player:move'; x: number; z: number; vx: number; vz: number; yaw: number }
+  | { type: 'player:move'; x: number; z: number; y?: number; vx: number; vz: number; yaw: number }
   | { type: 'player:task_complete'; taskId: string }
   | { type: 'player:visual_task_start'; taskId: string }
   | { type: 'player:kill'; targetId: string }

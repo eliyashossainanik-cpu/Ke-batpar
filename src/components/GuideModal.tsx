@@ -16,9 +16,18 @@ const ROLE_ORDER: SpecialRole[] = [
   'daroga',
   'neta',
   'daktar',
+  'ghotok_khala',
+  'master_moshai',
+  'cctv_kaku',
+  'hatur_daktar',
   'bohurupi',
   'jharudar',
+  'supari_killer',
+  'dalal',
   'pagol',
+  'chamcha',
+  'chandabaz',
+  'tiktok_star',
 ];
 
 export function GuideModal({ onClose }: GuideModalProps) {
@@ -129,11 +138,14 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <section className="rounded-xl p-4 bg-purple-950/35 border border-purple-400/30">
                 <h3 className="font-display font-bold text-purple-300 text-sm mb-1 flex items-center gap-1.5">
                   <Users className="w-4 h-4" />
-                  Pagla Baba (Neutral) &amp; Ghost Rules
+                  Neutral Chaos Roles (5–15 Players) &amp; Ghost Rules
                 </h3>
                 <ul className="space-y-1 text-xs text-slate-300 list-disc pl-4">
                   <li>
                     <strong>Pagla Baba:</strong> Nije eka jite jodi Shalish vote e Pukur e fele deowa hoy! Game tokhon e sesh, bakira hare.
+                  </li>
+                  <li>
+                    <strong>Chamcha, Chandabaz &amp; TikTok Star:</strong> Chamcha Patron er team er sathe CO-WIN kore; Chandabaz 3 jon theke Chanda nile Solo jite; TikTok Star 3 zone e reel kore sesh 4 jon e thakle jite!
                   </li>
                   <li>
                     <strong>Ghosts:</strong> Morle Adrishyo Ghost hoye jabe — wall er bhitore diye jete parbe, dead chat e kotha bolte parbe, ar Parabasi hole Ghost hoyeo tasks sesh korte parbe!

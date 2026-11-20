@@ -1,23 +1,51 @@
 import {
   BOHURUPI_COOLDOWN_SEC,
   BOHURUPI_DISGUISE_DURATION_SEC,
+  CHAMCHA_COOLDOWN_SEC,
+  CHANDABAZ_COOLDOWN_SEC,
+  CHANDABAZ_GOAL,
+  DALAL_COOLDOWN_SEC,
+  DAROGA_COOLDOWN_SEC,
+  HATUR_COOLDOWN_SEC,
+  HATUR_DURATION_MS,
   JHARUDAR_CLEAN_CHANNEL_SEC,
   JHARUDAR_CLEAN_USES,
   KOBIRAJ_COOLDOWN_SEC,
+  MASTER_COOLDOWN_SEC,
   MISTRI_FIX_RANGE,
+  MISTRI_VENT_COOLDOWN_SEC,
   SABOTAGE_COOLDOWN_SEC,
   SABOTAGE_FIX_RANGE,
+  TIKTOK_COOLDOWN_SEC,
+  TIKTOK_ZONE_GOAL,
+  VENT_RANGE,
+  applyDalalBrokerJam,
   canCompleteTasks,
   canExecuteKill,
+  collectChandaFromTarget,
   createSabotageState,
+  executeGoyendaScan,
+  findGhotokPairCandidates,
+  findNearestChamchaPatron,
+  findNearestChandabazTarget,
   findNearestCleanableBody,
+  findNearestDarogaTarget,
   findNearestGasValve,
+  findNearestHaturTarget,
   findNearestKillTarget,
+  findNearestMasterTarget,
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
   getColorShadeHint,
+  getConnectedVents,
+  inspectPlayerTaskAuthenticity,
+  isNeutralRole,
+  isPlayerShieldedNow,
   isTaskLockedBySabotage,
+  pickSupariContractTarget,
+  recordTiktokReelInZone,
+  resolveDarogaShot,
 } from './gameRules';
 import {
   BOT_WAYPOINTS,
@@ -25,8 +53,11 @@ import {
   GAS_LEAK_VALVES,
   PLAYER_RADIUS,
   TASK_STATIONS,
+  VENTS,
   WALLS,
+  ZONES,
   distance2D,
+  getZoneIdAt,
   getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
@@ -65,6 +96,13 @@ export interface BotBrainState {
   cachedGoalX?: number;
   cachedGoalZ?: number;
   pathRefreshTimer?: number;
+  processedMeetingClues?: boolean;
+  zoneHistory?: string[];
+  lastZoneSampleMs?: number;
+  ventTimer?: number;
+  ventTargetId?: string | null;
+  forensicHint?: string | null;
+  masterAccusedId?: string | null;
 }
 
 export interface BotPlayContext {
@@ -471,8 +509,8 @@ export function createBotBrainState(rng: () => number = Math.random): BotBrainSt
     voteTimer: 2 + rng() * 4,
     hasChatted: false,
     huntTargetId: null,
-    sabotageDelayTimer: 22 + rng() * 28,
-    killWaitTimer: 2 + rng() * 5,
+    sabotageDelayTimer: 26 + rng() * 28,
+    killWaitTimer: 18 + rng() * 14,
     recentSightings: [],
     clearedIds: [],
     lastSightSampleMs: 0,
@@ -483,6 +521,13 @@ export function createBotBrainState(rng: () => number = Math.random): BotBrainSt
     detourTimer: 0,
     suspicion: {},
     seenNearKill: null,
+    processedMeetingClues: false,
+    zoneHistory: [],
+    lastZoneSampleMs: 0,
+    ventTimer: 0,
+    ventTargetId: null,
+    forensicHint: null,
+    masterAccusedId: null,
   };
 }
 
@@ -496,7 +541,10 @@ export function resetBotBrainsForMeeting(
     brain.pauseTimer = 0.2;
     brain.detourNodeIdx = null;
     brain.detourTimer = 0;
-    brain.killWaitTimer = 34 + rng() * 20;
+    brain.killWaitTimer = 38 + rng() * 20;
+    brain.processedMeetingClues = false;
+    brain.ventTimer = 0;
+    brain.ventTargetId = null;
   }
 }
 
@@ -518,7 +566,7 @@ export function recordKillWitnesses(
     const brain = brains.get(observer.id);
     if (!brain) continue;
     brain.seenNearKill = killer.id;
-    brain.suspicion[killer.id] = (brain.suspicion[killer.id] ?? 0) + 5;
+    brain.suspicion[killer.id] = (brain.suspicion[killer.id] ?? 0) + 6;
   }
 }
 
@@ -546,12 +594,11 @@ function computeGasValveAssignments(
   players: PlayerState[],
 ): Map<string, 'valve_cha' | 'valve_rickshaw'> {
   const helpers = players
-    .filter((p) => p.isBot && p.alive && p.role === 'parabasi' && p.specialRole !== 'pagol')
+    .filter((p) => p.isBot && p.alive && p.role === 'parabasi' && !isNeutralRole(p.specialRole))
     .sort((a, b) => a.id.localeCompare(b.id));
   const assignments = new Map<string, 'valve_cha' | 'valve_rickshaw'>();
   if (helpers.length === 0) return assignments;
 
-  // Pick closest helper to valve_cha first, closest other to valve_rickshaw
   const v0 = GAS_LEAK_VALVES[0];
   const v1 = GAS_LEAK_VALVES[1];
 
@@ -563,7 +610,6 @@ function computeGasValveAssignments(
   if (remaining.length > 0) {
     remaining.sort((a, b) => distance2D(a.x, a.z, v1.x, v1.z) - distance2D(b.x, b.z, v1.x, v1.z));
     assignments.set(remaining[0].id, 'valve_rickshaw');
-    // Alternate additional helpers between both valves for redundancy
     for (let i = 1; i < remaining.length; i++) {
       assignments.set(remaining[i].id, i % 2 === 1 ? 'valve_cha' : 'valve_rickshaw');
     }
@@ -590,7 +636,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
   const nonCritFixerIds = new Set<string>();
   if (sabotage.active && sabotage.active !== 'gas_leak') {
     const candidates = players
-      .filter((p) => p.isBot && p.alive && p.role === 'parabasi' && p.specialRole !== 'pagol')
+      .filter((p) => p.isBot && p.alive && p.role === 'parabasi' && !isNeutralRole(p.specialRole))
       .sort(
         (a, b) =>
           distance2D(a.x, a.z, sabotage.fixStationX, sabotage.fixStationZ) -
@@ -623,6 +669,42 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       if (brain.detourTimer === 0) brain.detourNodeIdx = null;
     }
 
+    // Record visited zones for authentic Moholla alibi statements
+    if (nowMs - (brain.lastZoneSampleMs ?? 0) >= 2400) {
+      brain.lastZoneSampleMs = nowMs;
+      const zn = getZoneNameAt(p.x, p.z);
+      const history = brain.zoneHistory ?? [];
+      if (zn && history[history.length - 1] !== zn) {
+        history.push(zn);
+        brain.zoneHistory = history.slice(-4);
+      }
+    }
+
+    // Handle active vent escape / traversal
+    if (p.inVent) {
+      brain.ventTimer = Math.max(0, (brain.ventTimer ?? 0) - dt);
+      p.vx = 0;
+      p.vz = 0;
+      if ((brain.ventTimer ?? 0) <= 0) {
+        if (brain.ventTargetId) {
+          const dest = VENTS.find((v) => v.id === brain.ventTargetId);
+          if (dest) {
+            p.x = dest.x;
+            p.z = dest.z;
+          }
+          brain.ventTargetId = null;
+          brain.ventTimer = 0.45;
+        } else {
+          p.inVent = false;
+          if (p.specialRole === 'mistri') {
+            p.abilityCooldown = MISTRI_VENT_COOLDOWN_SEC;
+          }
+          brain.pathRefreshTimer = 0;
+        }
+      }
+      continue;
+    }
+
     // 1. Jharudar sweeps nearby unreported body using 2s channel
     if (
       p.specialRole === 'jharudar' &&
@@ -631,7 +713,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       (p.cleansLeft ?? JHARUDAR_CLEAN_USES) > 0
     ) {
       const cleanTarget = findNearestCleanableBody(p, bodies);
-      if (cleanTarget && rng() < 0.22) {
+      if (cleanTarget && rng() < 0.45) {
         p.jharuTargetBodyId = cleanTarget.id;
         p.jharuTimer = JHARUDAR_CLEAN_CHANNEL_SEC;
         p.vx = 0;
@@ -648,7 +730,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     // 2. Daktar revives nearby unreported body once
     if (p.specialRole === 'daktar' && (p.revivesLeft ?? 0) > 0) {
       const revBody = findNearestRevivableBody(p, bodies);
-      if (revBody && rng() < 0.25) {
+      if (revBody && rng() < 0.5) {
         const victim = players.find((pl) => pl.id === revBody.victimId);
         if (victim) {
           const idx = bodies.findIndex((b) => b.id === revBody.id);
@@ -663,13 +745,76 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       }
     }
 
-    // 3. Report discovered dead body (with LOS check)
+    // 2.5. Goyenda scans unreported body BEFORE reporting it so forensic clues are gathered!
+    if (p.specialRole === 'goyenda' && (p.scansLeft ?? 0) > 0 && bodies.length > 0) {
+      const scanRes = executeGoyendaScan(p, bodies, nowMs);
+      if (scanRes.ok && scanRes.clue) {
+        brain.forensicHint = scanRes.clue.detail;
+      }
+    }
+
+    // 2.6. Daroga Sheriff shot: if saw killer red-handed or Master Moshai confirmed, arrest on sight!
+    if (p.specialRole === 'daroga' && (p.shotsLeft ?? 0) > 0 && p.abilityCooldown <= 0.05) {
+      const darogaTarget = findNearestDarogaTarget(p, players);
+      if (
+        darogaTarget &&
+        (darogaTarget.id === brain.seenNearKill ||
+          darogaTarget.id === brain.masterAccusedId ||
+          (brain.suspicion[darogaTarget.id] ?? 0) >= 5.5) &&
+        hasLineOfSight(p.x, p.z, darogaTarget.x, darogaTarget.z, WALLS, doorLocks)
+      ) {
+        const shot = resolveDarogaShot(p, darogaTarget);
+        if (shot.allowed) {
+          p.shotsLeft = Math.max(0, (p.shotsLeft ?? 1) - 1);
+          if (shot.hitVondo) {
+            darogaTarget.alive = false;
+            darogaTarget.watchingCams = false;
+            p.abilityCooldown = DAROGA_COOLDOWN_SEC;
+            bodies.push({
+              id: `body_${nowMs}_${darogaTarget.id}_${Math.floor(rng() * 1000)}`,
+              victimId: darogaTarget.id,
+              victimName: darogaTarget.name,
+              color: darogaTarget.color,
+              x: darogaTarget.x,
+              z: darogaTarget.z,
+              reported: false,
+              killedAt: nowMs,
+              killerColorHint: getColorShadeHint(p.color),
+              killerZoneHint: getZoneNameAt(darogaTarget.x, darogaTarget.z),
+            });
+            ctx.onKill?.(p, darogaTarget, false);
+          } else {
+            p.alive = false;
+            p.watchingCams = false;
+            bodies.push({
+              id: `body_${nowMs}_${p.id}_${Math.floor(rng() * 1000)}`,
+              victimId: p.id,
+              victimName: p.name,
+              color: p.color,
+              x: p.x,
+              z: p.z,
+              reported: false,
+              killedAt: nowMs,
+              killerColorHint: getColorShadeHint(p.color),
+              killerZoneHint: getZoneNameAt(p.x, p.z),
+            });
+            ctx.onKill?.(p, p, false);
+          }
+          if (ctx.onTaskCompletedCheckWin?.()) return true;
+          continue;
+        }
+      }
+    }
+
+    // 3. Report discovered dead body (with LOS check; Pagol may stall/ignore to act sus!)
     const reportable = findNearestReportableBody(p, bodies, doorLocks);
     if (reportable) {
       const timeSinceKill = nowMs - reportable.killedAt;
       const shouldReport =
-        p.role === 'parabasi' ||
-        (p.specialRole !== 'jharudar' && timeSinceKill > 8000 && rng() < 0.02);
+        p.specialRole === 'pagol'
+          ? rng() < 0.08
+          : p.role === 'parabasi' ||
+            (p.specialRole !== 'jharudar' && timeSinceKill > 8000 && rng() < 0.03);
       if (shouldReport) {
         reportable.reported = true;
         ctx.onReportBody?.(p, reportable);
@@ -677,17 +822,79 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       }
     }
 
-    // 4. Kobiraj shields nearby ally
+    // 4. Smart Special Crew & Neutral Abilities
     if (p.specialRole === 'kobiraj' && p.abilityCooldown <= 0.05) {
       const ally = findNearestShieldTarget(p, players);
-      if (ally && rng() < 0.08) {
+      if (ally && rng() < 0.35) {
         ally.shielded = true;
         p.abilityCooldown = KOBIRAJ_COOLDOWN_SEC;
       }
     }
+    if (p.specialRole === 'hatur_daktar' && p.abilityCooldown <= 0.05) {
+      const ally = findNearestHaturTarget(p, players, nowMs);
+      if (ally && rng() < 0.3) {
+        ally.haturProtectedUntil = nowMs + HATUR_DURATION_MS;
+        p.abilityCooldown = HATUR_COOLDOWN_SEC;
+      }
+    }
+    if (p.specialRole === 'master_moshai' && p.abilityCooldown <= 0.05) {
+      const inspectTarget = findNearestMasterTarget(p, players);
+      if (inspectTarget && rng() < 0.35) {
+        const res = inspectPlayerTaskAuthenticity(inspectTarget);
+        p.abilityCooldown = MASTER_COOLDOWN_SEC;
+        if (res.isSus) {
+          brain.suspicion[inspectTarget.id] = (brain.suspicion[inspectTarget.id] ?? 0) + 5;
+          brain.masterAccusedId = inspectTarget.id;
+        } else {
+          const cleared = new Set(brain.clearedIds ?? []);
+          cleared.add(inspectTarget.id);
+          brain.clearedIds = Array.from(cleared);
+        }
+      }
+    }
+    if (p.specialRole === 'ghotok_khala') {
+      const linked = players.some((pl) => pl.ghotokPartnerId);
+      if (!linked) {
+        const pair = findGhotokPairCandidates(p, players);
+        if (pair && rng() < 0.35) {
+          pair[0].ghotokPartnerId = pair[1].id;
+          pair[1].ghotokPartnerId = pair[0].id;
+        }
+      }
+    }
+    if (p.specialRole === 'chamcha' && !p.chamchaPatronId && p.abilityCooldown <= 0.05) {
+      const patron = findNearestChamchaPatron(p, players);
+      if (patron && rng() < 0.45) {
+        p.chamchaPatronId = patron.id;
+        p.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
+      }
+    }
+    if (p.specialRole === 'chandabaz' && p.abilityCooldown <= 0.05) {
+      const target = findNearestChandabazTarget(p, players);
+      const currentCollected = p.chandabazTargets?.length ?? 0;
+      const deadCount = players.filter((pl) => !pl.alive).length;
+      const canFinishChanda = currentCollected < CHANDABAZ_GOAL - 1 || (nowMs >= 65000 && deadCount >= 1);
+      if (target && canFinishChanda && rng() < 0.05) {
+        collectChandaFromTarget(p, target);
+        p.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+        if ((p.chandabazTargets?.length ?? 0) >= CHANDABAZ_GOAL) {
+          if (ctx.onTaskCompletedCheckWin?.()) return true;
+        }
+      }
+    }
+    if (p.specialRole === 'tiktok_star' && p.abilityCooldown <= 0.05) {
+      const zid = getZoneIdAt(p.x, p.z);
+      if (zid && !(p.tiktokZones ?? []).includes(zid) && rng() < 0.25) {
+        recordTiktokReelInZone(p, zid);
+        p.abilityCooldown = TIKTOK_COOLDOWN_SEC;
+        if ((p.tiktokZones?.length ?? 0) >= TIKTOK_ZONE_GOAL) {
+          if (ctx.onTaskCompletedCheckWin?.()) return true;
+        }
+      }
+    }
 
-    // 5. Bohurupi occasionally disguises
-    if (p.specialRole === 'bohurupi' && p.abilityCooldown <= 0.05 && rng() < 0.015) {
+    // 5. Bohurupi tactically disguises & Dalal jams locks
+    if (p.specialRole === 'bohurupi' && p.abilityCooldown <= 0.05 && rng() < 0.04) {
       const disguises = players.filter((o) => o.alive && o.role !== 'vondo');
       if (disguises.length > 0) {
         const pick = disguises[Math.floor(rng() * disguises.length)];
@@ -696,6 +903,10 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         p.disguiseTimer = BOHURUPI_DISGUISE_DURATION_SEC;
         p.abilityCooldown = BOHURUPI_COOLDOWN_SEC;
       }
+    }
+    if (p.specialRole === 'dalal' && p.abilityCooldown <= 0.05 && (bodies.length > 0 || sabotage.active) && rng() < 0.08) {
+      applyDalalBrokerJam(doorLocks, rng);
+      p.abilityCooldown = DALAL_COOLDOWN_SEC;
     }
 
     // 6. Batpar sabotage pacing (~60-90s intervals after 40s initial lockout)
@@ -710,15 +921,14 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
           roll < 0.44 ? 'loadshedding' : roll < 0.78 ? 'wifi_down' : 'gas_leak';
         const newSab = createSabotageState(sabType, SABOTAGE_COOLDOWN_SEC);
         Object.assign(sabotage, newSab);
-        // Reset delay across all Batpar bots to 25-55s extra on top of 35s cooldown => 60-90s total
         for (const other of players) {
           if (other.isBot && other.role === 'vondo') {
             const ob = brains.get(other.id);
-            if (ob) ob.sabotageDelayTimer = 25 + rng() * 30;
+            if (ob) ob.sabotageDelayTimer = 26 + rng() * 28;
           }
         }
         ctx.onSabotage?.(sabType);
-      } else if (doorLocks.cooldownRemaining <= 0 && rng() < 0.004) {
+      } else if (doorLocks.cooldownRemaining <= 0 && rng() < 0.008) {
         const zones: DoorZoneId[] = ['cha_dokan', 'rickshaw_garage', 'desco_power', 'dish_roof'];
         const zPick = zones[Math.floor(rng() * zones.length)];
         ctx.onDoorLock?.(zPick);
@@ -726,7 +936,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     }
 
     // 7. Crew sabotage repair hold when near target station / assigned valve
-    if (sabotage.active && p.role === 'parabasi' && p.specialRole !== 'pagol') {
+    if (sabotage.active && p.role === 'parabasi' && !isNeutralRole(p.specialRole)) {
       const range = p.specialRole === 'mistri' ? MISTRI_FIX_RANGE : SABOTAGE_FIX_RANGE;
       if (sabotage.active === 'gas_leak') {
         const assignedValveId = gasAssignments?.get(p.id);
@@ -748,9 +958,9 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     // Track nearby player sightings & visual task clears every ~1s for social deduction
     if (p.role === 'parabasi' && nowMs - (brain.lastSightSampleMs ?? 0) >= 1000) {
       brain.lastSightSampleMs = nowMs;
-      const sights = (brain.recentSightings ?? []).filter((s) => nowMs - s.atMs <= 28000);
+      const sights = (brain.recentSightings ?? []).filter((s) => nowMs - s.atMs <= 30000);
       const cleared = new Set(brain.clearedIds ?? []);
-      const sightRange = sabotage.active === 'loadshedding' ? 9 : 18;
+      const sightRange = sabotage.active === 'loadshedding' ? 9 : 19;
       for (const other of players) {
         if (!other.alive || other.id === p.id || other.inVent) continue;
         if (distance2D(p.x, p.z, other.x, other.z) > sightRange) continue;
@@ -764,23 +974,31 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       brain.clearedIds = Array.from(cleared);
     }
 
-    // 8. Batpar kill with witness LOS check & realistic blend-in wait
+    // 8. Batpar kill with witness LOS check, Supari priority, & smart Vent escape!
     if (p.role === 'vondo' && p.killCooldownRemaining <= 0 && (brain.killWaitTimer ?? 0) <= 0) {
       const victim = findNearestKillTarget(p, players);
       if (victim) {
         const check = canExecuteKill(p, victim);
         const witnessed = hasKillWitnesses(p, victim, players, sabotage.active, doorLocks);
         if (check.allowed && (!witnessed || gameAlmostWonByVondo)) {
-          if (victim.shielded) {
+          if (isPlayerShieldedNow(victim, nowMs)) {
             victim.shielded = false;
+            victim.haturProtectedUntil = 0;
             p.killCooldownRemaining = 6;
             brain.killWaitTimer = 8 + rng() * 10;
             ctx.onKill?.(p, victim, true);
           } else {
             victim.alive = false;
             victim.watchingCams = false;
-            p.killCooldownRemaining = settings.killCooldownSec;
-            brain.killWaitTimer = 40 + rng() * 22;
+            const hitSupariContract =
+              p.specialRole === 'supari_killer' && victim.id === p.supariTargetId;
+            p.killCooldownRemaining = hitSupariContract
+              ? settings.killCooldownSec * 0.5
+              : settings.killCooldownSec;
+            if (p.specialRole === 'supari_killer') {
+              p.supariTargetId = pickSupariContractTarget(p, players, p.supariTargetId)?.id ?? null;
+            }
+            brain.killWaitTimer = 42 + rng() * 22;
             bodies.push({
               id: `body_${nowMs}_${victim.id}_${Math.floor(rng() * 1000)}`,
               victimId: victim.id,
@@ -795,14 +1013,32 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             });
             recordKillWitnesses(brains, players, p, victim, sabotage.active, doorLocks);
             brain.huntTargetId = null;
+
+            // Smart Vent Escape if near a manhole & unwitnessed!
+            if (!witnessed && p.specialRole !== 'jharudar') {
+              const nearVent = VENTS.find((v) => distance2D(p.x, p.z, v.x, v.z) <= 5.5);
+              if (nearVent && rng() < 0.65) {
+                const links = getConnectedVents(nearVent.x, nearVent.z).targets;
+                if (links.length > 0) {
+                  const pickHop = links[Math.floor(rng() * links.length)];
+                  p.inVent = true;
+                  p.x = nearVent.x;
+                  p.z = nearVent.z;
+                  brain.ventTargetId = pickHop.id;
+                  brain.ventTimer = 0.65;
+                }
+              }
+            }
+
             ctx.onKill?.(p, victim, false);
             if (ctx.onTaskCompletedCheckWin?.()) return true;
+            if (p.inVent) continue;
           }
         }
       }
     }
 
-    // 9. Movement / Task Station Hold / Sabotage Navigation
+    // 9. Movement / Task Station Hold / Sabotage Navigation / Role Navigation
     const holdingSabotageNow = holdingFixMap.has(p.id);
     if (holdingSabotageNow) {
       p.vx = 0;
@@ -836,7 +1072,6 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
               if (ctx.onTaskCompletedCheckWin?.()) return true;
             }
           } else if (p.role === 'vondo') {
-            // Batpar stops faking task after hold
             brain.activeTaskId = null;
           }
         }
@@ -848,6 +1083,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     let goalX = BOT_WAYPOINTS[brain.targetWaypointIdx % BOT_WAYPOINTS.length].x;
     let goalZ = BOT_WAYPOINTS[brain.targetWaypointIdx % BOT_WAYPOINTS.length].z;
     let activeStationTarget: (typeof TASK_STATIONS)[number] | null = null;
+    let sprintBoost = false;
 
     if (brain.detourNodeIdx !== null && brain.detourTimer > 0) {
       const dNode = NAV_NODES[brain.detourNodeIdx % NAV_NODES.length];
@@ -858,15 +1094,49 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       const v = GAS_LEAK_VALVES.find((item) => item.id === vId) ?? GAS_LEAK_VALVES[0];
       goalX = v.x;
       goalZ = v.z;
+      sprintBoost = true;
+      // Mistri takes a quick drain vent shortcut to fix gas_leak if standing near one
+      if (p.specialRole === 'mistri' && p.abilityCooldown <= 0.05) {
+        const nearVent = VENTS.find((vn) => distance2D(p.x, p.z, vn.x, vn.z) <= VENT_RANGE);
+        if (nearVent) {
+          const hop = getConnectedVents(nearVent.x, nearVent.z).targets.sort(
+            (a, b) => distance2D(a.x, a.z, v.x, v.z) - distance2D(b.x, b.z, v.x, v.z),
+          )[0];
+          if (hop && distance2D(hop.x, hop.z, v.x, v.z) + 6 < distance2D(p.x, p.z, v.x, v.z)) {
+            p.inVent = true;
+            p.x = nearVent.x;
+            p.z = nearVent.z;
+            brain.ventTargetId = hop.id;
+            brain.ventTimer = 0.55;
+            continue;
+          }
+        }
+      }
     } else if (sabotage.active && sabotage.active !== 'gas_leak' && nonCritFixerIds.has(p.id)) {
       goalX = sabotage.fixStationX;
       goalZ = sabotage.fixStationZ;
+      sprintBoost = true;
+    } else if (
+      p.specialRole === 'jharudar' &&
+      p.abilityCooldown <= 0.05 &&
+      (p.cleansLeft ?? JHARUDAR_CLEAN_USES) > 0 &&
+      bodies.some((b) => !b.reported && distance2D(p.x, p.z, b.x, b.z) <= 24)
+    ) {
+      // Safai Batpar actively tracks nearby unreported bodies to sweep them!
+      const nearestBody = bodies
+        .filter((b) => !b.reported)
+        .sort((a, b) => distance2D(p.x, p.z, a.x, a.z) - distance2D(p.x, p.z, b.x, b.z))[0];
+      if (nearestBody) {
+        goalX = nearestBody.x;
+        goalZ = nearestBody.z;
+        sprintBoost = true;
+      }
     } else if (
       p.role === 'vondo' &&
       p.killCooldownRemaining <= 3.0 &&
       (brain.killWaitTimer ?? 0) <= 1.5
     ) {
-      // Batpar stalks an isolated crewmate only when ready to strike
+      // Batpar stalks isolated crew (prioritizing Supari Contract if Supari Killer)
       let isolated: PlayerState | null = null;
       let bestScore = Infinity;
       for (const cand of players) {
@@ -880,7 +1150,8 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             o.role !== 'vondo' &&
             distance2D(o.x, o.z, cand.x, cand.z) < 12,
         ).length;
-        const score = dist + crowd * 18;
+        const contractBonus = p.specialRole === 'supari_killer' && cand.id === p.supariTargetId ? -14 : 0;
+        const score = dist + crowd * 18 + contractBonus;
         if (score < bestScore) {
           bestScore = score;
           isolated = cand;
@@ -889,6 +1160,30 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       if (isolated) {
         goalX = isolated.x;
         goalZ = isolated.z;
+        if (distance2D(p.x, p.z, isolated.x, isolated.z) < 14) sprintBoost = true;
+      }
+    } else if (p.specialRole === 'chamcha' && p.chamchaPatronId) {
+      // Chamcha sticks close to their locked Patron
+      const patron = players.find((pl) => pl.id === p.chamchaPatronId && pl.alive && !pl.inVent);
+      if (patron && distance2D(p.x, p.z, patron.x, patron.z) > 4.5) {
+        goalX = patron.x;
+        goalZ = patron.z;
+      }
+    } else if (p.specialRole === 'chandabaz' && p.abilityCooldown <= 2) {
+      const extorted = new Set(p.chandabazTargets ?? []);
+      const target = players
+        .filter((pl) => pl.alive && pl.id !== p.id && !pl.inVent && !extorted.has(pl.id))
+        .sort((a, b) => distance2D(p.x, p.z, a.x, a.z) - distance2D(p.x, p.z, b.x, b.z))[0];
+      if (target) {
+        goalX = target.x;
+        goalZ = target.z;
+      }
+    } else if (p.specialRole === 'tiktok_star' && p.abilityCooldown <= 2) {
+      const filmed = new Set(p.tiktokZones ?? []);
+      const unfilmedZone = ZONES.find((z) => z.id !== 'adda_chowk' && !filmed.has(z.id));
+      if (unfilmedZone) {
+        goalX = unfilmedZone.x;
+        goalZ = unfilmedZone.z;
       }
     } else {
       // Real task for Parabasi or fake task for Batpar
@@ -909,13 +1204,13 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     if (distToGoal <= arrivalDist) {
       if (activeStationTarget) {
         brain.activeTaskId = activeStationTarget.id;
-        brain.pauseTimer = activeStationTarget.holdDurationSec;
+        brain.pauseTimer = activeStationTarget.holdDurationSec + 3.2;
         if (canCompleteTasks(p) && activeStationTarget.isVisual && settings.visualTasks) {
           p.visualTaskTimer = 2.6;
         }
       } else {
         brain.activeTaskId = null;
-        brain.pauseTimer = 1.1 + rng() * 1.5;
+        brain.pauseTimer = 2.0 + rng() * 2.2;
         brain.targetWaypointIdx = Math.floor(rng() * BOT_WAYPOINTS.length);
       }
       p.vx = 0;
@@ -961,7 +1256,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       continue;
     }
 
-    const speed = settings.moveSpeed * 0.65;
+    const speed = settings.moveSpeed * (sprintBoost ? 1.06 : 0.74);
     p.vx = (dx / hopDist) * speed;
     p.vz = (dz / hopDist) * speed;
     p.yaw = Math.atan2(p.vx, p.vz);
@@ -1013,33 +1308,37 @@ export function stepBotsMeeting(params: {
   const rng = params.rng ?? Math.random;
   const canCastVote = discussionTimer <= 0;
 
-  // Compute shared crew clues from recent sightings near dropped bodies (once per meeting when vote unlocks or early)
+  // Compute shared crew clues across ALL bodies once per meeting without truncating body 2+!
   const roomSuspicion: Record<string, number> = {};
   for (const pl of players) {
     if (!pl.isBot || !pl.alive || pl.role === 'vondo') continue;
     const b = brains.get(pl.id);
     if (!b) continue;
     const clearedSet = new Set(b.clearedIds ?? []);
-    for (const body of bodies) {
-      if (pl.specialRole === 'goyenda' && body.killerColorHint && b.recentSightings && b.recentSightings.length > 0) {
-        for (const cand of players) {
-          if (cand.alive && cand.id !== pl.id && getColorShadeHint(cand.color) === body.killerColorHint) {
-            b.suspicion[cand.id] = (b.suspicion[cand.id] ?? 0) + 1.25;
+
+    if (!b.processedMeetingClues) {
+      b.processedMeetingClues = true;
+      for (const body of bodies) {
+        if (pl.specialRole === 'goyenda' && body.killerColorHint && b.recentSightings && b.recentSightings.length > 0) {
+          for (const cand of players) {
+            if (cand.alive && cand.id !== pl.id && getColorShadeHint(cand.color) === body.killerColorHint) {
+              b.suspicion[cand.id] = (b.suspicion[cand.id] ?? 0) + 1.35;
+            }
+          }
+        }
+        if (b.recentSightings && b.recentSightings.length > 0) {
+          for (const sight of b.recentSightings) {
+            if (clearedSet.has(sight.id)) continue;
+            const d = distance2D(sight.x, sight.z, body.x, body.z);
+            if (d <= 21 && Math.abs(sight.atMs - body.killedAt) <= 24000) {
+              b.suspicion[sight.id] = (b.suspicion[sight.id] ?? 0) + 1.6;
+            }
           }
         }
       }
-      if (b.recentSightings && b.recentSightings.length > 0) {
-        for (const sight of b.recentSightings) {
-          if (clearedSet.has(sight.id)) continue;
-          const d = distance2D(sight.x, sight.z, body.x, body.z);
-          if (d <= 20 && Math.abs(sight.atMs - body.killedAt) <= 22000) {
-            b.suspicion[sight.id] = (b.suspicion[sight.id] ?? 0) + 1.5;
-          }
-        }
-        // Clear processed sightings so they don't re-accumulate every tick
-        b.recentSightings = [];
-      }
+      b.recentSightings = [];
     }
+
     for (const [sid, val] of Object.entries(b.suspicion)) {
       if (!clearedSet.has(sid) && val > 0) {
         roomSuspicion[sid] = (roomSuspicion[sid] ?? 0) + val;
@@ -1065,8 +1364,9 @@ export function stepBotsMeeting(params: {
       brains.set(p.id, brain);
     }
 
-    if (!brain.hasChatted && rng() < 0.04) {
+    if (!brain.hasChatted && rng() < 0.055) {
       brain.hasChatted = true;
+      const lastZone = brain.zoneHistory?.at(-1);
       if (p.specialRole === 'pagol') {
         onChat?.(p, PAGOL_BANTER_LINES[Math.floor(rng() * PAGOL_BANTER_LINES.length)]);
       } else if (brain.seenNearKill) {
@@ -1076,13 +1376,26 @@ export function stepBotsMeeting(params: {
         } else {
           onChat?.(p, BOT_BANTER_LINES[Math.floor(rng() * BOT_BANTER_LINES.length)]);
         }
-      } else if (p.role === 'parabasi' && sharedTopId && sharedTopScore >= 3) {
-        const suspect = players.find((pl) => pl.id === sharedTopId && pl.alive);
-        if (suspect) {
-          onChat?.(p, `${suspect.name} ke body er zone er pashe ghurte dekha gese, sus lagche!`);
+      } else if (p.specialRole === 'master_moshai' && brain.masterAccusedId) {
+        const accused = players.find((pl) => pl.id === brain.masterAccusedId && pl.alive);
+        if (accused) {
+          onChat?.(p, `Master Khata check kore dekhlam ${accused.name} er task FAKE! O pakka Batpar!`);
         } else {
           onChat?.(p, BOT_BANTER_LINES[Math.floor(rng() * BOT_BANTER_LINES.length)]);
         }
+      } else if (p.specialRole === 'goyenda' && brain.forensicHint) {
+        onChat?.(p, `Goyenda forensic clue: ${brain.forensicHint}`);
+      } else if (p.role === 'parabasi' && sharedTopId && sharedTopScore >= 3) {
+        const suspect = players.find((pl) => pl.id === sharedTopId && pl.alive);
+        if (suspect) {
+          onChat?.(p, `${suspect.name} ke body er zone er pashe ghurte dekha gese, onek sus!`);
+        } else if (lastZone) {
+          onChat?.(p, `Ami ektu age ${lastZone} e task kortesilam, ami ekdom clean bhai!`);
+        } else {
+          onChat?.(p, BOT_BANTER_LINES[Math.floor(rng() * BOT_BANTER_LINES.length)]);
+        }
+      } else if (lastZone && rng() < 0.65) {
+        onChat?.(p, `Ami toh ektu age ${lastZone} e chilam bhai, ekdom clean Parabasi!`);
       } else {
         onChat?.(p, BOT_BANTER_LINES[Math.floor(rng() * BOT_BANTER_LINES.length)]);
       }
@@ -1097,10 +1410,11 @@ export function stepBotsMeeting(params: {
       );
       const clearedSet = new Set(brain.clearedIds ?? []);
 
-      // 1. High-confidence witness accusation from alive Parabasi
-      if (p.role === 'parabasi' && brain.seenNearKill) {
-        const target = aliveOthers.find((pl) => pl.id === brain.seenNearKill);
-        if (target && rng() < 0.9) {
+      // 1. High-confidence witness or Master Khata accusation from alive Parabasi
+      if (p.role === 'parabasi' && (brain.seenNearKill || brain.masterAccusedId)) {
+        const suspectId = brain.seenNearKill ?? brain.masterAccusedId;
+        const target = aliveOthers.find((pl) => pl.id === suspectId);
+        if (target && rng() < 0.92) {
           p.votedFor = target.id;
           p.hasVoted = true;
           continue;
@@ -1118,7 +1432,7 @@ export function stepBotsMeeting(params: {
       // 3. Crew consensus deduction when sightings/clues point to a strong suspect
       if (
         p.role === 'parabasi' &&
-        p.specialRole !== 'pagol' &&
+        !isNeutralRole(p.specialRole) &&
         sharedTopId &&
         sharedTopId !== p.id &&
         !clearedSet.has(sharedTopId) &&
@@ -1130,7 +1444,7 @@ export function stepBotsMeeting(params: {
         continue;
       }
 
-      // 4. Otherwise cautious social deduction voting (avoid blind random crew votes)
+      // 4. Otherwise cautious social deduction voting
       const unCleared = nonTeammates.filter((c) => !clearedSet.has(c.id));
       const pool = unCleared.length > 0 ? unCleared : nonTeammates;
       let topSuspect: PlayerState | null = null;
@@ -1143,9 +1457,9 @@ export function stepBotsMeeting(params: {
         }
       }
 
-      if (topSuspect && topScore >= 1.5 && rng() < 0.78) {
+      if (topSuspect && topScore >= 1.5 && rng() < 0.8) {
         p.votedFor = topSuspect.id;
-      } else if (p.role === 'vondo' && pool.length > 0 && rng() >= 0.48) {
+      } else if (p.role === 'vondo' && pool.length > 0 && rng() >= 0.45) {
         p.votedFor = pool[Math.floor(rng() * pool.length)].id;
       } else if (pool.length > 0 && rng() >= 0.90) {
         p.votedFor = pool[Math.floor(rng() * pool.length)].id;
@@ -1156,3 +1470,4 @@ export function stepBotsMeeting(params: {
     }
   }
 }
+
