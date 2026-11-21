@@ -3,6 +3,9 @@
   "name": "ke-vondo",
   "main": "worker.ts",
   "compatibility_date": "2026-03-01",
+  "build": {
+    "command": "npm run build"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
