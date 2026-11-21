@@ -228,6 +228,10 @@ export default {
       return jsonResponse({ requiresPin: false, clips: {} });
     }
 
+    if (url.pathname === '/api/bot-meeting-chat' && request.method === 'POST') {
+      return jsonResponse({ messages: [], fallback: true });
+    }
+
     if (url.pathname === '/api/rooms') {
       const dirStub = env.MOHOLLA_ROOM.get(env.MOHOLLA_ROOM.idFromName('__DIRECTORY__'));
       return dirStub.fetch('https://do/directory/list');

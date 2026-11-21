@@ -559,6 +559,7 @@ export interface RoomSnapshot {
   taskProgress: number;
   totalTasks: number;
   completedTasks: number;
+  typingPlayerIds?: string[];
 }
 
 export interface PublicRoomSummary {
@@ -596,6 +597,7 @@ export type ClientMessage =
   | { type: 'player:report_body'; bodyId: string }
   | { type: 'player:emergency_meeting' }
   | { type: 'meeting:chat'; text: string }
+  | { type: 'meeting:typing'; typing: boolean }
   | { type: 'meeting:vote'; targetId: string | 'skip' }
   | { type: 'player:meme_sfx'; memeId: string }
   | { type: 'room:play_again' }

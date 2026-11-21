@@ -113,12 +113,19 @@ import {
 } from '../shared/gameRules';
 import {
   type BotBrainState,
+  type BatchedGeminiChatReply,
+  applyBatchedGeminiChats,
+  buildBatchedGeminiMeetingPayload,
   createBotBrainState,
+  generateFallbackMeetingChats,
+  getMeetingTypingBotIds,
+  processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
   stepBotsMeeting,
   stepBotsPlaying,
 } from '../shared/botAi';
+import { getApiUrl } from '../config/serverUrl';
 import { resolveUniqueMultiplayerIdentity } from '../shared/banglaComedy';
 
 const MAX_PLAYERS = MAX_MATCH_PLAYERS;
@@ -141,26 +148,6 @@ const BOT_NAMES = [
   'Pata Bhai',
   'Shona Babu',
   'Lal Mia',
-];
-
-const BOT_BANTER = [
-  'Bhai ami Cha-er dokan e dudh-cha chini chara khachilam, kasam!',
-  'Onek sus lagche kintu, aajke ke Batpar bolen toh!',
-  'Current gelo ar amar matha ghuray gelo re mama!',
-  'Ami DESCO te chora line check kortesilam, trust me bhai!',
-  'Rickshaw garage er pashe ke jeno gap e douraisilo!',
-  'Keu baje kotha bolben na, amar kache Tabiz o ache!',
-  'Ami Fuchka Chottor e jhal fuchka khaitasilam, ekdom innocent!',
-  'Hero Saloon e Hero-cut dite gesilam, keu fashayen na pls!',
-  'Para Cricket Math e tape ball kheltesilam, 100% clean!',
-  'Biyer Bari Pandal e Kacchi khaitasilam, Batpar okhane chilo naki?!',
-  'Bhai amar net slow chilo tai daray chilam, Batpar na!',
-];
-
-const PAGOL_BANTER = [
-  'Hehe ami toh kichui kori nai, amake Pukur e chubani diyen na pls!',
-  'Ami shudhu pukur ghat e boshe chilam bhai, kothao jai nai!',
-  'Amake size korle kintu boro bhul korben bhaiya!',
 ];
 
 export function generateP2PRoomCode(length = 5): string {
@@ -223,6 +210,8 @@ export class P2PHostRoomEngine {
   private ghotokLinkedIds: [string, string] | null = null;
   private settings: RoomSettings = { ...DEFAULT_ROOM_SETTINGS };
   private transport: P2PHostTransport;
+  private meetingEpoch = 0;
+  private typingPlayers = new Set<string>();
 
   constructor(roomCode: string, transport: P2PHostTransport) {
     this.roomCode = normalizeRoomCode(roomCode) || generateP2PRoomCode();
@@ -232,6 +221,12 @@ export class P2PHostRoomEngine {
   public getSnapshot(): RoomSnapshot {
     const players = Array.from(this.players.values());
     const taskStats = computeTaskProgress(players);
+    const botTypers =
+      this.phase === 'meeting' ? getMeetingTypingBotIds(players, this.botMemories) : [];
+    const typingPlayerIds =
+      this.phase === 'meeting'
+        ? Array.from(new Set([...this.typingPlayers, ...botTypers]))
+        : [];
     return {
       roomCode: this.roomCode,
       isSolo: false,
@@ -258,6 +253,7 @@ export class P2PHostRoomEngine {
       taskProgress: taskStats.progress,
       totalTasks: taskStats.totalTasks,
       completedTasks: taskStats.completedTasks,
+      typingPlayerIds,
       netaRevealedId: this.netaRevealedId,
       prankedLampUntil: this.prankedLampUntil,
       commsJammedUntil: this.commsJammedUntil,
@@ -716,6 +712,8 @@ export class P2PHostRoomEngine {
     }
 
     resetBotBrainsForMeeting(this.botMemories);
+    this.meetingEpoch += 1;
+    this.typingPlayers.clear();
 
     if (reason === 'body') {
       this.pushSystemChat(`${caller.name} found ${victimName ?? 'a fallen neighbor'}! Adda called!`);
@@ -723,12 +721,67 @@ export class P2PHostRoomEngine {
       this.pushSystemChat(`${caller.name} rang the Adda Bell! Urgent Moholla meeting!`);
     }
 
+    const allPlayers = Array.from(this.players.values());
+    generateFallbackMeetingChats({
+      players: allPlayers,
+      bodies: this.bodies,
+      brains: this.botMemories,
+      meetingReason: reason,
+      meetingCallerId: caller.id,
+    });
+    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id);
+
     this.broadcastState({ type: 'sfx:event', kind: reason === 'body' ? 'report' : 'meeting' });
     this.broadcastState();
   }
 
+  private async fetchGeminiMeetingChats(
+    epoch: number,
+    reason: 'body' | 'emergency',
+    callerId: string,
+  ): Promise<void> {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    const players = Array.from(this.players.values());
+    const payload = buildBatchedGeminiMeetingPayload({
+      roomCode: this.roomCode,
+      players,
+      bodies: this.bodies,
+      brains: this.botMemories,
+      chat: this.chat,
+      meetingReason: reason,
+      meetingCallerId: callerId,
+    });
+    if (payload.bots.length === 0) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5500);
+    try {
+      const res = await fetch(getApiUrl('/api/bot-meeting-chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { messages?: BatchedGeminiChatReply[] };
+      if (this.phase !== 'meeting' || this.meetingEpoch !== epoch) return;
+      if (Array.isArray(data?.messages) && data.messages.length > 0) {
+        applyBatchedGeminiChats({
+          replies: data.messages,
+          players: Array.from(this.players.values()),
+          brains: this.botMemories,
+        });
+      }
+    } catch {
+      // Seamless fallback: rule-based schedule is already active
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
   private resolveMeetingVotes(): void {
     const players = Array.from(this.players.values());
+    this.typingPlayers.clear();
     this.ejection = tallyVotes(players, this.settings.confirmEjects);
     this.phase = 'vote_results';
     this.phaseTimer = 2.6;
@@ -779,6 +832,8 @@ export class P2PHostRoomEngine {
         discussionTimer: this.discussionTimer,
         brains: this.botMemories,
         dt,
+        meetingReason: this.meetingReason,
+        meetingCallerId: this.meetingCallerId,
         onChat: (p, text) => {
           this.chat.push({
             id: `chat_${Date.now()}_${p.id}`,
@@ -1827,7 +1882,8 @@ export class P2PHostRoomEngine {
         if (this.phase !== 'meeting') return;
         const text = msg.text.trim().slice(0, 140);
         if (!text) return;
-        this.chat.push({
+        this.typingPlayers.delete(player.id);
+        const chatMsg: ChatMessage = {
           id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
           senderId: player.id,
           senderName: player.alive ? player.name : `${player.name} (Ghost)`,
@@ -1835,7 +1891,20 @@ export class P2PHostRoomEngine {
           text,
           timestamp: Date.now(),
           ghostOnly: !player.alive,
+        };
+        this.chat.push(chatMsg);
+        processChatMessageForBots({
+          msg: chatMsg,
+          players: Array.from(this.players.values()),
+          brains: this.botMemories,
         });
+        this.broadcastState();
+        break;
+      }
+      case 'meeting:typing': {
+        if (this.phase !== 'meeting' || !player.alive) return;
+        if (msg.typing) this.typingPlayers.add(player.id);
+        else this.typingPlayers.delete(player.id);
         this.broadcastState();
         break;
       }

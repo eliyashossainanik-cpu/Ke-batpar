@@ -1035,6 +1035,10 @@ export default function App() {
               if (isMulti) mp.send({ type: 'meeting:chat', text });
               else soloEngineRef.current?.sendChat(text);
             }}
+            onTypingChange={(typing) => {
+              if (isMulti) mp.send({ type: 'meeting:typing', typing });
+              else soloEngineRef.current?.setMeetingTyping(typing);
+            }}
             onCastVote={(targetId) => {
               if (isMulti) mp.send({ type: 'meeting:vote', targetId });
               else {

@@ -4,6 +4,7 @@ import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
+import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import {
   PLAYER_COLORS,
   type BodyMarker,
@@ -118,8 +119,15 @@ import {
   tallyVotes,
 } from './src/shared/gameRules.ts';
 import {
+  type BatchedGeminiChatReply,
+  type BatchedGeminiMeetingPayload,
   type BotBrainState,
+  applyBatchedGeminiChats,
+  buildBatchedGeminiMeetingPayload,
   createBotBrainState,
+  generateFallbackMeetingChats,
+  getMeetingTypingBotIds,
+  processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
   stepBotsMeeting,
@@ -134,6 +142,113 @@ const PORT = Number(process.env.PORT) || 3000;
 const TICK_RATE_MS = 50; // 20Hz authoritative server tick
 const MAX_PLAYERS = MAX_MATCH_PLAYERS;
 const RECONNECT_GRACE_MS = 20_000;
+
+let cachedGeminiClient: GoogleGenAI | null | undefined;
+function getGeminiClient(): GoogleGenAI | null {
+  if (cachedGeminiClient !== undefined) return cachedGeminiClient;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    cachedGeminiClient = null;
+    return null;
+  }
+  cachedGeminiClient = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
+    },
+  });
+  return cachedGeminiClient;
+}
+
+async function generateGeminiBotMeetingChats(
+  payload: BatchedGeminiMeetingPayload,
+): Promise<{ messages: BatchedGeminiChatReply[]; fallback: boolean }> {
+  const ai = getGeminiClient();
+  if (!ai || payload.bots.length === 0) {
+    return { messages: [], fallback: true };
+  }
+
+  try {
+    const promptPayload = {
+      meetingReason: payload.reason,
+      callerName: payload.callerName,
+      victimName: payload.victimName,
+      bodyZone: payload.bodyZone,
+      alivePlayers: payload.aliveNames,
+      recentChat: payload.chatHistory.slice(-10),
+      bots: payload.bots.map((b) => ({
+        botId: b.id,
+        name: b.name,
+        personality: b.personality,
+        role: b.role,
+        specialRole: b.specialRole,
+        partnerName: b.partnerName ?? null,
+        ownRecentZones: b.ownRecentZones,
+        fakeAlibiZone: b.fakeAlibiZone ?? null,
+        privateMemory: b.privateMemory,
+        topSuspectName: b.topSuspectName ?? null,
+        shouldBeSilent: b.shouldBeSilent,
+      })),
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Generate one natural meeting round of short, casual chat lines for the non-silent bots below.\nContext JSON:\n${JSON.stringify(promptPayload)}`,
+      config: {
+        systemInstruction:
+          'You write realistic human player chat messages in an Among Us-style Dhaka neighborhood game ("Ke Batpar?"). ' +
+          'Each bot MUST ONLY know its own privateMemory, ownRecentZones, personality, role, partnerName (if vondo), and recentChat. ' +
+          'Never leak hidden roles or cheat. Never treat any player specially. ' +
+          'Write short, natural 4-14 word lines in casual mixed Banglish/English/Bangla with realistic lowercase, mild typos, slang ("bhai", "bro", "kasam", "sus", "ken", "re", "pukur"), and personality fit. ' +
+          'Skip bots where shouldBeSilent is true (or output fewer messages so some stay quiet). ' +
+          'Vondo bots lie using fakeAlibiZone, deflect naturally, or bus a heavily suspected partner. ' +
+          'Parabasi bots share honest (slightly uncertain) observations, ask sharp questions, or call out contradictions. ' +
+          'Set delaySec staggered between 2.2 and 12.5 seconds (never 0 or instant).',
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            messages: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  botId: { type: Type.STRING },
+                  text: { type: Type.STRING },
+                  delaySec: { type: Type.NUMBER },
+                },
+                required: ['botId', 'text', 'delaySec'],
+              },
+            },
+          },
+          required: ['messages'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse((response.text ?? '{}').trim()) as {
+      messages?: Array<{ botId?: unknown; text?: unknown; delaySec?: unknown }>;
+    };
+    const messages: BatchedGeminiChatReply[] = Array.isArray(parsed.messages)
+      ? parsed.messages
+          .filter(
+            (m): m is { botId: string; text: string; delaySec: number } =>
+              typeof m?.botId === 'string' &&
+              typeof m?.text === 'string' &&
+              typeof m?.delaySec === 'number',
+          )
+          .slice(0, payload.bots.length)
+      : [];
+
+    return { messages, fallback: messages.length === 0 };
+  } catch (err) {
+    console.warn('Gemini bot meeting chat fallback triggered:', err);
+    return { messages: [], fallback: true };
+  }
+}
 
 const BOT_NAMES = [
   'Chacha Miah',
@@ -151,27 +266,6 @@ const BOT_NAMES = [
   'Pata Bhai',
   'Shona Babu',
   'Lal Mia',
-];
-
-const BOT_BANTER = [
-  'Bhai ami Cha-er dokan e dudh-cha chini chara khachilam!',
-  'Onek sus lagche kintu, aajke ke Batpar bolen?',
-  'Current gelo ar amar matha ghuray gelo re!',
-  'Ami DESCO te chora line check kortesilam, trust me!',
-  'Rickshaw garage er pashe ke jeno gap e douraisilo!',
-  'Keu baje kotha bolben na, ami ekdom bhalo Para-basi!',
-  'Kichu bolbo na naki chubani dibo? Khub tension!',
-  'Ami Fuchka Chottor e jhal fuchka khaitasilam kasam!',
-  'Hero Saloon e Hero-cut dite gesilam bhai!',
-  'Para Cricket Math e tape ball kheltesilam, keu sus bolben na!',
-  'Dadu Pharmacy theke saline nite gesilam!',
-  'Biyer Bari Pandal e Kacchi khaitasilam, Batpar okhane chilo naki?',
-];
-
-const PAGOL_BANTER = [
-  'Hehe ami toh kichui kori nai, amake Pukur e chubani diyen na pls!',
-  'Ami shudhu pukur ghat e boshe chilam bhai, kothao jai nai!',
-  'Amake size korle kintu boro bhul korben bhaiya!',
 ];
 
 interface RoomInternal {
@@ -207,6 +301,8 @@ interface RoomInternal {
   commsJammedUntil: number;
   ghotokLinkedIds: [string, string] | null;
   settings: RoomSettings;
+  meetingEpoch: number;
+  typingPlayers: Set<string>;
 }
 
 const rooms = new Map<string, RoomInternal>();
@@ -236,6 +332,12 @@ function pickAvailableColor(room: RoomInternal, preferred?: PlayerColorId): Play
 function buildSnapshot(room: RoomInternal): RoomSnapshot {
   const players = Array.from(room.players.values());
   const taskStats = computeTaskProgress(players);
+  const botTypers =
+    room.phase === 'meeting' ? getMeetingTypingBotIds(players, room.botMemories) : [];
+  const typingPlayerIds =
+    room.phase === 'meeting'
+      ? Array.from(new Set([...room.typingPlayers, ...botTypers]))
+      : [];
   return {
     roomCode: room.code,
     isSolo: false,
@@ -266,6 +368,7 @@ function buildSnapshot(room: RoomInternal): RoomSnapshot {
     taskProgress: taskStats.progress,
     totalTasks: taskStats.totalTasks,
     completedTasks: taskStats.completedTasks,
+    typingPlayerIds,
   };
 }
 
@@ -365,6 +468,8 @@ function createEmptyRoom(code: string): RoomInternal {
     commsJammedUntil: 0,
     ghotokLinkedIds: null,
     settings: { ...DEFAULT_ROOM_SETTINGS },
+    meetingEpoch: 0,
+    typingPlayers: new Set(),
   };
 }
 
@@ -630,11 +735,45 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
   }
 
   resetBotBrainsForMeeting(room.botMemories);
+  room.meetingEpoch += 1;
+  room.typingPlayers.clear();
 
   if (reason === 'body') {
     pushSystemChat(room, `${caller.name} found ${victimName ?? 'a fallen neighbor'}! Adda called!`);
   } else {
     pushSystemChat(room, `${caller.name} rang the Adda Bell! Urgent Moholla meeting!`);
+  }
+
+  const allPlayers = Array.from(room.players.values());
+  generateFallbackMeetingChats({
+    players: allPlayers,
+    bodies: room.bodies,
+    brains: room.botMemories,
+    meetingReason: reason,
+    meetingCallerId: caller.id,
+  });
+
+  const epoch = room.meetingEpoch;
+  const geminiPayload = buildBatchedGeminiMeetingPayload({
+    roomCode: room.code,
+    players: allPlayers,
+    bodies: room.bodies,
+    brains: room.botMemories,
+    chat: room.chat,
+    meetingReason: reason,
+    meetingCallerId: caller.id,
+  });
+  if (geminiPayload.bots.length > 0) {
+    void generateGeminiBotMeetingChats(geminiPayload).then((res) => {
+      if (room.phase !== 'meeting' || room.meetingEpoch !== epoch) return;
+      if (res.messages.length > 0) {
+        applyBatchedGeminiChats({
+          replies: res.messages,
+          players: Array.from(room.players.values()),
+          brains: room.botMemories,
+        });
+      }
+    });
   }
 
   broadcastRoom(room, { type: 'sfx:event', kind: reason === 'body' ? 'report' : 'meeting' });
@@ -643,6 +782,7 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
 
 function resolveMeetingVotes(room: RoomInternal): void {
   const players = Array.from(room.players.values());
+  room.typingPlayers.clear();
   const ejection = tallyVotes(players, room.settings.confirmEjects);
   room.ejection = ejection;
 
@@ -717,6 +857,8 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
       discussionTimer: room.discussionTimer,
       brains: room.botMemories,
       dt,
+      meetingReason: room.meetingReason,
+      meetingCallerId: room.meetingCallerId,
       onChat: (p, text) => {
         room.chat.push({
           id: `chat_${Date.now()}_${p.id}`,
@@ -1895,7 +2037,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       if (room.phase !== 'meeting') return;
       const text = msg.text.trim().slice(0, 140);
       if (!text) return;
-      room.chat.push({
+      room.typingPlayers.delete(player.id);
+      const chatMsg: ChatMessage = {
         id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
         senderId: player.id,
         senderName: player.alive ? player.name : `${player.name} (Ghost)`,
@@ -1903,7 +2046,20 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         text,
         timestamp: Date.now(),
         ghostOnly: !player.alive,
+      };
+      room.chat.push(chatMsg);
+      processChatMessageForBots({
+        msg: chatMsg,
+        players: Array.from(room.players.values()),
+        brains: room.botMemories,
       });
+      broadcastRoom(room);
+      break;
+    }
+    case 'meeting:typing': {
+      if (room.phase !== 'meeting' || !player.alive) return;
+      if (msg.typing) room.typingPlayers.add(player.id);
+      else room.typingPlayers.delete(player.id);
       broadcastRoom(room);
       break;
     }
@@ -2110,6 +2266,28 @@ async function bootstrap(): Promise<void> {
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, mode: 'express', activeRooms: rooms.size });
+  });
+
+  app.post('/api/bot-meeting-chat', async (req, res) => {
+    const body = (req.body ?? {}) as Partial<BatchedGeminiMeetingPayload>;
+    if (!body || !Array.isArray(body.bots)) {
+      res.status(400).json({ error: 'Invalid bot meeting payload', messages: [], fallback: true });
+      return;
+    }
+    const payload: BatchedGeminiMeetingPayload = {
+      roomCode: typeof body.roomCode === 'string' ? body.roomCode.slice(0, 16) : 'ROOM',
+      reason: body.reason === 'body' ? 'body' : body.reason === 'emergency' ? 'emergency' : null,
+      callerName: typeof body.callerName === 'string' ? body.callerName.slice(0, 24) : null,
+      victimName: typeof body.victimName === 'string' ? body.victimName.slice(0, 24) : null,
+      bodyZone: typeof body.bodyZone === 'string' ? body.bodyZone.slice(0, 32) : null,
+      aliveNames: Array.isArray(body.aliveNames)
+        ? body.aliveNames.slice(0, 15).map((n) => String(n).slice(0, 24))
+        : [],
+      chatHistory: Array.isArray(body.chatHistory) ? body.chatHistory : [],
+      bots: body.bots,
+    };
+    const out = await generateGeminiBotMeetingChats(payload);
+    res.json(out);
   });
 
   // Server-Side Viral Bangla Meme Audio Endpoints

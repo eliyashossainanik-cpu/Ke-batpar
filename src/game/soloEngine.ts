@@ -105,12 +105,19 @@ import {
 } from '../shared/gameRules';
 import {
   type BotBrainState,
+  type BatchedGeminiChatReply,
+  applyBatchedGeminiChats,
+  buildBatchedGeminiMeetingPayload,
   createBotBrainState,
+  generateFallbackMeetingChats,
+  getMeetingTypingBotIds,
+  processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
   stepBotsMeeting,
   stepBotsPlaying,
 } from '../shared/botAi';
+import { getApiUrl } from '../config/serverUrl';
 import { soundEngine } from '../audio/soundEngine';
 
 const BOT_ROSTER: Array<{ name: string; color: PlayerColorId }> = [
@@ -131,28 +138,6 @@ const BOT_ROSTER: Array<{ name: string; color: PlayerColorId }> = [
   { name: 'Lal Mia', color: 'lal' },
 ];
 
-const BOT_CHAT_LINES = [
-  'Bhai ami toh Cha-er dokan e shingara ar dudh-cha khaitasilam, kasam!',
-  'Orey Batpar! Gap e niye kaure size kore dise re mama!',
-  'DESCO er fuse box er pashe ke jeno douraisilo, onek sus lagche!',
-  'Ami 100% innocent Para-basi, amar shoshur bari eidgah er pashe!',
-  'Rickshaw garage e keu chilo? Dren er moddhe uki martasilo!',
-  'Current gelo ar amader matha ghuray gelo bhai!',
-  'Ektu thik kore bolen toh, aajke ke Batpar — chokh dekhei dhora jay!',
-  'Ami Fuchka Chottor e tetul tok khaitasilam, shobai shakkhi!',
-  'Hero Saloon e chul katte gesilam, keu amake fashayen na pls!',
-  'Para Cricket Math er dugout er piche keu chup kore chilo!',
-  'Dadu Pharmacy te Napa ante gesilam bhai, amar kache bill ache!',
-  'Biyer Bari Pandal er Kacchi khaitasilam, Batpar okhane chilo naki?!',
-  'Bhai amar ping high chilo tai daray chilam, ami Batpar na!',
-];
-
-const PAGOL_CHAT_LINES = [
-  'Hehe ami toh kichui kori nai, amake Pukur e chubani diyen na pls!',
-  'Ami shudhu pukur ghat e mach dhortesilam bhai, kothao jai nai!',
-  'Amake size korle kintu shobai milia afsos korben bhaiya!',
-];
-
 export class SoloMatchEngine {
   public localPlayerId = 'local_hero';
   private snapshot: RoomSnapshot;
@@ -166,6 +151,8 @@ export class SoloMatchEngine {
   private forcedRole?: 'parabasi' | 'vondo';
   private forcedSpecialRole?: SpecialRole;
   private botCounter = 10;
+  private meetingEpoch = 0;
+  private localTyping = false;
   public onClueNotice?: (title: string, detail: string) => void;
 
   constructor(
@@ -1219,13 +1206,30 @@ export class SoloMatchEngine {
     }
   }
 
+  public setMeetingTyping(typing: boolean): void {
+    this.localTyping = typing && this.snapshot.phase === 'meeting';
+    this.syncTypingPlayerIds();
+  }
+
+  private syncTypingPlayerIds(): void {
+    if (this.snapshot.phase !== 'meeting') {
+      this.snapshot.typingPlayerIds = [];
+      return;
+    }
+    const botTypers = getMeetingTypingBotIds(this.snapshot.players, this.brains);
+    this.snapshot.typingPlayerIds = this.localTyping
+      ? [this.localPlayerId, ...botTypers]
+      : botTypers;
+  }
+
   public sendChat(text: string): void {
     if (this.snapshot.phase !== 'meeting') return;
     const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
     if (!lp) return;
     const clean = text.trim().slice(0, 140);
     if (!clean) return;
-    this.snapshot.chat.push({
+    this.localTyping = false;
+    const msg = {
       id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       senderId: lp.id,
       senderName: lp.alive ? lp.name : `${lp.name} (Ghost)`,
@@ -1233,7 +1237,14 @@ export class SoloMatchEngine {
       text: clean,
       timestamp: Date.now(),
       ghostOnly: !lp.alive,
+    };
+    this.snapshot.chat.push(msg);
+    processChatMessageForBots({
+      msg,
+      players: this.snapshot.players,
+      brains: this.brains,
     });
+    this.syncTypingPlayerIds();
   }
 
   public castVote(targetId: string | 'skip'): void {
@@ -1253,6 +1264,9 @@ export class SoloMatchEngine {
   private startMeeting(caller: PlayerState, reason: 'body' | 'emergency', victimName?: string): void {
     if (this.snapshot.phase !== 'playing') return;
     this.snapshot.phase = 'meeting';
+    this.meetingEpoch += 1;
+    this.localTyping = false;
+    this.snapshot.typingPlayerIds = [];
     this.snapshot.meetingCallerId = caller.id;
     this.snapshot.meetingReason = reason;
     this.snapshot.discussionTimer = this.snapshot.settings.discussionTimeSec;
@@ -1314,11 +1328,67 @@ export class SoloMatchEngine {
       timestamp: Date.now(),
       system: true,
     });
+
+    // Always pre-populate staggered rule-based fallback turns, then enhance with 1 batched Gemini call
+    generateFallbackMeetingChats({
+      players: this.snapshot.players,
+      bodies: this.snapshot.bodies,
+      brains: this.brains,
+      meetingReason: reason,
+      meetingCallerId: caller.id,
+    });
+    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id);
+
     soundEngine.playMeetingBell(reason);
+  }
+
+  private async fetchGeminiMeetingChats(
+    epoch: number,
+    reason: 'body' | 'emergency',
+    callerId: string,
+  ): Promise<void> {
+    if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    const payload = buildBatchedGeminiMeetingPayload({
+      roomCode: this.snapshot.roomCode,
+      players: this.snapshot.players,
+      bodies: this.snapshot.bodies,
+      brains: this.brains,
+      chat: this.snapshot.chat,
+      meetingReason: reason,
+      meetingCallerId: callerId,
+    });
+    if (payload.bots.length === 0) return;
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 5500);
+    try {
+      const res = await fetch(getApiUrl('/api/bot-meeting-chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { messages?: BatchedGeminiChatReply[] };
+      if (this.snapshot.phase !== 'meeting' || this.meetingEpoch !== epoch) return;
+      if (Array.isArray(data?.messages) && data.messages.length > 0) {
+        applyBatchedGeminiChats({
+          replies: data.messages,
+          players: this.snapshot.players,
+          brains: this.brains,
+        });
+      }
+    } catch {
+      // Seamless fallback: rule-based schedule is already active
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
 
   private resolveVotes(): void {
     const ejection = tallyVotes(this.snapshot.players, this.snapshot.settings.confirmEjects);
+    this.localTyping = false;
+    this.snapshot.typingPlayerIds = [];
     this.snapshot.ejection = ejection;
     this.snapshot.phase = 'vote_results';
     this.phaseTimer = 2.6;
@@ -1523,6 +1593,8 @@ export class SoloMatchEngine {
         discussionTimer: this.snapshot.discussionTimer ?? 0,
         brains: this.brains,
         dt,
+        meetingReason: this.snapshot.meetingReason,
+        meetingCallerId: this.snapshot.meetingCallerId,
         onChat: (p, text) => {
           this.snapshot.chat.push({
             id: `chat_${Date.now()}_${p.id}`,
@@ -1534,6 +1606,7 @@ export class SoloMatchEngine {
           });
         },
       });
+      this.syncTypingPlayerIds();
 
       const alive = this.snapshot.players.filter((p) => p.alive);
       if ((this.snapshot.discussionTimer ?? 0) <= 0 && this.snapshot.meetingTimer <= 1.2) {

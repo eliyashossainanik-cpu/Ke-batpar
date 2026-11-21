@@ -291,7 +291,7 @@ export function makeDefaultPlayerState(
     isBot: false,
     isHost: false,
     ready: false,
-    pingMs: 18,
+    pingMs: overrides.pingMs ?? (overrides.isBot ? 24 + Math.floor(Math.random() * 44) : 18),
     tasks: [],
     killCooldownRemaining: 0,
     emergencyMeetingsLeft: DEFAULT_ROOM_SETTINGS.emergencyMeetingsPerPlayer,
@@ -863,6 +863,7 @@ export function redactSnapshotForPlayer(snapshot: RoomSnapshot, viewerPlayerId: 
       const revealNetaInShalish = snapshot.netaRevealedId === p.id;
       return {
         ...p,
+        isBot: false,
         role: revealVondoPartner ? p.role : 'parabasi',
         specialRole: revealVondoPartner || revealNetaInShalish ? p.specialRole : 'none',
         supariTargetId: revealVondoPartner ? p.supariTargetId : null,

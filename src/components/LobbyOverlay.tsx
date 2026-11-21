@@ -357,19 +357,12 @@ export function LobbyOverlay({
                         {p.isHost && (
                           <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-label="Host" />
                         )}
-                        {p.isBot && (
-                          <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-bold text-slate-300 shrink-0">
-                            Bot
-                          </span>
-                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {!p.isBot && (
-                          <span className="text-[10px] font-mono-tabular text-slate-400">
-                            {p.pingMs ?? 18}ms
-                          </span>
-                        )}
+                        <span className="text-[10px] font-mono-tabular text-slate-400">
+                          {p.pingMs ?? 34}ms
+                        </span>
                         <span
                           className={`text-[10px] font-bold ${
                             isReady ? 'text-emerald-400' : 'text-slate-500'

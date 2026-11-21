@@ -22,6 +22,7 @@ export interface MeetingModalProps {
   onSendChat: (text: string) => void;
   onCastVote: (targetId: string | 'skip') => void;
   onPlayMeme?: (memeId: MemeSoundId) => void;
+  onTypingChange?: (typing: boolean) => void;
 }
 
 function ChibiSuspectAvatar({
@@ -84,6 +85,7 @@ export function MeetingModal({
   onSendChat,
   onCastVote,
   onPlayMeme,
+  onTypingChange,
 }: MeetingModalProps) {
   const [chatText, setChatText] = useState('');
   const [selectedTargetId, setSelectedTargetId] = useState<string | 'skip' | null>(null);
@@ -92,6 +94,8 @@ export function MeetingModal({
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [, setPackVer] = useState(0);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const isLocalTypingRef = useRef(false);
 
   useEffect(() => subscribeMemePack(() => setPackVer((v) => v + 1)), []);
   const quickMemes = getQuickMemeList();
@@ -157,9 +161,52 @@ export function MeetingModal({
     });
   }, [snapshot.players, localPlayerId]);
 
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current !== null) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+      if (isLocalTypingRef.current) {
+        isLocalTypingRef.current = false;
+        onTypingChange?.(false);
+      }
+    };
+  }, [onTypingChange]);
+
+  const setTypingActive = (active: boolean) => {
+    if (typingTimeoutRef.current !== null) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (active) {
+      if (!isLocalTypingRef.current) {
+        isLocalTypingRef.current = true;
+        onTypingChange?.(true);
+      }
+      typingTimeoutRef.current = window.setTimeout(() => {
+        typingTimeoutRef.current = null;
+        if (isLocalTypingRef.current) {
+          isLocalTypingRef.current = false;
+          onTypingChange?.(false);
+        }
+      }, 2200);
+    } else if (isLocalTypingRef.current) {
+      isLocalTypingRef.current = false;
+      onTypingChange?.(false);
+    }
+  };
+
+  const activeTypers = useMemo(() => {
+    const ids = snapshot.typingPlayerIds ?? [];
+    if (ids.length === 0) return [];
+    const idSet = new Set(ids);
+    return snapshot.players.filter((p) => p.alive && p.id !== localPlayerId && idSet.has(p.id));
+  }, [snapshot.typingPlayerIds, snapshot.players, localPlayerId]);
+
   const handleSubmitChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatText.trim()) return;
+    setTypingActive(false);
     onSendChat(chatText);
     setChatText('');
   };
@@ -606,6 +653,23 @@ export function MeetingModal({
                   </div>
                 );
               })}
+              {activeTypers.length > 0 && localPlayer?.alive && (
+                <div
+                  aria-live="polite"
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-900/75 border border-slate-800 text-[11px] text-slate-300 flex items-center gap-1.5"
+                >
+                  <span className="inline-flex gap-0.5" aria-hidden="true">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-bounce" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-bounce [animation-delay:120ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-bounce [animation-delay:240ms]" />
+                  </span>
+                  <span className="truncate">
+                    {activeTypers.length === 1
+                      ? `${activeTypers[0].name} likhtese...`
+                      : `${activeTypers.slice(0, 2).map((t) => t.name.split(' ')[0]).join(', ')} likhtese...`}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Quick Banglish Roasts */}
@@ -651,7 +715,11 @@ export function MeetingModal({
                 type="text"
                 maxLength={140}
                 value={chatText}
-                onChange={(e) => setChatText(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setChatText(val);
+                  setTypingActive(val.trim().length > 0);
+                }}
                 placeholder={
                   !localPlayer?.alive
                     ? 'Ghost chat (hidden from living)...'
