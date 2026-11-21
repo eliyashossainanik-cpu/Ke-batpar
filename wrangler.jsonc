@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ke-vondo",
+  "name": "ke-vondo1",
   "main": "worker.ts",
   "compatibility_date": "2026-03-01",
   "build": {
