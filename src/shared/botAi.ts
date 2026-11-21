@@ -136,6 +136,9 @@ export const BOT_BANTER_LINES = [
   'Hero Saloon e Hero-cut dite gesilam, amake fashayen na!',
   'Para Cricket Math e tape ball kheltesilam, 100% clean!',
   'Biyer Bari Pandal e Kacchi khaitasilam, Batpar okhane chilo naki?',
+  'Moholla Rail Station e Bangla Express er horn shunlam, ke jeno platform e lukaisilo!',
+  'Kaka-r Bari r chhad e cha khaitasilam, Kaka shob dekhse!',
+  'Master Bari r tutor sir amake alibi dibe, ekdom 100% clean!',
 ];
 
 export const PAGOL_BANTER_LINES = [
@@ -198,6 +201,42 @@ const EXTRA_NAV_NODES: Array<{ x: number; z: number }> = [
   { x: 52.0, z: -52.0 },
   { x: -52.0, z: 52.0 },
   { x: 52.0, z: 52.0 },
+  // Outer West & East Boulevards (x = ±86)
+  { x: -86.0, z: -72.0 },
+  { x: -86.0, z: -52.0 },
+  { x: -86.0, z: 0.0 },
+  { x: -86.0, z: 52.0 },
+  { x: -86.0, z: 72.0 },
+  { x: 86.0, z: -72.0 },
+  { x: 86.0, z: -52.0 },
+  { x: 86.0, z: 0.0 },
+  { x: 86.0, z: 52.0 },
+  { x: 86.0, z: 72.0 },
+  // North Para Avenue (z = -72) & 4 Para Houses (South Doorways & Interiors)
+  { x: -74.0, z: -72.0 },
+  { x: -52.0, z: -72.0 },
+  { x: -32.0, z: -72.0 },
+  { x: 32.0, z: -72.0 },
+  { x: 52.0, z: -72.0 },
+  { x: 74.0, z: -72.0 },
+  { x: -74.0, z: -79.0 },
+  { x: -74.0, z: -86.5 },
+  { x: -32.0, z: -79.0 },
+  { x: -32.0, z: -86.5 },
+  { x: 32.0, z: -79.0 },
+  { x: 32.0, z: -86.5 },
+  { x: 74.0, z: -79.0 },
+  { x: 74.0, z: -86.5 },
+  // Moholla Rail Station Avenue (z = 72) & 3 Level Crossings -> South Bypass (z = 96)
+  { x: -52.0, z: 72.0 },
+  { x: -26.0, z: 72.0 },
+  { x: 0.0, z: 72.0 },
+  { x: -5.5, z: 74.0 },
+  { x: 26.0, z: 72.0 },
+  { x: 52.0, z: 72.0 },
+  { x: -52.0, z: 96.0 },
+  { x: 0.0, z: 96.0 },
+  { x: 52.0, z: 96.0 },
 ];
 
 export const NAV_NODES: Array<{ x: number; z: number }> = (() => {
@@ -510,7 +549,7 @@ export function createBotBrainState(rng: () => number = Math.random): BotBrainSt
     hasChatted: false,
     huntTargetId: null,
     sabotageDelayTimer: 26 + rng() * 28,
-    killWaitTimer: 18 + rng() * 14,
+    killWaitTimer: 15 + rng() * 10,
     recentSightings: [],
     clearedIds: [],
     lastSightSampleMs: 0,
@@ -541,7 +580,7 @@ export function resetBotBrainsForMeeting(
     brain.pauseTimer = 0.2;
     brain.detourNodeIdx = null;
     brain.detourTimer = 0;
-    brain.killWaitTimer = 38 + rng() * 20;
+    brain.killWaitTimer = 46 + rng() * 20;
     brain.processedMeetingClues = false;
     brain.ventTimer = 0;
     brain.ventTargetId = null;
@@ -556,7 +595,7 @@ export function recordKillWitnesses(
   sabotageActive: SabotageType | null,
   doorLocks: DoorLockState,
 ): void {
-  const visionRange = sabotageActive === 'loadshedding' ? 7.5 : 14.5;
+  const visionRange = sabotageActive === 'loadshedding' ? 8.5 : 16.0;
   for (const observer of players) {
     if (!observer.isBot || !observer.alive) continue;
     if (observer.id === killer.id || observer.id === victim.id || observer.role === 'vondo') continue;
@@ -577,7 +616,7 @@ function hasKillWitnesses(
   sabotageActive: SabotageType | null,
   doorLocks: DoorLockState,
 ): boolean {
-  const visionRange = sabotageActive === 'loadshedding' ? 7.2 : 14.0;
+  const visionRange = sabotageActive === 'loadshedding' ? 5.8 : 10.5;
   for (const other of players) {
     if (!other.alive) continue;
     if (other.id === killer.id || other.id === victim.id || other.role === 'vondo') continue;
@@ -960,7 +999,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       brain.lastSightSampleMs = nowMs;
       const sights = (brain.recentSightings ?? []).filter((s) => nowMs - s.atMs <= 30000);
       const cleared = new Set(brain.clearedIds ?? []);
-      const sightRange = sabotage.active === 'loadshedding' ? 9 : 19;
+      const sightRange = sabotage.active === 'loadshedding' ? 10 : 23;
       for (const other of players) {
         if (!other.alive || other.id === p.id || other.inVent) continue;
         if (distance2D(p.x, p.z, other.x, other.z) > sightRange) continue;
@@ -998,7 +1037,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             if (p.specialRole === 'supari_killer') {
               p.supariTargetId = pickSupariContractTarget(p, players, p.supariTargetId)?.id ?? null;
             }
-            brain.killWaitTimer = 42 + rng() * 22;
+            brain.killWaitTimer = 54 + rng() * 22;
             bodies.push({
               id: `body_${nowMs}_${victim.id}_${Math.floor(rng() * 1000)}`,
               victimId: victim.id,
@@ -1139,9 +1178,12 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       // Batpar stalks isolated crew (prioritizing Supari Contract if Supari Killer)
       let isolated: PlayerState | null = null;
       let bestScore = Infinity;
+      const anyDead = bodies.length > 0 || players.some((pl) => !pl.alive);
+      const maxStalkDist = !anyDead && nowMs >= 70000 ? 110 : 42;
       for (const cand of players) {
         if (!cand.alive || cand.role === 'vondo' || cand.inVent) continue;
         const dist = distance2D(p.x, p.z, cand.x, cand.z);
+        if (dist > maxStalkDist) continue;
         const crowd = players.filter(
           (o) =>
             o.alive &&
@@ -1204,7 +1246,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     if (distToGoal <= arrivalDist) {
       if (activeStationTarget) {
         brain.activeTaskId = activeStationTarget.id;
-        brain.pauseTimer = activeStationTarget.holdDurationSec + 3.2;
+        brain.pauseTimer = activeStationTarget.holdDurationSec + 1.85;
         if (canCompleteTasks(p) && activeStationTarget.isVisual && settings.visualTasks) {
           p.visualTaskTimer = 2.6;
         }
@@ -1256,7 +1298,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       continue;
     }
 
-    const speed = settings.moveSpeed * (sprintBoost ? 1.06 : 0.74);
+    const speed = settings.moveSpeed * (sprintBoost ? 1.06 : 0.83);
     p.vx = (dx / hopDist) * speed;
     p.vz = (dz / hopDist) * speed;
     p.yaw = Math.atan2(p.vx, p.vz);
@@ -1330,8 +1372,8 @@ export function stepBotsMeeting(params: {
           for (const sight of b.recentSightings) {
             if (clearedSet.has(sight.id)) continue;
             const d = distance2D(sight.x, sight.z, body.x, body.z);
-            if (d <= 21 && Math.abs(sight.atMs - body.killedAt) <= 24000) {
-              b.suspicion[sight.id] = (b.suspicion[sight.id] ?? 0) + 1.6;
+            if (d <= 22 && Math.abs(sight.atMs - body.killedAt) <= 26000) {
+              b.suspicion[sight.id] = (b.suspicion[sight.id] ?? 0) + 1.9;
             }
           }
         }

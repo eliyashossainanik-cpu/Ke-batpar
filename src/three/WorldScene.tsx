@@ -19,6 +19,7 @@ import {
   GAS_LEAK_VALVES,
   MAP_HALF_SIZE,
   PLAYER_RADIUS,
+  RAILWAY_TRACK_Z,
   ROOFTOPS,
   SECURITY_CAMERAS,
   STAIR_RAMPS,
@@ -33,8 +34,10 @@ import {
 import { BOHURUPI_GLITCH_RANGE, VISUAL_TASK_VISIBLE_RANGE } from '../shared/gameRules';
 import { createProceduralTextures } from './proceduralTextures';
 import {
+  createBanglaTrainModel,
   createBodyMarkerMesh,
   createCharacterRig,
+  createClotheslineProp,
   createCngModel,
   createAlleyProps,
   createDrainVent,
@@ -46,6 +49,7 @@ import {
   createPlanterPot,
   createRailCrossingGate,
   createRickshawModel,
+  createRooftopMachanProp,
   createSandbagBarricade,
   createSecurityCamMesh,
   createShutterDoor,
@@ -252,13 +256,13 @@ export function WorldScene({
     const skyline = createTwilightSkyline();
     scene.add(skyline.group);
 
-    // Sculpted Rolling Hills Terrain Skirt beyond the 160m compound
+    // Sculpted Rolling Hills Terrain Skirt beyond the 208m compound
     const terrainSkirt = createTerrainSkirt();
     scene.add(terrainSkirt);
 
-    textures.asphaltMap.repeat.set(12, 12);
-    textures.asphaltNormal.repeat.set(12, 12);
-    textures.asphaltRoughness.repeat.set(12, 12);
+    textures.asphaltMap.repeat.set(16, 16);
+    textures.asphaltNormal.repeat.set(16, 16);
+    textures.asphaltRoughness.repeat.set(16, 16);
 
     // Compound Asphalt with Tangent Normal Map + Rain Puddle Specular Roughness Map
     const compoundFloor = new THREE.Mesh(
@@ -277,19 +281,19 @@ export function WorldScene({
     compoundFloor.receiveShadow = true;
     scene.add(compoundFloor);
 
-    // Moholla Main Avenues + Outer Ring Boulevard connecting all 14 Districts
+    // Moholla Main Avenues + Inner Ring + Outer Para & Rail Boulevards (208m × 208m Map)
     const roadNormNS = textures.asphaltNormal.clone();
-    roadNormNS.repeat.set(1, 12);
+    roadNormNS.repeat.set(1, 16);
     roadNormNS.needsUpdate = true;
     const roadRoughNS = textures.asphaltRoughness.clone();
-    roadRoughNS.repeat.set(1, 12);
+    roadRoughNS.repeat.set(1, 16);
     roadRoughNS.needsUpdate = true;
 
     const roadNormEW = textures.asphaltNormal.clone();
-    roadNormEW.repeat.set(12, 1);
+    roadNormEW.repeat.set(16, 1);
     roadNormEW.needsUpdate = true;
     const roadRoughEW = textures.asphaltRoughness.clone();
-    roadRoughEW.repeat.set(12, 1);
+    roadRoughEW.repeat.set(16, 1);
     roadRoughEW.needsUpdate = true;
 
     const roadSurfaceMatNS = new THREE.MeshStandardMaterial({
@@ -308,30 +312,50 @@ export function WorldScene({
       roughness: 1.0,
       metalness: 0.08,
     });
-    const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 148.0), roadSurfaceMatNS);
+    const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 202.0), roadSurfaceMatNS);
     roadNS.rotation.x = -Math.PI / 2;
     roadNS.position.y = 0.008;
     roadNS.receiveShadow = true;
-    const roadEW = new THREE.Mesh(new THREE.PlaneGeometry(148.0, 11.5), roadSurfaceMatEW);
+    const roadEW = new THREE.Mesh(new THREE.PlaneGeometry(202.0, 11.5), roadSurfaceMatEW);
     roadEW.rotation.x = -Math.PI / 2;
     roadEW.position.y = 0.009;
     roadEW.receiveShadow = true;
     scene.add(roadNS, roadEW);
 
-    // Outer Ring Boulevard (x = ±52, z = ±52)
+    // Inner Ring Boulevard (x = ±52, z = ±52) extending to North Para & South Rail Crossings
     for (const rx of [-52, 52]) {
-      const ringNS = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 112.5), roadSurfaceMatNS);
+      const ringNS = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 196.0), roadSurfaceMatNS);
       ringNS.rotation.x = -Math.PI / 2;
       ringNS.position.set(rx, 0.006, 0);
       ringNS.receiveShadow = true;
       scene.add(ringNS);
     }
     for (const rz of [-52, 52]) {
-      const ringEW = new THREE.Mesh(new THREE.PlaneGeometry(112.5, 8.5), roadSurfaceMatEW);
+      const ringEW = new THREE.Mesh(new THREE.PlaneGeometry(176.0, 8.5), roadSurfaceMatEW);
       ringEW.rotation.x = -Math.PI / 2;
       ringEW.position.set(0, 0.007, rz);
       ringEW.receiveShadow = true;
       scene.add(ringEW);
+    }
+
+    // Outer Para Avenues (North Houses z=-72, Rail Station z=72, South Bypass z=96, Outer W/E x=±86)
+    for (const [rz, wid] of [
+      [-72, 8.0],
+      [72, 8.0],
+      [96, 6.8],
+    ] as const) {
+      const aveEW = new THREE.Mesh(new THREE.PlaneGeometry(184.0, wid), roadSurfaceMatEW);
+      aveEW.rotation.x = -Math.PI / 2;
+      aveEW.position.set(0, 0.007, rz);
+      aveEW.receiveShadow = true;
+      scene.add(aveEW);
+    }
+    for (const rx of [-86, 86]) {
+      const aveNS = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 192.0), roadSurfaceMatNS);
+      aveNS.rotation.x = -Math.PI / 2;
+      aveNS.position.set(rx, 0.006, 0);
+      aveNS.receiveShadow = true;
+      scene.add(aveNS);
     }
 
     const dashMat = new THREE.MeshStandardMaterial({
@@ -343,18 +367,34 @@ export function WorldScene({
       polygonOffsetUnits: -1,
     });
     const dashPlacements: Array<{ x: number; y: number; z: number; sx: number; sz: number }> = [];
-    for (let d = -70.0; d <= 70.0; d += 4.5) {
-      if (Math.abs(d) < 11.5) continue;
-      dashPlacements.push({ x: 0, y: 0.015, z: d, sx: 0.24, sz: 1.8 });
-      dashPlacements.push({ x: d, y: 0.015, z: 0, sx: 1.8, sz: 0.24 });
-    }
-    for (let d = -48.0; d <= 48.0; d += 5.0) {
-      if (Math.abs(d) < 6.0) continue;
-      for (const rx of [-52, 52]) {
-        dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.24, sz: 1.8 });
+    for (let d = -96.0; d <= 96.0; d += 4.5) {
+      if (Math.abs(d) >= 11.5 && Math.abs(d - RAILWAY_TRACK_Z) > 3.6) {
+        dashPlacements.push({ x: 0, y: 0.015, z: d, sx: 0.24, sz: 1.8 });
       }
-      for (const rz of [-52, 52]) {
-        dashPlacements.push({ x: d, y: 0.014, z: rz, sx: 1.8, sz: 0.24 });
+      if (Math.abs(d) >= 11.5) {
+        dashPlacements.push({ x: d, y: 0.015, z: 0, sx: 1.8, sz: 0.24 });
+      }
+    }
+    for (let d = -92.0; d <= 92.0; d += 5.0) {
+      if (Math.abs(d) >= 6.0 && Math.abs(d - RAILWAY_TRACK_Z) > 3.6) {
+        for (const rx of [-52, 52]) {
+          dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.24, sz: 1.8 });
+        }
+      }
+      if (Math.abs(d) >= 6.0 && Math.abs(d) <= 80.0) {
+        for (const rz of [-52, 52]) {
+          dashPlacements.push({ x: d, y: 0.014, z: rz, sx: 1.8, sz: 0.24 });
+        }
+      }
+      if (Math.abs(d) > 8.0) {
+        dashPlacements.push({ x: d, y: 0.014, z: -72, sx: 1.8, sz: 0.22 });
+        dashPlacements.push({ x: d, y: 0.014, z: 96, sx: 1.8, sz: 0.22 });
+      }
+    }
+    for (let d = -84.0; d <= 68.0; d += 5.2) {
+      if (Math.abs(d) < 6.0) continue;
+      for (const rx of [-86, 86]) {
+        dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.22, sz: 1.8 });
       }
     }
     // Zebra Crossings approaching Adda Chowk from all 4 avenues
@@ -394,7 +434,7 @@ export function WorldScene({
     };
     const borderCurbPlacements: Array<{ x: number; y: number; z: number; sx: number; sz: number }> = [];
     for (const zDef of ZONES) {
-      if (zDef.id === 'pukur_ghat') continue;
+      if (zDef.id === 'pukur_ghat' || zDef.id === 'rail_station') continue;
       const isCentral = zDef.id === 'adda_chowk';
       const isEidgah = zDef.id === 'eidgah_north';
       const isCricket = zDef.id === 'cricket_math';
@@ -637,6 +677,10 @@ export function WorldScene({
       dish_roof: new THREE.MeshStandardMaterial({ map: textures.dishWallMap, roughness: 0.62, metalness: 0.14 }),
       saloon_goli: new THREE.MeshStandardMaterial({ map: textures.saloonWallMap, roughness: 0.32, metalness: 0.1 }),
       pharmacy_mor: new THREE.MeshStandardMaterial({ map: textures.pharmacyWallMap, roughness: 0.28, metalness: 0.08 }),
+      kakar_bari: new THREE.MeshStandardMaterial({ map: textures.kakaWallMap, roughness: 0.74, metalness: 0.04 }),
+      master_bari: new THREE.MeshStandardMaterial({ map: textures.masterWallMap, roughness: 0.72, metalness: 0.04 }),
+      chacha_bari: new THREE.MeshStandardMaterial({ map: textures.chachaWallMap, roughness: 0.72, metalness: 0.05 }),
+      khalar_bari: new THREE.MeshStandardMaterial({ map: textures.khalaWallMap, roughness: 0.72, metalness: 0.04 }),
     };
     const zoneCopingMatMap: Record<string, THREE.MeshStandardMaterial> = {
       cha_dokan: new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.68 }),
@@ -645,6 +689,11 @@ export function WorldScene({
       dish_roof: new THREE.MeshStandardMaterial({ color: '#1e40af', roughness: 0.48, metalness: 0.25 }),
       saloon_goli: new THREE.MeshStandardMaterial({ color: '#be185d', roughness: 0.36, metalness: 0.15 }),
       pharmacy_mor: new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.35, metalness: 0.1 }),
+      kakar_bari: new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.62 }),
+      master_bari: new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.64 }),
+      chacha_bari: new THREE.MeshStandardMaterial({ color: '#be123c', roughness: 0.58 }),
+      khalar_bari: new THREE.MeshStandardMaterial({ color: '#0f766e', roughness: 0.58 }),
+      rail_station: new THREE.MeshStandardMaterial({ color: '#0369a1', roughness: 0.45, metalness: 0.3 }),
     };
     const copingMat = new THREE.MeshStandardMaterial({
       color: '#94a3b8',
@@ -681,8 +730,15 @@ export function WorldScene({
       'pharm_counter',
       'pandal_stage',
       'supply_pandal',
+      'kaka_sofa',
+      'master_desk',
+      'chacha_table',
+      'khala_table',
+      'rail_station_booth',
       'rail_cabin_w',
       'rail_cabin_e',
+      'rail_cabin_center_w',
+      'rail_cabin_center_e',
     ]);
 
     const capsGroup = new THREE.Group();
@@ -690,11 +746,35 @@ export function WorldScene({
       if (skipWallIds.has(w.id)) {
         continue;
       }
+      // Carve railway tunnel openings through outer_w and outer_e around RAILWAY_TRACK_Z (86.5)
+      if (w.id === 'outer_w' || w.id === 'outer_e') {
+        const cx = (w.minX + w.maxX) / 2;
+        const wWidth = w.maxX - w.minX;
+        const northSpan = RAILWAY_TRACK_Z - 3.0 - w.minZ;
+        const southSpan = w.maxZ - (RAILWAY_TRACK_Z + 3.0);
+        for (const [segMinZ, segSpan] of [
+          [w.minZ, northSpan],
+          [RAILWAY_TRACK_Z + 3.0, southSpan],
+        ]) {
+          const cz = segMinZ + segSpan / 2;
+          const segMesh = new THREE.Mesh(new THREE.BoxGeometry(wWidth, w.height, segSpan), brickWallMat);
+          segMesh.position.set(cx, w.height / 2, cz);
+          segMesh.castShadow = !isSoftwareGl;
+          segMesh.receiveShadow = true;
+          scene.add(segMesh);
+          wallMeshes.push(segMesh);
+          const segCap = new THREE.Mesh(new THREE.BoxGeometry(wWidth + 0.16, 0.14, segSpan + 0.16), copingMat);
+          segCap.position.set(cx, w.height + 0.07, cz);
+          segCap.receiveShadow = true;
+          capsGroup.add(segCap);
+        }
+        continue;
+      }
       const wWidth = w.maxX - w.minX;
       const wDepth = w.maxZ - w.minZ;
       const cx = (w.minX + w.maxX) / 2;
       const cz = (w.minZ + w.maxZ) / 2;
-      const isAlleyDivider = w.id.startsWith('alley_') || w.id.startsWith('lane_') || w.id.startsWith('outer_alley_');
+      const isAlleyDivider = w.id.startsWith('alley_') || w.id.startsWith('lane_') || w.id.startsWith('outer_alley_') || w.id.startsWith('outer_west') || w.id.startsWith('outer_east');
       const mat = (w.zone && zoneWallMatMap[w.zone]) || (isAlleyDivider ? alleyWallMat : brickWallMat);
       const wallMesh = new THREE.Mesh(new THREE.BoxGeometry(wWidth, w.height, wDepth), mat);
       wallMesh.position.set(cx, w.height / 2, cz);
@@ -713,14 +793,16 @@ export function WorldScene({
     }
     scene.add(optimizeStaticGroup(capsGroup));
 
-    // Periodic Concrete Pilasters along the 160m Compound Perimeter Walls (1 InstancedMesh draw call)
+    // Periodic Concrete Pilasters along the 208m Compound Perimeter Walls (1 InstancedMesh draw call)
     const pilasterTransforms: BoxTransform[] = [];
-    for (let p = -68; p <= 68; p += 14) {
-      for (const pz of [-78.8, 78.8]) {
+    for (let p = -96; p <= 96; p += 16) {
+      for (const pz of [-102.8, 102.8]) {
         pilasterTransforms.push({ x: p, y: 1.925, z: pz, sx: 1.1, sy: 3.85, sz: 2.1 });
       }
-      for (const px of [-78.8, 78.8]) {
-        pilasterTransforms.push({ x: px, y: 1.925, z: p, sx: 2.1, sy: 3.85, sz: 1.1 });
+      if (Math.abs(p - RAILWAY_TRACK_Z) > 5.5) {
+        for (const px of [-102.8, 102.8]) {
+          pilasterTransforms.push({ x: px, y: 1.925, z: p, sx: 2.1, sy: 3.85, sz: 1.1 });
+        }
       }
     }
     const pilasterInst = new THREE.InstancedMesh(unitBoxGeo, pillarMat, pilasterTransforms.length);
@@ -736,7 +818,7 @@ export function WorldScene({
     pilasterInst.computeBoundingSphere();
     scene.add(pilasterInst);
 
-    // Distinct Corner Building Columns + Colored Corrugated Eaves + Rooftop Architecture + Doorway Nameplates
+    // Distinct Building Columns + Colored Corrugated Eaves + Rooftop Architecture + Doorway Nameplates
     const cornerBuildings: Array<{
       id: string;
       bounds: [number, number, number, number];
@@ -806,6 +888,46 @@ export function WorldScene({
         signMap: textures.pharmacySignMap,
         signPos: [-56.7, 3.75, 26.0],
         signRotY: Math.PI / 2,
+      },
+      {
+        id: 'kakar_bari',
+        bounds: [-82.0, -66.0, -96.0, -80.0],
+        tint: '#fef3c7',
+        eaveHex: '#b45309',
+        pillarHex: '#78350f',
+        signMap: textures.kakaSignMap,
+        signPos: [-74.0, 3.75, -79.7],
+        signRotY: 0,
+      },
+      {
+        id: 'master_bari',
+        bounds: [-40.0, -24.0, -96.0, -80.0],
+        tint: '#fef9c3',
+        eaveHex: '#78350f',
+        pillarHex: '#451a03',
+        signMap: textures.masterSignMap,
+        signPos: [-32.0, 3.75, -79.7],
+        signRotY: 0,
+      },
+      {
+        id: 'chacha_bari',
+        bounds: [24.0, 40.0, -96.0, -80.0],
+        tint: '#ffe4e6',
+        eaveHex: '#be123c',
+        pillarHex: '#881337',
+        signMap: textures.chachaSignMap,
+        signPos: [32.0, 3.75, -79.7],
+        signRotY: 0,
+      },
+      {
+        id: 'khalar_bari',
+        bounds: [66.0, 82.0, -96.0, -80.0],
+        tint: '#ccfbf1',
+        eaveHex: '#0f766e',
+        pillarHex: '#115e59',
+        signMap: textures.khalaSignMap,
+        signPos: [74.0, 3.75, -79.7],
+        signRotY: 0,
       },
     ];
     const shopTubeMats: THREE.MeshStandardMaterial[] = [];
@@ -1026,7 +1148,12 @@ export function WorldScene({
       const midZ = (bz1 + bz2) / 2;
       const wSpan = bx2 - bx1;
       const dSpan = bz2 - bz1;
-      const hasSouthDoor = b.id === 'cha_dokan' || b.id === 'rickshaw_garage';
+      const isParaHouse =
+        b.id === 'kakar_bari' ||
+        b.id === 'master_bari' ||
+        b.id === 'chacha_bari' ||
+        b.id === 'khalar_bari';
+      const hasSouthDoor = b.id === 'cha_dokan' || b.id === 'rickshaw_garage' || isParaHouse;
       const hasNorthDoor = b.id === 'desco_power' || b.id === 'dish_roof';
       const hasEastDoor = b.id === 'saloon_goli' || b.id === 'pharmacy_mor';
 
@@ -1048,6 +1175,12 @@ export function WorldScene({
         archGroup.add(ps);
         addFramedWindow(midX - 4.2, 1.78, bz2 - 0.45, 0);
         addFramedWindow(midX + 4.2, 1.78, bz2 - 0.45, 0);
+      } else if (isParaHouse) {
+        for (const px of [bx1 + 2.6, bx2 - 2.6]) {
+          const psStub = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.38, 1.18), plinthMat);
+          psStub.position.set(px, 0.19, bz2 - 0.45);
+          archGroup.add(psStub);
+        }
       } else {
         const psStub = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.38, 1.18), plinthMat);
         psStub.position.set(b.id === 'cha_dokan' ? bx1 + 4.4 : bx2 - 4.4, 0.19, bz2 - 0.45);
@@ -1066,9 +1199,40 @@ export function WorldScene({
         addFramedWindow(bx2 - 0.45, 1.78, midZ - 4.0, Math.PI / 2);
         addFramedWindow(bx2 - 0.45, 1.78, midZ + 4.0, Math.PI / 2);
       }
+
+      // Cozy Para House Interior Furniture (Sofas / Study Desk / Dining Tables matching WALLS AABBs)
+      if (isParaHouse) {
+        const woodFurnitureMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.65 });
+        const sofaCushionMat = new THREE.MeshStandardMaterial({
+          color: b.id === 'kakar_bari' ? '#b45309' : b.id === 'chacha_bari' ? '#be123c' : '#0f766e',
+          roughness: 0.8,
+        });
+        const fx = b.id === 'kakar_bari' ? -78.15 : b.id === 'master_bari' ? -35.5 : b.id === 'chacha_bari' ? 35.1 : 77.5;
+        const fz = -92.55;
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(b.id === 'master_bari' ? 4.0 : 3.6, 0.72, 2.1),
+          b.id === 'kakar_bari' ? sofaCushionMat : woodFurnitureMat,
+        );
+        body.position.set(fx, 0.36, fz);
+        body.castShadow = !isSoftwareGl;
+        const top = new THREE.Mesh(
+          new THREE.BoxGeometry(3.8, 0.14, 2.2),
+          b.id === 'kakar_bari' ? woodFurnitureMat : sofaCushionMat,
+        );
+        top.position.set(fx, 0.82, fz);
+        archGroup.add(body, top);
+      }
     }
 
-    // Walkable Rooftop Slabs + Parapet Railings + Rooftop Props
+    // Walkable Rooftop Slabs + Parapet Railings + Rich Moholla Rooftop Props (per-building visibility when player is inside)
+    const buildingRoofGroups: Array<{
+      roofGroup: THREE.Group;
+      minX: number;
+      maxX: number;
+      minZ: number;
+      maxZ: number;
+    }> = [];
+
     for (const deck of ROOFTOPS) {
       const rw = deck.maxX - deck.minX;
       const rd = deck.maxZ - deck.minZ;
@@ -1076,16 +1240,44 @@ export function WorldScene({
       const rcz = (deck.minZ + deck.maxZ) / 2;
       const topY = deck.elevationY;
       const capMat = zoneCopingMatMap[deck.zoneId] ?? copingMat;
+      const isOverbridge = deck.id === 'rail_overbridge';
+      const targetRoofGroup = isOverbridge ? archGroup : new THREE.Group();
+      const dynamicChildren: THREE.Object3D[] = [];
 
       const slab = new THREE.Mesh(new THREE.BoxGeometry(rw + 0.25, 0.26, rd + 0.25), concreteDeckMat);
       slab.position.set(rcx, topY - 0.13, rcz);
       slab.receiveShadow = true;
       slab.castShadow = !isSoftwareGl;
-      archGroup.add(slab);
+      targetRoofGroup.add(slab);
 
       const trim = new THREE.Mesh(new THREE.BoxGeometry(rw + 0.42, 0.1, rd + 0.42), capMat);
       trim.position.set(rcx, topY - 0.28, rcz);
-      archGroup.add(trim);
+      targetRoofGroup.add(trim);
+
+      if (isOverbridge) {
+        // Steel Bridge Support Piers flanking Railway Tracks (z = 80.2 and z = 92.8, clear of train clearance z = 83..90)
+        const steelMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.72 });
+        for (const px of [deck.minX + 0.25, deck.maxX - 0.25]) {
+          for (const pz of [80.2, 92.8]) {
+            const pier = new THREE.Mesh(new THREE.BoxGeometry(0.36, topY - 0.15, 0.36), steelMat);
+            pier.position.set(px, (topY - 0.15) / 2, pz);
+            pier.castShadow = !isSoftwareGl;
+            targetRoofGroup.add(pier);
+          }
+          // Open Steel Side Safety Handrails along East & West spans
+          for (const ry of [topY + 0.52, topY + 0.96]) {
+            const sideRail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, rd), handrailMat);
+            sideRail.position.set(px, ry, rcz);
+            targetRoofGroup.add(sideRail);
+          }
+          for (let pz = deck.minZ + 0.5; pz <= deck.maxZ - 0.5; pz += 2.1) {
+            const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.0, 6), handrailMat);
+            post.position.set(px, topY + 0.5, pz);
+            targetRoofGroup.add(post);
+          }
+        }
+        continue;
+      }
 
       // Build Parapet walls around the 4 edges leaving openings where exterior stairs meet the deck
       const paraH = 0.88;
@@ -1126,7 +1318,7 @@ export function WorldScene({
             capMat,
           );
           rail.position.set(isNS ? mid : fixedCoord, topY + paraH + 0.045, isNS ? fixedCoord : mid);
-          archGroup.add(para, rail);
+          targetRoofGroup.add(para, rail);
         }
       };
 
@@ -1135,8 +1327,14 @@ export function WorldScene({
       addSegmentedEdge(false, deck.minX + paraT / 2, deck.minZ, deck.maxZ);
       addSegmentedEdge(false, deck.maxX - paraT / 2, deck.minZ, deck.maxZ);
 
-      // Rooftop Props: Sintex Ribbed Water Tank (cha_roof, saloon_roof, pharm_roof)
-      if (deck.id === 'cha_roof' || deck.id === 'saloon_roof' || deck.id === 'pharm_roof') {
+      // Rooftop Props: Sintex Ribbed Water Tank
+      if (
+        deck.id === 'cha_roof' ||
+        deck.id === 'saloon_roof' ||
+        deck.id === 'pharm_roof' ||
+        deck.id === 'kaka_roof' ||
+        deck.id === 'khala_roof'
+      ) {
         const tx = deck.minX + 1.85;
         const tz = deck.minZ + 1.85;
         const plinth = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, 2.0), plinthMat);
@@ -1148,31 +1346,50 @@ export function WorldScene({
         const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), pvcPipeMat);
         pipe.rotation.z = Math.PI / 2;
         pipe.position.set(tx + 1.15, topY + 0.45, tz);
-        archGroup.add(plinth, tank, lid, pipe);
+        targetRoofGroup.add(plinth, tank, lid, pipe);
       }
 
-      // Rooftop Props: Addis / Tea Benches + Warm Lanterns on Cha & Rickshaw Roofs
-      if (deck.id === 'cha_roof' || deck.id === 'rick_roof') {
-        const bx = rcx + 2.5;
-        const bz = rcz - 0.6;
+      // Rooftop Props: Clotheslines (Roshi-te Kapor)
+      if (
+        deck.id === 'cha_roof' ||
+        deck.id === 'saloon_roof' ||
+        deck.id === 'kaka_roof' ||
+        deck.id === 'chacha_roof'
+      ) {
+        const clothes = createClotheslineProp();
+        clothes.position.set(rcx - 1.4, topY, rcz + 2.6);
+        targetRoofGroup.add(clothes);
+      }
+
+      // Rooftop Props: Bamboo Machan Pergola + Woven Chatai & Moras
+      if (deck.id === 'rick_roof' || deck.id === 'master_roof' || deck.id === 'khala_roof') {
+        const machan = createRooftopMachanProp(isSoftwareGl);
+        machan.position.set(rcx - 1.2, topY, rcz - 0.8);
+        targetRoofGroup.add(machan);
+      }
+
+      // Rooftop Props: Adda Tea Benches + Warm Rooftop Lanterns
+      if (deck.id === 'cha_roof' || deck.id === 'rick_roof' || deck.id === 'kaka_roof' || deck.id === 'chacha_roof') {
+        const bx = rcx + 2.4;
+        const bz = rcz - 1.6;
         const benchMat = new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.72 });
-        const bench = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.14, 0.9), benchMat);
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.14, 0.85), benchMat);
         bench.position.set(bx, topY + 0.48, bz);
-        for (const lx of [-1.0, 1.0]) {
-          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.44, 0.8), handrailMat);
+        for (const lx of [-0.9, 0.9]) {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.44, 0.76), handrailMat);
           leg.position.set(bx + lx, topY + 0.22, bz);
-          archGroup.add(leg);
+          targetRoofGroup.add(leg);
         }
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.85, 8), handrailMat);
-        post.position.set(bx + 2.2, topY + 0.92, bz);
+        post.position.set(bx + 1.9, topY + 0.92, bz);
         const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), windowGlassMat);
-        bulb.position.set(bx + 2.2, topY + 1.88, bz);
-        archGroup.add(bench, post, bulb);
+        bulb.position.set(bx + 1.9, topY + 1.88, bz);
+        targetRoofGroup.add(bench, post, bulb);
       }
 
-      // Rooftop Props: Spinning Outdoor AC Condenser Units on DESCO & Dish Terraces
-      if (deck.id === 'desco_roof' || deck.id === 'dish_deck') {
-        const acX = deck.id === 'desco_roof' ? deck.maxX - 2.2 : deck.minX + 1.4;
+      // Rooftop Props: Spinning Outdoor AC Condenser Units on DESCO, Dish & Master Roofs
+      if (deck.id === 'desco_roof' || deck.id === 'dish_deck' || deck.id === 'master_roof') {
+        const acX = deck.id === 'desco_roof' ? deck.maxX - 2.2 : deck.minX + 1.6;
         const acZ = deck.id === 'desco_roof' ? deck.maxZ - 1.4 : deck.minZ + 2.2;
         const acBox = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.85, 0.65), roofAcBodyMat);
         acBox.position.set(acX, topY + 0.44, acZ);
@@ -1183,15 +1400,15 @@ export function WorldScene({
         const bladeA = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.03), sintexMat);
         const bladeB = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.46, 0.03), sintexMat);
         fanGrp.add(bladeA, bladeB);
-        scene.add(fanGrp);
+        targetRoofGroup.add(acBox, grilleRing, fanGrp);
+        dynamicChildren.push(fanGrp);
         roofAcFans.push(fanGrp);
-        archGroup.add(acBox, grilleRing);
       }
 
-      // Rooftop Props: Dish Observatory Satellite Dish on Dish Terrace
-      if (deck.id === 'dish_deck') {
+      // Rooftop Props: Dish Observatory Satellite Dish on Dish Terrace & Chacha Roof
+      if (deck.id === 'dish_deck' || deck.id === 'chacha_roof') {
         const dx = rcx - 0.4;
-        const dz = rcz - 3.6;
+        const dz = rcz - 3.2;
         const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 1.1, 10), handrailMat);
         stand.position.set(dx, topY + 0.55, dz);
         const dishBowl = new THREE.Mesh(
@@ -1203,8 +1420,35 @@ export function WorldScene({
         dishBowl.rotation.z = -0.35;
         const lnb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
         lnb.position.set(dx + 0.22, topY + 1.72, dz + 0.42);
-        archGroup.add(stand, dishBowl, lnb);
+        targetRoofGroup.add(stand, dishBowl, lnb);
       }
+
+      // Rooftop Potted Garden Plants (Chhad Bagan) on Para House Roofs
+      if (
+        deck.id === 'kaka_roof' ||
+        deck.id === 'master_roof' ||
+        deck.id === 'chacha_roof' ||
+        deck.id === 'khala_roof'
+      ) {
+        const potSpots: Array<[number, number]> = [
+          [deck.maxX - 1.6, deck.minZ + 1.6],
+          [deck.maxX - 1.6, deck.maxZ - 1.6],
+        ];
+        for (const [px, pz] of potSpots) {
+          const pot = createPlanterPot();
+          pot.position.set(px, topY, pz);
+          targetRoofGroup.add(pot);
+        }
+      }
+
+      scene.add(optimizeStaticGroup(targetRoofGroup, dynamicChildren));
+      buildingRoofGroups.push({
+        roofGroup: targetRoofGroup,
+        minX: deck.minX,
+        maxX: deck.maxX,
+        minZ: deck.minZ,
+        maxZ: deck.maxZ,
+      });
     }
 
     // Exterior Stepped Staircases with Stringers, Upper Landings & Tubular Handrails
@@ -1426,8 +1670,13 @@ export function WorldScene({
     scene.add(createPharmacyProps(textures, isSoftwareGl));
     const biyerPandal = createBiyerPandalProps(textures, isSoftwareGl);
     scene.add(biyerPandal.group);
-    const railGate = createRailCrossingGate(isSoftwareGl);
+    const railGate = createRailCrossingGate(textures, isSoftwareGl);
     scene.add(railGate.group);
+    const banglaTrain = createBanglaTrainModel(isSoftwareGl);
+    banglaTrain.group.position.set(-140, 0.16, RAILWAY_TRACK_Z);
+    banglaTrain.group.visible = false;
+    scene.add(banglaTrain.group);
+    let lastHornCycle = -1;
 
     instantiateGroupAtTransforms(
       createRickshawModel(textures, isSoftwareGl),
@@ -1494,22 +1743,22 @@ export function WorldScene({
       ]),
     );
 
-    // Palm Trees & Crimson Krishnachura Trees (Instanced across 160m Compound & Outer Groves)
+    // Palm Trees & Crimson Krishnachura Trees (Instanced across 208m Compound & Outer Groves)
     const palmCoords: Array<[number, number, number]> = [
-      [-72.0, -72.0, 1.18],
-      [72.0, -72.0, 1.12],
-      [-72.0, 72.0, 1.16],
-      [72.0, 72.0, 1.15],
-      [-55.5, -72.5, 1.08],
-      [55.5, -72.5, 1.1],
+      [-94.0, -94.0, 1.22],
+      [94.0, -94.0, 1.18],
+      [-94.0, 96.0, 1.18],
+      [94.0, 96.0, 1.16],
+      [-55.5, -94.0, 1.12],
+      [55.5, -94.0, 1.12],
       [-55.5, 72.5, 1.06],
       [55.5, 72.5, 1.1],
-      [-88.0, -42.0, 1.32],
-      [88.0, -40.0, 1.28],
-      [-88.0, 42.0, 1.35],
-      [88.0, 40.0, 1.26],
-      [-42.0, -88.0, 1.3],
-      [42.0, -88.0, 1.24],
+      [-96.0, -42.0, 1.32],
+      [96.0, -40.0, 1.28],
+      [-96.0, 42.0, 1.35],
+      [96.0, 40.0, 1.26],
+      [-10.0, -95.0, 1.28],
+      [10.0, -95.0, 1.24],
     ];
     instantiateGroupAtTransforms(
       createPalmTree(isSoftwareGl),
@@ -1524,8 +1773,10 @@ export function WorldScene({
       [18.0, 56.0, 1.08],
       [-73.5, 0, 1.22],
       [73.5, 0, 1.18],
-      [-86.0, -8.0, 1.28],
-      [86.0, 8.0, 1.25],
+      [-96.0, -8.0, 1.28],
+      [96.0, 8.0, 1.25],
+      [-72.0, 62.0, 1.16],
+      [72.0, 62.0, 1.16],
     ];
     instantiateGroupAtTransforms(
       createKrishnachuraTree(isSoftwareGl),
@@ -1533,7 +1784,7 @@ export function WorldScene({
       scene,
     );
 
-    // 20 Instanced Street Lamps (0 static PointLights on Mobile GPU, 4 Adda Chowk PointLights on Desktop)
+    // 28 Instanced Street Lamps (0 static PointLights on Mobile GPU, 4 Adda Chowk PointLights on Desktop)
     const lampCoords: Array<[number, number, number]> = [
       [-9.2, -9.2, Math.PI / 4],
       [9.2, -9.2, (Math.PI * 3) / 4],
@@ -1555,6 +1806,14 @@ export function WorldScene({
       [-52.0, 52.0, -Math.PI / 4],
       [52.0, 52.0, (-Math.PI * 3) / 4],
       [55.5, -26.0, -Math.PI / 2],
+      [-74.0, -75.0, 0],
+      [-32.0, -75.0, 0],
+      [32.0, -75.0, 0],
+      [74.0, -75.0, 0],
+      [-85.5, 0, Math.PI / 2],
+      [85.5, 0, -Math.PI / 2],
+      [-24.0, 71.0, 0],
+      [24.0, 71.0, 0],
     ];
     const lampBulbs: THREE.PointLight[] = [];
     const lampNormalPoolOpacity = isMobileGpu ? 0.095 : 0.06;
@@ -1596,20 +1855,20 @@ export function WorldScene({
     lampGlowInst.computeBoundingSphere();
     scene.add(lampGlowInst);
 
-    // 13 Instanced Drains / Vents across Inner & Outer Districts
+    // 15 Instanced Drains / Vents across Inner & Outer Districts
     instantiateGroupAtTransforms(
       createDrainVent(),
       VENTS.map((v) => ({ x: v.x, y: 0.02, z: v.z })),
       scene,
     );
 
-    // 140 GPU-Animated Twilight Fireflies across the 160x160m Moholla (zero CPU update loop)
-    const fireflyCount = 140;
+    // 180 GPU-Animated Twilight Fireflies across the 208x208m Moholla (zero CPU update loop)
+    const fireflyCount = 180;
     const fireflyPositions = new Float32Array(fireflyCount * 3);
     const fireflyPhases = new Float32Array(fireflyCount);
     for (let i = 0; i < fireflyCount; i++) {
-      const fx = ((i * 53) % 148) - 74;
-      const fz = ((i * 79) % 148) - 74;
+      const fx = ((i * 67) % 192) - 96;
+      const fz = ((i * 89) % 192) - 96;
       const fy = 0.8 + (i % 5) * 0.48;
       fireflyPositions[i * 3] = fx;
       fireflyPositions[i * 3 + 1] = fy;
@@ -2291,11 +2550,47 @@ export function WorldScene({
       for (const cone of biyerPandal.wooferCones) {
         cone.scale.set(wooferPulse, 1, wooferPulse);
       }
-      const railPhase = Math.sin(elapsed * 4.5) > 0;
-      railGate.beaconMats[0].emissiveIntensity = railPhase ? 1.8 : 0.12;
-      railGate.beaconMats[1].emissiveIntensity = railPhase ? 0.12 : 1.8;
+      // Animated Bangla Express Train along RAILWAY_TRACK_Z (86.5) + Dynamic Crossing Gates
+      const TRAIN_CYCLE = 30.0;
+      const TRAIN_PASS_SEC = 13.5;
+      const cycleIdx = Math.floor(elapsed / TRAIN_CYCLE);
+      const cycleT = elapsed - cycleIdx * TRAIN_CYCLE;
+      const trainDir = cycleIdx % 2 === 0 ? 1 : -1;
+      const isPassing = cycleT <= TRAIN_PASS_SEC;
+      const isWarning = cycleT <= TRAIN_PASS_SEC + 1.8 || cycleT >= TRAIN_CYCLE - 4.2;
+      const trainX = isPassing
+        ? trainDir * (-132.0 + (cycleT / TRAIN_PASS_SEC) * 264.0)
+        : trainDir * 140.0;
+
+      banglaTrain.group.visible = isPassing;
+      if (isPassing) {
+        banglaTrain.group.position.set(trainX, 0.16, RAILWAY_TRACK_Z);
+        banglaTrain.group.rotation.y = trainDir === 1 ? 0 : Math.PI;
+        const wheelSpin = (elapsed * 19.5) / 0.36;
+        for (const w of banglaTrain.wheels) {
+          w.rotation.z = -wheelSpin;
+        }
+      }
+
+      const targetBoomMag = isWarning ? 0.04 : 0.72;
+      for (const b of railGate.boomArms) {
+        b.arm.rotation.z = THREE.MathUtils.damp(b.arm.rotation.z, b.side * targetBoomMag, 7, dt);
+      }
+
+      const railPhase = Math.sin(elapsed * (isWarning ? 9.5 : 3.2)) > 0;
+      railGate.beaconMats[0].emissiveIntensity = isWarning ? (railPhase ? 2.4 : 0.12) : 0.35;
+      railGate.beaconMats[1].emissiveIntensity = isWarning ? (railPhase ? 0.12 : 2.4) : 0.12;
 
       const curPhase = phaseRef.current;
+      if (isPassing && Math.abs(trainX) < 92 && lastHornCycle !== cycleIdx) {
+        lastHornCycle = cycleIdx;
+        if (curPhase === 'playing' || curPhase === 'lobby') {
+          const distToTrain = Math.hypot(localPosX - trainX, localPosZ - RAILWAY_TRACK_Z);
+          if (distToTrain < 95) {
+            soundEngine.playTrainHorn(Math.max(0.25, 1 - distToTrain / 110));
+          }
+        }
+      }
       if (curPhase !== lastObservedPhase) {
         if (curPhase === 'ejecting') {
           ejectionStartAt = elapsed;
@@ -2344,6 +2639,9 @@ export function WorldScene({
           s.mesh.position.y = s.openY;
         }
 
+        for (const br of buildingRoofGroups) {
+          br.roofGroup.visible = true;
+        }
         const orbitAngle = elapsed * 0.14;
         camera.position.set(
           Math.sin(orbitAngle) * 35,
@@ -2547,6 +2845,31 @@ export function WorldScene({
         } else {
           localVelX = 0;
           localVelZ = 0;
+        }
+
+        // Safe Non-Lethal Lateral Push if player stands on active tracks while Bangla Express passes
+        if (
+          isPassing &&
+          (curPhase === 'playing' || curPhase === 'lobby') &&
+          localPlayer?.alive &&
+          localFloorY < 1.5 &&
+          Math.abs(localPosX - trainX) < 22.0 &&
+          Math.abs(localPosZ - RAILWAY_TRACK_Z) < 2.2
+        ) {
+          localPosZ = localPosZ < RAILWAY_TRACK_Z ? RAILWAY_TRACK_Z - 2.35 : RAILWAY_TRACK_Z + 2.35;
+          trauma = Math.min(1, trauma + 0.35);
+          onLocalMoveRef.current(localPosX, localPosZ, 0, 0, localYaw, localFloorY);
+        }
+
+        // Toggle ONLY the roof of the single building the local player is standing inside on ground floor
+        for (const br of buildingRoofGroups) {
+          const insideGround =
+            localFloorY < 1.5 &&
+            localPosX > br.minX + 0.3 &&
+            localPosX < br.maxX - 0.3 &&
+            localPosZ > br.minZ + 0.3 &&
+            localPosZ < br.maxZ - 0.3;
+          br.roofGroup.visible = !insideGround;
         }
 
         // Vertical Jump & Landing Squash Kinematics (relative to walkable floor/stair/roof elevation)

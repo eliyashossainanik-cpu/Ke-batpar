@@ -91,7 +91,7 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   killCooldownSec: 18,
   meetingTimeSec: 30,
   discussionTimeSec: 15,
-  moveSpeed: 8.6,
+  moveSpeed: 9.0,
   tasksPerPlayer: 5,
   emergencyCooldownSec: 12,
   emergencyMeetingsPerPlayer: 2,

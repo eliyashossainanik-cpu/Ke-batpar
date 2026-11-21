@@ -10,6 +10,7 @@ import {
   EMERGENCY_BELL_POS,
   GAS_LEAK_VALVES,
   MAP_HALF_SIZE,
+  RAILWAY_TRACK_Z,
   ROOFTOPS,
   SECURITY_CAMS_POS,
   STAIR_RAMPS,
@@ -83,7 +84,7 @@ export function TacticalMapModal({
                   : 'Moholla Tactical Map · মহল্লা ম্যাপ'}
               </h2>
               <p className="text-[11px] text-slate-400">
-                14 Zones · {incompleteTasks.length > 0 ? `${incompleteTasks.length} Tasks Remaining` : 'Cams, Admin, Vitals & Adda Chowk'} · Press [Tab] or [Esc] to close
+                19 Zones · {incompleteTasks.length > 0 ? `${incompleteTasks.length} Tasks Remaining` : 'Cams, Admin, Vitals & Rail Station'} · Press [Tab] or [Esc] to close
               </p>
             </div>
           </div>
@@ -103,7 +104,7 @@ export function TacticalMapModal({
               viewBox={`${-MAP_HALF_SIZE - 8} ${-MAP_HALF_SIZE - 8} ${(MAP_HALF_SIZE + 8) * 2} ${(MAP_HALF_SIZE + 8) * 2}`}
               className="w-full h-full"
               role="img"
-              aria-label="Detailed 14-zone Moholla map"
+              aria-label="Detailed 19-zone Moholla map"
             >
               <rect
                 x={-MAP_HALF_SIZE - 8}
@@ -114,7 +115,7 @@ export function TacticalMapModal({
                 rx="4"
               />
 
-              {/* Main Roads, Crosswalks, Outer Boulevard & South Rail Crossing */}
+              {/* Main Roads, Crosswalks, Outer Boulevards & South Rail Line */}
               <rect x={-10} y={-MAP_HALF_SIZE} width={20} height={MAP_HALF_SIZE * 2} fill="#1e293b" opacity={0.68} />
               <rect x={-MAP_HALF_SIZE} y={-10} width={MAP_HALF_SIZE * 2} height={20} fill="#1e293b" opacity={0.68} />
               <rect
@@ -127,23 +128,29 @@ export function TacticalMapModal({
                 strokeWidth="4.2"
                 strokeDasharray="3 2"
               />
-              {/* South Rail Crossing Tracks */}
-              <line x1={-MAP_HALF_SIZE + 4} y1={63.2} x2={MAP_HALF_SIZE - 4} y2={63.2} stroke="#64748b" strokeWidth="0.6" />
-              <line x1={-MAP_HALF_SIZE + 4} y1={65.4} x2={MAP_HALF_SIZE - 4} y2={65.4} stroke="#64748b" strokeWidth="0.6" />
-              <line x1={-MAP_HALF_SIZE + 4} y1={64.3} x2={MAP_HALF_SIZE - 4} y2={64.3} stroke="#475569" strokeWidth="2.4" strokeDasharray="0.9 1.6" />
+              {/* Expanded Outer Para Avenues (z = -72, +72, +96, x = ±86) */}
+              <line x1={-92} y1={-72} x2={92} y2={-72} stroke="#334155" strokeWidth="4.0" />
+              <line x1={-92} y1={72} x2={92} y2={72} stroke="#334155" strokeWidth="4.0" />
+              <line x1={-92} y1={96} x2={92} y2={96} stroke="#334155" strokeWidth="3.5" />
+              <line x1={-86} y1={-96} x2={-86} y2={96} stroke="#334155" strokeWidth="3.8" />
+              <line x1={86} y1={-96} x2={86} y2={96} stroke="#334155" strokeWidth="3.8" />
+              {/* South Rail Line & Crossings */}
+              <line x1={-MAP_HALF_SIZE + 2} y1={RAILWAY_TRACK_Z - 1.1} x2={MAP_HALF_SIZE - 2} y2={RAILWAY_TRACK_Z - 1.1} stroke="#94a3b8" strokeWidth="0.65" />
+              <line x1={-MAP_HALF_SIZE + 2} y1={RAILWAY_TRACK_Z + 1.1} x2={MAP_HALF_SIZE - 2} y2={RAILWAY_TRACK_Z + 1.1} stroke="#94a3b8" strokeWidth="0.65" />
+              <line x1={-MAP_HALF_SIZE + 2} y1={RAILWAY_TRACK_Z} x2={MAP_HALF_SIZE - 2} y2={RAILWAY_TRACK_Z} stroke="#475569" strokeWidth="2.6" strokeDasharray="1.1 1.6" />
               {/* Center Adda Chowk Zebra Crosswalk Hints */}
               <line x1={-7} y1={-11.5} x2={7} y2={-11.5} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <line x1={-7} y1={11.5} x2={7} y2={11.5} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <line x1={-11.5} y1={-7} x2={-11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <line x1={11.5} y1={-7} x2={11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
-              <text x={0} y={-51.8} textAnchor="middle" fill="#64748b" fontSize="2.3" fontWeight="700">
-                NORTH RING ROAD
+              <text x={-34} y={-74.5} textAnchor="middle" fill="#64748b" fontSize="2.5" fontWeight="700">
+                NORTH PARA AVENUE
               </text>
-              <text x={0} y={56.2} textAnchor="middle" fill="#64748b" fontSize="2.3" fontWeight="700">
-                SOUTH RAIL &amp; RING ROAD
+              <text x={-36} y={RAILWAY_TRACK_Z + 5.4} textAnchor="middle" fill="#94a3b8" fontSize="2.4" fontWeight="700">
+                BANGLA EXPRESS RAILWAY LINE
               </text>
 
-              {/* Layer 1: 14 Zone Footprints */}
+              {/* Layer 1: 19 Zone Footprints */}
               {ZONES.map((z) => {
                 const lockedSec =
                   z.id === 'cha_dokan'

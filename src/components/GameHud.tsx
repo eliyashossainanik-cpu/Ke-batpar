@@ -12,6 +12,7 @@ import {
   EMERGENCY_BELL_POS,
   GAS_LEAK_VALVES,
   MAP_HALF_SIZE,
+  RAILWAY_TRACK_Z,
   ROOFTOPS,
   SECURITY_CAMS_POS,
   STAIR_RAMPS,
@@ -152,6 +153,11 @@ const SHORT_ZONE_LABELS: Record<string, string> = {
   cricket_math: 'Cricket',
   pharmacy_mor: 'Pharma',
   biyer_pandal: 'Pandal',
+  kakar_bari: 'Kaka',
+  master_bari: 'Master',
+  chacha_bari: 'Chacha',
+  khalar_bari: 'Khala',
+  rail_station: 'Rail',
 };
 
 const COMPASS_LABELS: Record<number, string> = {
@@ -370,14 +376,19 @@ const MinimapStaticZones = memo(function MinimapStaticZones() {
         strokeWidth="3.6"
         strokeDasharray="3 2"
       />
+      <line x1={-90} y1={-72} x2={90} y2={-72} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-90} y1={72} x2={90} y2={72} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-90} y1={96} x2={90} y2={96} stroke="#334155" strokeWidth="2.8" />
+      <line x1={-86} y1={-94} x2={-86} y2={94} stroke="#334155" strokeWidth="3.0" />
+      <line x1={86} y1={-94} x2={86} y2={94} stroke="#334155" strokeWidth="3.0" />
       <line
-        x1={-MAP_HALF_SIZE + 5}
-        y1={64.3}
-        x2={MAP_HALF_SIZE - 5}
-        y2={64.3}
-        stroke="#475569"
-        strokeWidth="2.2"
-        strokeDasharray="1.1 1.6"
+        x1={-MAP_HALF_SIZE + 2}
+        y1={RAILWAY_TRACK_Z}
+        x2={MAP_HALF_SIZE - 2}
+        y2={RAILWAY_TRACK_Z}
+        stroke="#64748b"
+        strokeWidth="2.6"
+        strokeDasharray="1.4 1.6"
       />
 
       {ZONES.map((z) => (

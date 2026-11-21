@@ -818,30 +818,58 @@ test('Phase 6: 15P capacity, 15 unique colors, 3 Batpars at 11P+, and all 9 exte
   assert.equal(evaluateMatchOutcome([tiktok, bat, n1, n2, n3], 0.2)?.winner, 'tiktok_star');
 });
 
-test('Phase 4: Exterior staircases climb smoothly onto walkable Chhad rooftops with parapet containment', () => {
-  assert.equal(ROOFTOPS.length, 6);
-  assert.equal(STAIR_RAMPS.length, 6);
+test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad rooftops & Rail Overbridge', () => {
+  assert.equal(ROOFTOPS.length, 11);
+  assert.equal(STAIR_RAMPS.length, 12);
 
   const chaStair = STAIR_RAMPS.find((r) => r.id === 'cha_stair')!;
   const chaRoof = ROOFTOPS.find((d) => d.id === 'cha_roof')!;
 
-  // Start at bottom of Cha-er Dokan stairs (y = 0) and climb step-by-step to top landing
+  // 1. Climb Cha-er Dokan stairs (y = 0 -> top) and step inward onto roof deck
   let pos = { x: -46.0, z: -26.5, y: 0 };
   for (let z = -26.5; z >= -34.6; z -= 0.6) {
     pos = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -46.0, z, PLAYER_RADIUS, WALLS);
   }
   assert.ok(pos.y >= 2.8, `Expected near top of cha_stair, got y=${pos.y}`);
-
-  // Step inward onto Cha Dokan rooftop terrace across stairOpening
   const onRoof = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -42.5, -35.2, PLAYER_RADIUS, WALLS);
   assert.equal(onRoof.y, chaRoof.elevationY);
   assert.equal(getWalkableFloorY(onRoof.x, onRoof.z, onRoof.y), 3.15);
 
-  // Trying to walk straight off the North parapet edge (-41.5) is contained cleanly inside roof bounds
+  // Parapet edge containment on Cha roof
   const clampedNorth = resolvePlayerMoveWithElevation(onRoof.x, onRoof.z, onRoof.y, -35.0, -43.0, PLAYER_RADIUS, WALLS);
   assert.ok(clampedNorth.z >= chaRoof.minZ + PLAYER_RADIUS - 0.01);
   assert.equal(clampedNorth.y, chaRoof.elevationY);
   assert.ok(chaStair.steps === 14);
+
+  // 2. Climb Dish Hub stairs & walk onto roof (previously blocked by upper ground-wall collision bug)
+  const dishRoof = ROOFTOPS.find((d) => d.id === 'dish_deck')!;
+  let dishPos = { x: 46.5, z: 26.2, y: 0 };
+  for (let z = 26.2; z <= 35.0; z += 0.6) {
+    dishPos = resolvePlayerMoveWithElevation(dishPos.x, dishPos.z, dishPos.y, 46.5, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(dishPos.y >= 2.8, `Expected near top of dish_stair, got y=${dishPos.y}`);
+  const onDish = resolvePlayerMoveWithElevation(dishPos.x, dishPos.z, dishPos.y, 41.0, 35.0, PLAYER_RADIUS, WALLS);
+  assert.equal(onDish.y, dishRoof.elevationY);
+
+  // 3. Climb Kaka-r Bari Para House stairs & enter rooftop
+  const kakaRoof = ROOFTOPS.find((d) => d.id === 'kaka_roof')!;
+  let kakaPos = { x: -64.5, z: -80.0, y: 0 };
+  for (let z = -80.0; z >= -88.2; z -= 0.6) {
+    kakaPos = resolvePlayerMoveWithElevation(kakaPos.x, kakaPos.z, kakaPos.y, -64.5, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(kakaPos.y >= 2.8, `Expected near top of kaka_stair, got y=${kakaPos.y}`);
+  const onKaka = resolvePlayerMoveWithElevation(kakaPos.x, kakaPos.z, kakaPos.y, -70.0, -88.0, PLAYER_RADIUS, WALLS);
+  assert.equal(onKaka.y, kakaRoof.elevationY);
+
+  // 4. Climb Rail Overbridge from North & walk across tracks onto South stairs
+  const overbridge = ROOFTOPS.find((d) => d.id === 'rail_overbridge')!;
+  let bridgePos = { x: 16.0, z: 71.8, y: 0 };
+  for (let z = 71.8; z <= 80.0; z += 0.6) {
+    bridgePos = resolvePlayerMoveWithElevation(bridgePos.x, bridgePos.z, bridgePos.y, 16.0, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(bridgePos.y >= 3.5, `Expected near top of rail_bridge_stair_n, got y=${bridgePos.y}`);
+  const onBridge = resolvePlayerMoveWithElevation(bridgePos.x, bridgePos.z, bridgePos.y, 16.0, 86.5, PLAYER_RADIUS, WALLS);
+  assert.equal(onBridge.y, overbridge.elevationY);
 });
 
 

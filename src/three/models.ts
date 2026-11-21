@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { DoorSpec, PlayerColorSpec } from '../shared/types';
+import { RAILWAY_TRACK_Z } from '../shared/mapData';
 import type { ProceduralTextureSet } from './proceduralTextures';
 import { optimizeStaticGroup } from './geometryBatch';
 
@@ -1890,7 +1891,7 @@ export function createSandbagBarricade(isSoftwareGl: boolean): THREE.Group {
 }
 
 export function createTerrainSkirt(): THREE.Mesh {
-  const geo = new THREE.PlaneGeometry(560, 560, 96, 96);
+  const geo = new THREE.PlaneGeometry(720, 720, 96, 96);
   geo.rotateX(-Math.PI / 2);
 
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
@@ -1904,7 +1905,7 @@ export function createTerrainSkirt(): THREE.Mesh {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const maxEdge = Math.max(Math.abs(x), Math.abs(z));
-    const blend = THREE.MathUtils.smoothstep(maxEdge, 82, 118);
+    const blend = THREE.MathUtils.smoothstep(maxEdge, 108, 152);
 
     const hills =
       Math.sin(x * 0.042) * Math.cos(z * 0.038) * 6.5 +
@@ -2019,23 +2020,27 @@ export function createInstancedGrassTufts(): {
     if (gx >= -42.0 && Math.abs(gz) < 7.5) continue;
     coords.push([gx, gz, 0.8 + rand() * 0.55, rand() * Math.PI]);
   }
-  // 3. Compound inner lawn corners & perimeter tree bases (160m × 160m compound)
-  for (let i = 0; i < 320; i++) {
+  // 3. Compound inner lawn corners & perimeter tree bases (208m × 208m compound, avoiding rail ballast z = 83..90)
+  for (let i = 0; i < 400; i++) {
     const side = i % 4;
     let gx = 0;
     let gz = 0;
     if (side === 0) {
-      gx = (rand() - 0.5) * 148;
-      gz = -76.5 + rand() * 3.0;
+      gx = (rand() - 0.5) * 196;
+      gz = -100.8 + rand() * 3.0;
     } else if (side === 1) {
-      gx = (rand() - 0.5) * 148;
-      gz = 73.5 + rand() * 3.0;
+      gx = (rand() - 0.5) * 196;
+      gz = 98.2 + rand() * 2.8;
     } else if (side === 2) {
-      gx = -76.5 + rand() * 3.0;
-      gz = (rand() - 0.5) * 148;
+      gx = -100.8 + rand() * 3.0;
+      gz = (rand() - 0.5) * 196;
     } else {
-      gx = 73.5 + rand() * 3.0;
-      gz = (rand() - 0.5) * 148;
+      gx = 97.8 + rand() * 3.0;
+      gz = (rand() - 0.5) * 196;
+    }
+    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.2) continue;
+    if (gz < -79.2 && ((gx > -83 && gx < -65) || (gx > -41 && gx < -23) || (gx > 23 && gx < 41) || (gx > 65 && gx < 83))) {
+      continue;
     }
     coords.push([gx, gz, 0.8 + rand() * 0.6, rand() * Math.PI]);
   }
@@ -2046,12 +2051,13 @@ export function createInstancedGrassTufts(): {
     if (Math.hypot(gx - 66, gz + 26) < 4.5) continue;
     coords.push([gx, gz, 0.72 + rand() * 0.45, rand() * Math.PI]);
   }
-  // 4. Outer rolling green verges beyond 160m perimeter walls (83..108m)
-  for (let i = 0; i < 320; i++) {
+  // 4. Outer rolling green verges beyond 208m perimeter walls (109..138m)
+  for (let i = 0; i < 360; i++) {
     const angle = rand() * Math.PI * 2;
-    const dist = 85 + rand() * 24;
+    const dist = 109 + rand() * 28;
     const gx = Math.cos(angle) * dist;
     const gz = Math.sin(angle) * dist;
+    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.0) continue;
     coords.push([gx, gz, 0.95 + rand() * 0.7, rand() * Math.PI]);
   }
 
@@ -2171,7 +2177,7 @@ export function createTwilightSkyline(): {
     `,
   });
 
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(270, 36, 24), skyShaderMat);
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(340, 36, 24), skyShaderMat);
   group.add(skyDome);
 
   // Twinkling Starfield
@@ -2179,7 +2185,7 @@ export function createTwilightSkyline(): {
   for (let i = 0; i < 260; i++) {
     const theta = ((i * 137.5) % 360) * (Math.PI / 180);
     const phi = (0.2 + ((i * 29) % 58) / 100) * Math.PI * 0.5;
-    const r = 240;
+    const r = 305;
     starPos[i * 3] = Math.cos(theta) * Math.cos(phi) * r;
     starPos[i * 3 + 1] = Math.sin(phi) * r + 14;
     starPos[i * 3 + 2] = Math.sin(theta) * Math.cos(phi) * r;
@@ -2192,22 +2198,22 @@ export function createTwilightSkyline(): {
   );
   group.add(stars);
 
-  // Multi-Tiered Dhaka Apartment Buildings outside the 160m perimeter with rooftop tanks, aviation beacons & window grids
+  // Multi-Tiered Dhaka Apartment Buildings outside the 208m perimeter with rooftop tanks, aviation beacons & window grids
   const blocks: Array<[number, number, number, number, number]> = [
-    [-112, -102, 18, 28, 16],
-    [-46, -112, 20, 34, 16],
-    [34, -108, 22, 30, 16],
-    [108, -98, 17, 26, 16],
-    [-110, 98, 19, 29, 16],
-    [-28, 114, 20, 32, 16],
-    [44, 110, 20, 27, 16],
-    [110, 96, 18, 26, 16],
-    [-114, 0, 16, 25, 24],
-    [114, -4, 16, 29, 22],
-    [-138, -38, 18, 38, 18],
-    [138, 38, 18, 36, 18],
-    [0, -134, 26, 40, 18],
-    [0, 134, 24, 36, 18],
+    [-138, -128, 18, 28, 16],
+    [-58, -138, 20, 34, 16],
+    [42, -134, 22, 30, 16],
+    [136, -126, 17, 26, 16],
+    [-136, 126, 19, 29, 16],
+    [-38, 138, 20, 32, 16],
+    [54, 136, 20, 27, 16],
+    [138, 124, 18, 26, 16],
+    [-142, 0, 16, 25, 24],
+    [142, -6, 16, 29, 22],
+    [-166, -42, 18, 38, 18],
+    [166, 42, 18, 36, 18],
+    [0, -162, 26, 40, 18],
+    [0, 162, 24, 36, 18],
   ];
 
   blocks.forEach(([bx, bz, bw, bh, bd], idx) => {
@@ -2245,12 +2251,12 @@ export function createTwilightSkyline(): {
 
   // Glowing Twilight Moon + Halo
   const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(6.0, 26, 20),
+    new THREE.SphereGeometry(6.8, 26, 20),
     new THREE.MeshBasicMaterial({ color: '#fef3c7', fog: false }),
   );
-  moon.position.set(-105, 64, -142);
+  moon.position.set(-135, 76, -180);
   const halo = new THREE.Mesh(
-    new THREE.SphereGeometry(9.6, 22, 18),
+    new THREE.SphereGeometry(10.8, 22, 18),
     new THREE.MeshBasicMaterial({ color: '#fde68a', transparent: true, opacity: 0.18, fog: false }),
   );
   halo.position.copy(moon.position);
@@ -2709,15 +2715,39 @@ export function createBiyerPandalProps(
   return { group, wooferCones };
 }
 
-export function createRailCrossingGate(isSoftwareGl: boolean): {
+export function createRailCrossingGate(
+  textures: ProceduralTextureSet,
+  isSoftwareGl: boolean,
+): {
   group: THREE.Group;
   beaconMats: THREE.MeshStandardMaterial[];
+  boomArms: Array<{ arm: THREE.Group; side: 1 | -1 }>;
 } {
   const group = new THREE.Group();
-  const railMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.32, metalness: 0.85 });
+  const trackZ = RAILWAY_TRACK_Z;
+  const ballastMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.95, metalness: 0.04 });
+  const railMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.3, metalness: 0.88 });
   const tieMat = new THREE.MeshStandardMaterial({ color: '#451a03', roughness: 0.9 });
   const cabinMat = new THREE.MeshStandardMaterial({ color: '#ca8a04', roughness: 0.55 });
   const roofMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.48, metalness: 0.5 });
+  const brickArchMat = new THREE.MeshStandardMaterial({
+    map: textures.wallBrickMap,
+    normalMap: textures.wallBrickNormal,
+    normalScale: new THREE.Vector2(0.9, 0.9),
+    roughness: 0.85,
+  });
+  const darkTunnelMat = new THREE.MeshBasicMaterial({ color: '#020617' });
+  const platformMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.82 });
+  const tactileMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.6 });
+  const stationWallMat = new THREE.MeshStandardMaterial({ color: '#ccfbf1', roughness: 0.65 });
+  const canopyMat = new THREE.MeshStandardMaterial({
+    color: '#0369a1',
+    roughness: 0.38,
+    metalness: 0.52,
+    normalMap: textures.tinNormal,
+    normalScale: new THREE.Vector2(0.8, 0.8),
+  });
+  const woodBenchMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.72 });
   const barRed = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.35 });
   const barWhite = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
   const beaconMats = [
@@ -2725,50 +2755,336 @@ export function createRailCrossingGate(isSoftwareGl: boolean): {
     new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 0.1 }),
   ];
 
-  // Steel Rails + Wooden Sleepers running East-West along South Avenue (z = 68)
-  for (const rz of [67.2, 68.8]) {
-    const track = new THREE.Mesh(new THREE.BoxGeometry(44.0, 0.09, 0.16), railMat);
-    track.position.set(0, 0.055, rz);
+  // Full 206m Gravel Ballast Bed & Twin Steel Rails across East-West Moholla Corridor
+  const ballast = new THREE.Mesh(new THREE.BoxGeometry(206.0, 0.08, 4.6), ballastMat);
+  ballast.position.set(0, 0.04, trackZ);
+  ballast.receiveShadow = true;
+  group.add(ballast);
+
+  for (const rz of [trackZ - 0.85, trackZ + 0.85]) {
+    const track = new THREE.Mesh(new THREE.BoxGeometry(206.0, 0.1, 0.16), railMat);
+    track.position.set(0, 0.11, rz);
     group.add(track);
   }
-  for (let tx = -20; tx <= 20; tx += 1.2) {
-    const sleeper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 2.3), tieMat);
-    sleeper.position.set(tx, 0.032, 68.0);
-    group.add(sleeper);
+
+  // Twin Brick Railway Tunnel Portals at West & East Perimeter Boundaries (x = ±102.2)
+  for (const px of [-102.2, 102.2]) {
+    const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 4.4, 1.4), brickArchMat);
+    leftPillar.position.set(px, 2.2, trackZ - 2.45);
+    const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 4.4, 1.4), brickArchMat);
+    rightPillar.position.set(px, 2.2, trackZ + 2.45);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.25, 6.4), brickArchMat);
+    lintel.position.set(px, 4.75, trackZ);
+    const portalDark = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.85, 3.6), darkTunnelMat);
+    portalDark.position.set(px + (px < 0 ? -0.8 : 0.8), 1.95, trackZ);
+    group.add(leftPillar, rightPillar, lintel, portalDark);
   }
 
-  // Twin Gateman Cabins (rail_cabin_w -12..-8.2, rail_cabin_e 8.2..12.0, z 66.2..69.8) + Boom Gates
-  [-10.1, 10.1].forEach((cx, idx) => {
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2.65, 3.4), cabinMat);
-    cabin.position.set(cx, 1.325, 68.0);
+  // 4 Gateman Cabins matching WALLS AABBs + 3 Animated Level Crossings (x = -52, 0, +52)
+  const boomArms: Array<{ arm: THREE.Group; side: 1 | -1 }> = [];
+  const cabinConfigs: Array<{ cx: number; cz: number; gateX: number; side: 1 | -1; idx: number }> = [
+    { cx: -57.75, cz: 82.15, gateX: -55.4, side: 1, idx: 0 },
+    { cx: -9.65, cz: 82.15, gateX: -6.8, side: 1, idx: 1 },
+    { cx: 9.65, cz: 82.15, gateX: 6.8, side: -1, idx: 0 },
+    { cx: 57.75, cz: 82.15, gateX: 55.4, side: -1, idx: 1 },
+  ];
+
+  for (const cfg of cabinConfigs) {
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.65, 3.3), cabinMat);
+    cabin.position.set(cfg.cx, 1.325, cfg.cz);
     cabin.castShadow = !isSoftwareGl;
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.24, 3.9), roofMat);
-    roof.position.set(cx, 2.74, 68.0);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.24, 3.8), roofMat);
+    roof.position.set(cfg.cx, 2.74, cfg.cz);
     group.add(cabin, roof);
 
-    // Raised Diagonal Striped Crossing Boom Arm
+    // Crossing Signal Post & Dual-Bulb Beacon
+    const sigPost = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 10), roofMat);
+    sigPost.position.set(cfg.gateX, 1.6, trackZ - 3.2);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 12), beaconMats[cfg.idx]);
+    bulb.position.set(cfg.gateX, 3.26, trackZ - 3.2);
+    group.add(sigPost, bulb);
+
+    // Pivotable Striped Boom Arm (animated dynamically in tick())
     const boomGroup = new THREE.Group();
-    boomGroup.position.set(cx + (idx === 0 ? 2.1 : -2.1), 1.3, 66.0);
-    boomGroup.rotation.z = idx === 0 ? 0.62 : -0.62;
+    boomGroup.position.set(cfg.gateX, 1.25, trackZ - 3.05);
+    boomGroup.rotation.z = cfg.side === 1 ? 0.72 : -0.72;
     for (let s = 0; s < 6; s++) {
       const seg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.065, 0.72, 10),
+        new THREE.CylinderGeometry(0.065, 0.065, 0.92, 10),
         s % 2 === 0 ? barRed : barWhite,
       );
       seg.rotation.z = Math.PI / 2;
-      seg.position.x = (idx === 0 ? 1 : -1) * (0.4 + s * 0.72);
+      seg.position.x = cfg.side * (0.48 + s * 0.92);
       boomGroup.add(seg);
     }
     group.add(boomGroup);
+    boomArms.push({ arm: boomGroup, side: cfg.side });
+  }
 
-    // Alternating Signal Post Light
-    const sigPost = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 10), roofMat);
-    sigPost.position.set(cx + (idx === 0 ? 2.1 : -2.1), 1.6, 66.0);
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), beaconMats[idx]);
-    bulb.position.set(cx + (idx === 0 ? 2.1 : -2.1), 3.25, 66.0);
-    group.add(sigPost, bulb);
+  // Opposite-side signal posts at x = -48.6 & x = 48.6
+  for (const sx of [-48.6, 48.6]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.0, 10), roofMat);
+    post.position.set(sx, 1.5, trackZ + 3.2);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), beaconMats[sx < 0 ? 1 : 0]);
+    bulb.position.set(sx, 3.05, trackZ + 3.2);
+    group.add(post, bulb);
+  }
+
+  // Moholla Rail Station Platform (z = 71.5..78.5) + Ticket Booth + Tin Canopy + Benches
+  const platform = new THREE.Mesh(new THREE.BoxGeometry(32.0, 0.24, 6.8), platformMat);
+  platform.position.set(-4.0, 0.12, 74.8);
+  platform.receiveShadow = true;
+  const tactileStrip = new THREE.Mesh(new THREE.BoxGeometry(32.0, 0.03, 0.42), tactileMat);
+  tactileStrip.position.set(-4.0, 0.25, 77.95);
+  group.add(platform, tactileStrip);
+
+  const booth = new THREE.Mesh(new THREE.BoxGeometry(6.5, 3.0, 3.5), stationWallMat);
+  booth.position.set(-13.25, 1.5, 72.25);
+  booth.castShadow = !isSoftwareGl;
+  const boothRoof = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.22, 4.3), canopyMat);
+  boothRoof.position.set(-13.25, 3.1, 72.25);
+  const ticketGrille = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.1, 0.12), roofMat);
+  ticketGrille.position.set(-13.25, 1.65, 74.02);
+  group.add(booth, boothRoof, ticketGrille);
+
+  // Open Station Canopy & Waiting Benches
+  const canopyRoof = new THREE.Mesh(new THREE.BoxGeometry(19.0, 0.16, 4.4), canopyMat);
+  canopyRoof.position.set(-1.5, 3.25, 75.2);
+  canopyRoof.rotation.x = 0.08;
+  canopyRoof.castShadow = !isSoftwareGl;
+  group.add(canopyRoof);
+  for (const px of [-9.0, -1.5, 6.0]) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 3.2, 10), roofMat);
+    col.position.set(px, 1.6, 75.2);
+    group.add(col);
+  }
+  for (const bx of [-6.0, 0.0, 5.5]) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.14, 0.78), woodBenchMat);
+    bench.position.set(bx, 0.62, 75.4);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.45, 0.68), roofMat);
+    legL.position.set(bx - 1.0, 0.38, 75.4);
+    const legR = legL.clone();
+    legR.position.x = bx + 1.0;
+    group.add(bench, legL, legR);
+  }
+
+  // Station Nameboard above Canopy
+  const signFrame = new THREE.Mesh(new THREE.BoxGeometry(5.6, 1.55, 0.16), roofMat);
+  signFrame.position.set(-2.0, 4.25, 75.2);
+  const signFaceMat = new THREE.MeshStandardMaterial({
+    map: textures.railStationSignMap,
+    emissive: '#ffffff',
+    emissiveMap: textures.railStationSignMap,
+    emissiveIntensity: 0.25,
+    roughness: 0.35,
+  });
+  const signFront = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 1.4), signFaceMat);
+  signFront.position.set(-2.0, 4.25, 75.29);
+  const signBack = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 1.4), signFaceMat);
+  signBack.rotation.y = Math.PI;
+  signBack.position.set(-2.0, 4.25, 75.11);
+  group.add(signFrame, signFront, signBack);
+
+  // Merge all static track, platform, and cabin parts BEFORE adding InstancedMesh sleepers
+  optimizeStaticGroup(group, boomArms.map((b) => b.arm));
+
+  const sleeperCount = 171;
+  const sleeperGeo = new THREE.BoxGeometry(0.32, 0.07, 2.4);
+  const sleeperInst = new THREE.InstancedMesh(sleeperGeo, tieMat, sleeperCount);
+  const sDummy = new THREE.Object3D();
+  for (let i = 0; i < sleeperCount; i++) {
+    sDummy.position.set(-102 + i * 1.2, 0.065, trackZ);
+    sDummy.rotation.set(0, 0, 0);
+    sDummy.scale.set(1, 1, 1);
+    sDummy.updateMatrix();
+    sleeperInst.setMatrixAt(i, sDummy.matrix);
+  }
+  sleeperInst.instanceMatrix.needsUpdate = true;
+  sleeperInst.computeBoundingSphere();
+  group.add(sleeperInst);
+
+  return { group, beaconMats, boomArms };
+}
+
+export function createBanglaTrainModel(isSoftwareGl: boolean): {
+  group: THREE.Group;
+  wheels: THREE.Mesh[];
+  headlightBeam: THREE.Mesh;
+} {
+  const group = new THREE.Group();
+  const wheels: THREE.Mesh[] = [];
+
+  const locoGreenMat = new THREE.MeshStandardMaterial({ color: '#065f46', roughness: 0.38, metalness: 0.25 });
+  const redStripeMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.35, metalness: 0.2 });
+  const yellowTrimMat = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.32, metalness: 0.3 });
+  const coachCreamMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.45, metalness: 0.12 });
+  const roofDarkMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.6, metalness: 0.45 });
+  const chassisMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.72, metalness: 0.5 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.35, metalness: 0.82 });
+  const windowLitMat = new THREE.MeshStandardMaterial({
+    color: '#fef08a',
+    emissive: '#fbbf24',
+    emissiveIntensity: 1.45,
+    roughness: 0.2,
+  });
+  const headlightMat = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    emissive: '#fef08a',
+    emissiveIntensity: 2.2,
   });
 
-  return { group: optimizeStaticGroup(group), beaconMats };
+  const addBogieWheels = (bx: number) => {
+    for (const wx of [bx - 0.8, bx + 0.8]) {
+      for (const wz of [-0.95, 0.95]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.14, 14), wheelMat);
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.set(wx, 0.36, wz);
+        group.add(wheel);
+        wheels.push(wheel);
+      }
+    }
+  };
+
+  // --- Bangladesh Railway Diesel Locomotive (front at x = +20.8) ---
+  const locoFrame = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.42, 2.55), chassisMat);
+  locoFrame.position.set(15.2, 0.78, 0);
+  const locoBody = new THREE.Mesh(new THREE.BoxGeometry(9.2, 2.25, 2.5), locoGreenMat);
+  locoBody.position.set(14.7, 2.1, 0);
+  locoBody.castShadow = !isSoftwareGl;
+  const locoBand = new THREE.Mesh(new THREE.BoxGeometry(9.26, 0.46, 2.54), redStripeMat);
+  locoBand.position.set(14.7, 1.5, 0);
+  const locoNose = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.6, 2.38), yellowTrimMat);
+  locoNose.position.set(19.9, 1.75, 0);
+  locoNose.castShadow = !isSoftwareGl;
+  const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(9.5, 0.28, 2.62), roofDarkMat);
+  cabRoof.position.set(14.7, 3.35, 0);
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.72, 1.85), windowLitMat);
+  windshield.position.set(19.32, 2.68, 0);
+  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 0.55, 10), roofDarkMat);
+  exhaust.position.set(13.8, 3.65, 0);
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.16, 12), headlightMat);
+  lamp.rotation.z = Math.PI / 2;
+  lamp.position.set(20.78, 2.1, 0);
+  group.add(locoFrame, locoBody, locoBand, locoNose, cabRoof, windshield, exhaust, lamp);
+  addBogieWheels(12.2);
+  addBogieWheels(18.2);
+
+  // Additive Volumetric Locomotive Headlight Cone
+  const beamGeo = new THREE.ConeGeometry(2.6, 11.5, 18, 1, true);
+  beamGeo.rotateZ(Math.PI / 2);
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: '#fef08a',
+    transparent: true,
+    opacity: 0.16,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const headlightBeam = new THREE.Mesh(beamGeo, beamMat);
+  headlightBeam.position.set(26.5, 1.85, 0);
+  group.add(headlightBeam);
+
+  // --- 3 Intercity Passenger Coaches (x = +4.6, -5.6, -15.8) ---
+  for (const cx of [4.6, -5.6, -15.8]) {
+    const under = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.36, 2.45), chassisMat);
+    under.position.set(cx, 0.76, 0);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(9.1, 2.15, 2.48), locoGreenMat);
+    body.position.set(cx, 2.0, 0);
+    body.castShadow = !isSoftwareGl;
+    const creamBand = new THREE.Mesh(new THREE.BoxGeometry(9.14, 0.78, 2.51), coachCreamMat);
+    creamBand.position.set(cx, 2.22, 0);
+    const redTrim = new THREE.Mesh(new THREE.BoxGeometry(9.16, 0.28, 2.52), redStripeMat);
+    redTrim.position.set(cx, 1.56, 0);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(9.25, 0.28, 2.58), roofDarkMat);
+    roof.position.set(cx, 3.2, 0);
+    const gangway = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.9, 1.7), roofDarkMat);
+    gangway.position.set(cx + 5.1, 1.95, 0);
+    group.add(under, body, creamBand, redTrim, roof, gangway);
+
+    // 4 Warm Glowing Windows per side
+    for (let w = -3.0; w <= 3.0; w += 2.0) {
+      const winMesh = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.62, 2.56), windowLitMat);
+      winMesh.position.set(cx + w, 2.25, 0);
+      group.add(winMesh);
+    }
+    addBogieWheels(cx - 2.9);
+    addBogieWheels(cx + 2.9);
+  }
+
+  return { group, wheels, headlightBeam };
+}
+
+export function createClotheslineProp(): THREE.Group {
+  const grp = new THREE.Group();
+  const poleMat = new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.84 });
+  const ropeMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.8 });
+  const clothColors = ['#ef4444', '#38bdf8', '#facc15', '#22c55e', '#f472b6'];
+
+  for (const px of [-2.1, 2.1]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 2.0, 8), poleMat);
+    pole.position.set(px, 1.0, 0);
+    grp.add(pole);
+  }
+  const line = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 4.2, 6), ropeMat);
+  line.rotation.z = Math.PI / 2;
+  line.position.set(0, 1.86, 0);
+  grp.add(line);
+
+  clothColors.forEach((hex, idx) => {
+    const cloth = new THREE.Mesh(
+      new THREE.BoxGeometry(0.56, 0.72 + (idx % 2) * 0.16, 0.06),
+      new THREE.MeshStandardMaterial({ color: hex, roughness: 0.78 }),
+    );
+    cloth.position.set(-1.45 + idx * 0.72, 1.44, 0);
+    cloth.rotation.x = idx % 2 === 0 ? 0.08 : -0.07;
+    grp.add(cloth);
+  });
+
+  return optimizeStaticGroup(grp);
+}
+
+export function createRooftopMachanProp(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const bambooMat = new THREE.MeshStandardMaterial({ color: '#a16207', roughness: 0.78 });
+  const chataiMat = new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.88 });
+  const moraColors = ['#e11d48', '#0284c7'];
+
+  // Woven Chatai Mat
+  const matMesh = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 2.2), chataiMat);
+  matMesh.position.set(0, 0.025, 0);
+  matMesh.receiveShadow = true;
+  grp.add(matMesh);
+
+  // Twin Colorful Woven Moras
+  moraColors.forEach((hex, i) => {
+    const mora = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.3, 0.38, 12),
+      new THREE.MeshStandardMaterial({ color: hex, roughness: 0.5 }),
+    );
+    mora.position.set(-0.65 + i * 1.3, 0.21, 0.15);
+    mora.castShadow = !isSoftwareGl;
+    grp.add(mora);
+  });
+
+  // Bamboo Pergola Frame
+  for (const px of [-1.25, 1.25]) {
+    for (const pz of [-1.05, 1.05]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 2.25, 8), bambooMat);
+      post.position.set(px, 1.125, pz);
+      grp.add(post);
+    }
+    const sideBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.25, 8), bambooMat);
+    sideBeam.rotation.x = Math.PI / 2;
+    sideBeam.position.set(px, 2.22, 0);
+    grp.add(sideBeam);
+  }
+  for (let bz = -1.0; bz <= 1.0; bz += 0.5) {
+    const crossBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.65, 8), bambooMat);
+    crossBeam.rotation.z = Math.PI / 2;
+    crossBeam.position.set(0, 2.28, bz);
+    grp.add(crossBeam);
+  }
+
+  return optimizeStaticGroup(grp);
 }
 

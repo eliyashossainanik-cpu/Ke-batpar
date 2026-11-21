@@ -49,6 +49,15 @@ export interface ProceduralTextureSet {
   scoreboardMap: THREE.CanvasTexture;
   pharmacySignMap: THREE.CanvasTexture;
   pandalSignMap: THREE.CanvasTexture;
+  kakaWallMap: THREE.CanvasTexture;
+  masterWallMap: THREE.CanvasTexture;
+  chachaWallMap: THREE.CanvasTexture;
+  khalaWallMap: THREE.CanvasTexture;
+  kakaSignMap: THREE.CanvasTexture;
+  masterSignMap: THREE.CanvasTexture;
+  chachaSignMap: THREE.CanvasTexture;
+  khalaSignMap: THREE.CanvasTexture;
+  railStationSignMap: THREE.CanvasTexture;
   cricketTurfMap: THREE.CanvasTexture;
   dispose: () => void;
 }
@@ -618,6 +627,10 @@ export function createProceduralTextures(
 
   const chaWallMap = makeBuildingWallTex('#b45309', '#fde68a', '#78350f', '#d97706', 'plaster');
   const garageWallMap = makeBuildingWallTex('#047857', '#a7f3d0', '#1e293b', '#eab308', 'blocks');
+  const kakaWallMap = makeBuildingWallTex('#b45309', '#fef3c7', '#78350f', '#f59e0b', 'plaster');
+  const masterWallMap = makeBuildingWallTex('#78350f', '#fefce8', '#451a03', '#d97706', 'stucco');
+  const chachaWallMap = makeBuildingWallTex('#9f1239', '#ffe4e6', '#881337', '#fb7185', 'stucco');
+  const khalaWallMap = makeBuildingWallTex('#0f766e', '#ccfbf1', '#115e59', '#2dd4bf', 'plaster');
   const descoWallMap = makeBuildingWallTex('#7f1d1d', '#64748b', '#1e293b', '#dc2626', 'steel');
   const dishWallMap = makeBuildingWallTex('#1d4ed8', '#cbd5e1', '#1e3a8a', '#38bdf8', 'blocks');
   const saloonWallMap = makeBuildingWallTex('#9d174d', '#fce7f3', '#831843', '#f472b6', 'tiles');
@@ -732,7 +745,7 @@ export function createProceduralTextures(
   sCtx.fillRect(0, 0, 128, 128);
   const contactShadowMap = new THREE.CanvasTexture(shCanvas);
 
-  // 7. Satire Shop Signboards, Chalkboard Menus & Posters (All 14 Districts Labeled!)
+  // 7. Satire Shop Signboards, Chalkboard Menus & Posters (All 19 Districts Labeled!)
   const addaSignMap = makeSignTexture('আড্ডা চক', 'ADDA CHOWK · CENTRAL PLAZA', '#1e293b', '#fbbf24', maxAniso);
   const pukurSignMap = makeSignTexture('পুকুর ঘাট', 'PUKUR GHAT · WEST POND', '#164e63', '#22d3ee', maxAniso);
   const bazarSignMap = makeSignTexture('মহল্লা বাজার', 'MOHOLLA BAZAR · MARKET', '#7c2d12', '#fbbf24', maxAniso);
@@ -747,6 +760,11 @@ export function createProceduralTextures(
   const cricketSignMap = makeSignTexture('পাড়া ক্রিকেট মাঠ', 'GULLY CRICKET ARENA', '#052e16', '#4ade80', maxAniso);
   const pharmacySignMap = makeSignTexture('দাদু ফার্মেসি', 'DADU 24H PHARMACY', '#0c4a6e', '#38bdf8', maxAniso);
   const pandalSignMap = makeSignTexture('বিয়ে বাড়ি প্যান্ডেল', 'BIYER DJ PANDAL', '#881337', '#fbbf24', maxAniso);
+  const kakaSignMap = makeSignTexture('কাকার বাড়ি', "KAKA'S PARA HOUSE", '#78350f', '#fbbf24', maxAniso);
+  const masterSignMap = makeSignTexture('মাস্টার বাড়ি', 'MASTER BARI · TUITION', '#451a03', '#fde047', maxAniso);
+  const chachaSignMap = makeSignTexture('চাচার বাড়ি', "CHACHA'S RESIDENCE", '#881337', '#fda4af', maxAniso);
+  const khalaSignMap = makeSignTexture('খালার বাড়ি', "KHALA'S VERANDA", '#115e59', '#5eead4', maxAniso);
+  const railStationSignMap = makeSignTexture('মোহল্লা রেল স্টেশন', 'BANGLA RAIL · PLATFORM 1', '#0c4a6e', '#fde047', maxAniso);
 
   // Cha Menu Chalkboard
   const cmCanvas = document.createElement('canvas');
@@ -981,6 +999,15 @@ export function createProceduralTextures(
     scoreboardMap,
     pharmacySignMap,
     pandalSignMap,
+    kakaWallMap,
+    masterWallMap,
+    chachaWallMap,
+    khalaWallMap,
+    kakaSignMap,
+    masterSignMap,
+    chachaSignMap,
+    khalaSignMap,
+    railStationSignMap,
     cricketTurfMap,
     dispose: () => {
       cobbleMap.dispose();
@@ -1032,6 +1059,15 @@ export function createProceduralTextures(
       scoreboardMap.dispose();
       pharmacySignMap.dispose();
       pandalSignMap.dispose();
+      kakaWallMap.dispose();
+      masterWallMap.dispose();
+      chachaWallMap.dispose();
+      khalaWallMap.dispose();
+      kakaSignMap.dispose();
+      masterSignMap.dispose();
+      chachaSignMap.dispose();
+      khalaSignMap.dispose();
+      railStationSignMap.dispose();
       cricketTurfMap.dispose();
     },
   };

@@ -1031,6 +1031,34 @@ class SoundEngine {
     osc.stop(t + 0.3);
   }
 
+  public playTrainHorn(volumeScale = 1): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const scale = Math.max(0.05, Math.min(1, volumeScale));
+    const t = ctx.currentTime;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(980, t);
+    filter.Q.value = 1.1;
+
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.001, t);
+    master.gain.linearRampToValueAtTime(0.16 * scale, t + 0.08);
+    master.gain.setValueAtTime(0.14 * scale, t + 0.58);
+    master.gain.exponentialRampToValueAtTime(0.001, t + 0.96);
+    filter.connect(master).connect(ctx.destination);
+
+    for (const baseFreq of [277.18, 349.23]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(baseFreq, t);
+      osc.frequency.linearRampToValueAtTime(baseFreq * 0.985, t + 0.94);
+      osc.connect(filter);
+      osc.start(t);
+      osc.stop(t + 0.98);
+    }
+  }
+
   public playOutcome(win: boolean): void {
     if (win) {
       this.tryPlayCustomSlot('event_win', () => this.playAirhorn());
