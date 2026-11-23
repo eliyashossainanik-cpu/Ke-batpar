@@ -40,48 +40,48 @@ export const MEME_SLOTS: MemeSlotMeta[] = [
   {
     id: 'vine_boom',
     category: 'quick',
-    defaultLabel: 'Eey Bhai! (Boom)',
-    banglaHint: 'Slot [1] · Quick Reaction SFX',
+    defaultLabel: 'এই ভাই! (বুম)',
+    banglaHint: 'স্লট [১] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '1',
     keywords: ['boom', 'vine', 'eey', 'bhai', '1'],
   },
   {
     id: 'bonk',
     category: 'quick',
-    defaultLabel: 'Gap e Nao! (Bonk)',
-    banglaHint: 'Slot [2] · Quick Reaction SFX',
+    defaultLabel: 'গ্যাপে নাও! (বঙ্ক)',
+    banglaHint: 'স্লট [২] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '2',
     keywords: ['bonk', 'gap', 'mara', '2'],
   },
   {
     id: 'sad_trombone',
     category: 'quick',
-    defaultLabel: 'Dhora Khaisi (Wah)',
-    banglaHint: 'Slot [3] · Quick Reaction SFX',
+    defaultLabel: 'ধরা খাইসি (স্যাড)',
+    banglaHint: 'স্লট [৩] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '3',
     keywords: ['sad', 'wah', 'trombone', 'dhora', '3'],
   },
   {
     id: 'airhorn',
     category: 'quick',
-    defaultLabel: 'Khela Hobe! (Horn)',
-    banglaHint: 'Slot [4] · Quick Reaction SFX',
+    defaultLabel: 'খেলা হবে! (হর্ন)',
+    banglaHint: 'স্লট [৪] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '4',
     keywords: ['horn', 'khela', 'hobe', '4'],
   },
   {
     id: 'dun_dun',
     category: 'quick',
-    defaultLabel: 'CID Shondeho!',
-    banglaHint: 'Slot [5] · Quick Reaction SFX',
+    defaultLabel: 'সিআইডি সন্দেহ!',
+    banglaHint: 'স্লট [৫] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '5',
     keywords: ['cid', 'dun', 'sus', 'shondeho', '5'],
   },
   {
     id: 'chubani',
     category: 'quick',
-    defaultLabel: 'Pukur Chubani!',
-    banglaHint: 'Slot [6] · Quick Reaction SFX',
+    defaultLabel: 'পুকুর চুবানি!',
+    banglaHint: 'স্লট [৬] · তাৎক্ষণিক রিঅ্যাকশন সাউন্ড',
     shortKey: '6',
     keywords: ['chubani', 'pukur', 'splash', '6'],
   },
@@ -90,99 +90,99 @@ export const MEME_SLOTS: MemeSlotMeta[] = [
   {
     id: 'event_kill',
     category: 'event',
-    defaultLabel: 'Gap e Nao! (Kill)',
-    banglaHint: 'Auto-plays when someone gets sized / eliminated',
+    defaultLabel: 'গ্যাপে নাও! (হামলা)',
+    banglaHint: 'কেউ বাটপারের হাতে ধরা পড়লে নিজে থেকেই বাজবে',
     keywords: ['kill', 'size', 'murder', 'khatam', 'marse'],
   },
   {
     id: 'event_report',
     category: 'event',
-    defaultLabel: 'Haire! Lash Report',
-    banglaHint: 'Auto-plays when a fallen body is reported',
+    defaultLabel: 'হায়রে! লাশ রিপোর্ট',
+    banglaHint: 'পড়ে থাকা লাশ রিপোর্ট করলে নিজে থেকেই বাজবে',
     keywords: ['report', 'lash', 'body', 'haire', 'dead'],
   },
   {
     id: 'event_meeting',
     category: 'event',
-    defaultLabel: 'Shalish Bell (Meeting)',
-    banglaHint: 'Auto-plays when Emergency Shalish starts',
+    defaultLabel: 'সালিশ ঘণ্টা (মিটিং)',
+    banglaHint: 'জরুরি সালিশ শুরু হলে নিজে থেকেই বাজবে',
     keywords: ['meeting', 'shalish', 'bell', 'emergency', 'adda'],
   },
   {
     id: 'event_eject',
     category: 'event',
-    defaultLabel: 'Pukur Chubani (Eject)',
-    banglaHint: 'Auto-plays when voted suspect goes into the pond',
+    defaultLabel: 'পুকুর চুবানি (বহিষ্কার)',
+    banglaHint: 'ভোটে সন্দেহভাজনকে পুকুরে ফেললে বাজবে',
     keywords: ['eject', 'throw', 'out', 'bye'],
   },
   {
     id: 'event_sabotage',
     category: 'event',
-    defaultLabel: 'Current / Wi-Fi Kat',
-    banglaHint: 'Auto-plays during Loadshedding or Wi-Fi sabotage',
+    defaultLabel: 'কারেন্ট / ওয়াই-ফাই কাট',
+    banglaHint: 'লোডশেডিং বা ওয়াই-ফাই নাশকতার সময় বাজবে',
     keywords: ['sabotage', 'current', 'wifi', 'power', 'alarm'],
   },
   {
     id: 'event_shield',
     category: 'event',
-    defaultLabel: 'Tabiz Bachay Dise',
-    banglaHint: 'Auto-plays when Kobiraj Tabiz shield saves someone',
+    defaultLabel: 'তাবিজ বাঁচিয়ে দিয়েছে',
+    banglaHint: 'কবিরাজের তাবিজ ঢাল কাউকে বাঁচালে বাজবে',
     keywords: ['shield', 'tabiz', 'save', 'block'],
   },
   {
     id: 'event_daroga',
     category: 'event',
-    defaultLabel: 'Daroga Arrest Shot',
-    banglaHint: 'Auto-plays when Para Daroga fires at a suspect',
+    defaultLabel: 'দারোগা গুলি শট',
+    banglaHint: 'পাড়া দারোগা সন্দেহভাজনকে গুলি করলে বাজবে',
     keywords: ['daroga', 'police', 'sheriff', 'gun', 'shot'],
   },
   {
     id: 'event_clean',
     category: 'event',
-    defaultLabel: 'Jharudar Body Clean',
-    banglaHint: 'Auto-plays when Jharudar sweeps a fallen body away',
+    defaultLabel: 'ঝাড়ুদার লাশ গায়েব',
+    banglaHint: 'ঝাড়ুদার পড়ে থাকা লাশ পরিষ্কার করলে বাজবে',
     keywords: ['clean', 'sweep', 'jharudar', 'janitor'],
   },
   {
     id: 'event_revive',
     category: 'event',
-    defaultLabel: 'Daktar Saline Revive',
-    banglaHint: 'Auto-plays when Para Daktar revives a fallen neighbor',
+    defaultLabel: 'ডাক্তার স্যালাইন রিভাইভ',
+    banglaHint: 'পাড়া ডাক্তার পড়ে থাকা প্রতিবেশীকে বাঁচালে বাজবে',
     keywords: ['revive', 'daktar', 'doctor', 'saline', 'heal'],
   },
   {
     id: 'event_task',
     category: 'event',
-    defaultLabel: 'Kaaj Complete',
-    banglaHint: 'Auto-plays on completing a Moholla mini-task',
+    defaultLabel: 'কাজ সম্পন্ন',
+    banglaHint: 'মহল্লার যেকোনো কাজ শেষ করলে বাজবে',
     keywords: ['task', 'kaaj', 'complete', 'done'],
   },
   {
     id: 'event_vent',
     category: 'event',
-    defaultLabel: 'Dren e Dhuka (Vent)',
-    banglaHint: 'Auto-plays when hopping into a drain vent',
+    defaultLabel: 'ড্রেনে ঢোকা (ভেন্ট)',
+    banglaHint: 'ড্রেন সুড়ঙ্গে ঢুকলে বাজবে',
     keywords: ['vent', 'dren', 'drain'],
   },
   {
     id: 'event_jump',
     category: 'event',
-    defaultLabel: 'Moholla Jump SFX',
-    banglaHint: 'Optional custom sound when pressing Jump [Space / Jump Btn]',
+    defaultLabel: 'মহল্লা লাফ সাউন্ড',
+    banglaHint: 'লাফ [Space] চাপলে ঐচ্ছিক কাস্টম সাউন্ড বাজবে',
     keywords: ['jump', 'boing', 'laf'],
   },
   {
     id: 'event_win',
     category: 'event',
-    defaultLabel: 'Jitsi! (Victory)',
-    banglaHint: 'Auto-plays on winning the match',
+    defaultLabel: 'জিতে গেছি! (বিজয়)',
+    banglaHint: 'ম্যাচ জিতলে নিজে থেকেই বাজবে',
     keywords: ['win', 'victory', 'jitsi', 'champ'],
   },
   {
     id: 'event_loss',
     category: 'event',
-    defaultLabel: 'Khela Shesh (Defeat)',
-    banglaHint: 'Auto-plays on losing the match',
+    defaultLabel: 'খেলা শেষ (পরাজয়)',
+    banglaHint: 'ম্যাচ হারলে নিজে থেকেই বাজবে',
     keywords: ['loss', 'lose', 'defeat', 'fail'],
   },
 ];
@@ -620,7 +620,7 @@ export function exportMemePackJson(): string {
 export async function importMemePackJson(jsonText: string): Promise<number> {
   const parsed = JSON.parse(jsonText) as Partial<ExportedMemePack>;
   if (!parsed || !Array.isArray(parsed.clips)) {
-    throw new Error('Invalid meme pack JSON file.');
+    throw new Error('ভুল মিম প্যাক JSON ফাইল।');
   }
   let imported = 0;
   for (const c of parsed.clips) {
@@ -665,13 +665,13 @@ export async function uploadSlotAudioToServer(
     });
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-      return { ok: false, error: errBody.error || `Server error (${res.status})` };
+      return { ok: false, error: errBody.error || `সার্ভার ত্রুটি (${res.status})` };
     }
     serverClipSet.add(slotId);
     notifyListeners();
     return { ok: true };
   } catch {
-    return { ok: false, error: 'Saved locally in browser; could not reach server.' };
+    return { ok: false, error: 'ব্রাউজারে সেভ হয়েছে; সার্ভারের সাথে সংযোগ মেলেনি।' };
   }
 }
 
@@ -695,11 +695,11 @@ export async function saveSlotLabelToServer(
     });
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-      return { ok: false, error: errBody.error || `Server error (${res.status})` };
+      return { ok: false, error: errBody.error || `সার্ভার ত্রুটি (${res.status})` };
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: 'Saved label locally.' };
+    return { ok: false, error: 'নাম ব্রাউজারে সেভ হয়েছে।' };
   }
 }
 
@@ -717,11 +717,11 @@ export async function deleteSlotAudioFromServer(
     });
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-      return { ok: false, error: errBody.error || `Server error (${res.status})` };
+      return { ok: false, error: errBody.error || `সার্ভার ত্রুটি (${res.status})` };
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: 'Removed locally.' };
+    return { ok: false, error: 'ব্রাউজার থেকে মুছে ফেলা হয়েছে।' };
   }
 }
 
@@ -738,10 +738,10 @@ export async function clearAllServerMemes(
     });
     if (!res.ok) {
       const errBody = (await res.json().catch(() => ({}))) as { error?: string };
-      return { ok: false, error: errBody.error || `Server error (${res.status})` };
+      return { ok: false, error: errBody.error || `সার্ভার ত্রুটি (${res.status})` };
     }
     return { ok: true };
   } catch {
-    return { ok: false, error: 'Cleared local clips.' };
+    return { ok: false, error: 'লোকাল ক্লিপগুলো মুছে ফেলা হয়েছে।' };
   }
 }

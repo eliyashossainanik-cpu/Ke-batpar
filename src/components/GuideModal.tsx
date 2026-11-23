@@ -34,17 +34,17 @@ export function GuideModal({ onClose }: GuideModalProps) {
   const [activeTab, setActiveTab] = useState<GuideTab>('wins');
 
   const tabs: Array<{ id: GuideTab; label: string }> = [
-    { id: 'wins', label: 'Win conditions' },
-    { id: 'tasks', label: 'Tasks' },
-    { id: 'sabotage', label: 'Sabotage' },
-    { id: 'roles', label: 'Roles' },
+    { id: 'wins', label: 'জেতার শর্ত' },
+    { id: 'tasks', label: 'কাজসমূহ' },
+    { id: 'sabotage', label: 'নাশকতা' },
+    { id: 'roles', label: 'চরিত্রসমূহ' },
   ];
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Ke Batpar Rules and Controls Guide"
+      aria-label="কে বাটপার? নিয়মকানুন ও নিয়ন্ত্রণ নির্দেশিকা"
       className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-6"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.88)' }}
     >
@@ -57,27 +57,27 @@ export function GuideModal({ onClose }: GuideModalProps) {
             <BookOpen className="w-5 h-5 text-amber-300 shrink-0" />
             <div>
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
-                Game Niyom — Moholla Rules &amp; Roles
+                খেলার নিয়ম — মহল্লার বিধি ও চরিত্র
               </h2>
               <p className="text-xs text-slate-400">
-                Win conditions, station tasks, sabotage rules, special powers &amp; controls
+                জেতার শর্ত, কাজ, নাশকতার নিয়ম, বিশেষ ক্ষমতা ও নিয়ন্ত্রণ
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Guide"
+            aria-label="নির্দেশিকা বন্ধ করো"
             className="min-w-[40px] min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-200"
           >
             <X className="w-4 h-4" />
           </button>
         </header>
 
-        {/* 4 Tabs: Win conditions | Tasks | Sabotage | Roles */}
+        {/* 4 Tabs */}
         <div
           role="tablist"
-          aria-label="Rules sections"
+          aria-label="নিয়মকানুন বিভাগ"
           className="px-5 pt-3 pb-2 border-b border-slate-800 flex flex-wrap gap-2 bg-slate-950/50"
         >
           {tabs.map((tab) => {
@@ -108,28 +108,28 @@ export function GuideModal({ onClose }: GuideModalProps) {
                 <div className="rounded-xl p-4 bg-sky-950/45 border border-sky-400/30">
                   <h3 className="font-display font-bold text-sky-300 text-sm mb-1.5 flex items-center gap-1.5">
                     <Compass className="w-4 h-4" />
-                    Parabasi (Moholla Crew) Win If:
+                    পাড়াবাসী দল জিতবে যদি:
                   </h3>
                   <ul className="space-y-1.5 text-xs text-slate-300 list-disc pl-4">
                     <li>
-                      <strong>100% Tasks Done:</strong> Shob Parabasi mile para tasks sesh korle (Ghost crew er tasks o count hoy!).
+                      <strong>১০০% কাজ সম্পন্ন:</strong> সব পাড়াবাসী মিলে মহল্লার সব কাজ শেষ করলে (ভূত হয়েও কাজ করলে তা গণনা হয়!)।
                     </li>
                     <li>
-                      <strong>All Batpar Ejected:</strong> Shalish e shob Batpar ke Pukur e chubani dile ba Daroga size korle.
+                      <strong>সব বাটপার বাদ:</strong> সালিশে সব বাটপারকে পুকুরে চুবানি দিলে অথবা দারোগা গুলি করে খতম করলে।
                     </li>
                   </ul>
                 </div>
                 <div className="rounded-xl p-4 bg-rose-950/45 border border-rose-400/30">
                   <h3 className="font-display font-bold text-rose-300 text-sm mb-1.5 flex items-center gap-1.5">
                     <ShieldAlert className="w-4 h-4" />
-                    Batpar (Impostors) Win If:
+                    বাটপার দল জিতবে যদি:
                   </h3>
                   <ul className="space-y-1.5 text-xs text-slate-300 list-disc pl-4">
                     <li>
-                      <strong>Parity:</strong> Alive Batpar &ge; ALL alive non-Batpar players (Neutrals including Pagla Baba count as non-Batpar!).
+                      <strong>সংখ্যাগরিষ্ঠতা:</strong> জীবিত বাটপার সংখ্যা &ge; সব জীবিত অ-বাটপার খেলোয়াড় হলে (পাগলা বাবাসহ নিরপেক্ষরা অ-বাটপার হিসেবে গণ্য!)।
                     </li>
                     <li>
-                      <strong>Critical Sabotage Timeout:</strong> Gas Leak (45s) timer 0 hoye gele! (Loadshedding ar Wi-Fi Down game sesh kore na.)
+                      <strong>জরুরি নাশকতা শেষ:</strong> গ্যাস লিক (৪৫ সেকেন্ড) টাইমার ০ হয়ে গেলে! (লোডশেডিং ও ওয়াইফাই বন্ধে খেলা শেষ হয় না।)
                     </li>
                   </ul>
                 </div>
@@ -138,17 +138,17 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <section className="rounded-xl p-4 bg-purple-950/35 border border-purple-400/30">
                 <h3 className="font-display font-bold text-purple-300 text-sm mb-1 flex items-center gap-1.5">
                   <Users className="w-4 h-4" />
-                  Neutral Chaos Roles (5–15 Players) &amp; Ghost Rules
+                  নিরপেক্ষ চরিত্র (৫–১৫ জন) ও ভূতের নিয়ম
                 </h3>
                 <ul className="space-y-1 text-xs text-slate-300 list-disc pl-4">
                   <li>
-                    <strong>Pagla Baba:</strong> Nije eka jite jodi Shalish vote e Pukur e fele deowa hoy! Game tokhon e sesh, bakira hare.
+                    <strong>পাগলা বাবা:</strong> সালিশের ভোটে সবাই মিলে তাকে পুকুরে ফেললেই একা জিতে যায়! খেলা সেখানেই শেষ, বাকিরা হারে।
                   </li>
                   <li>
-                    <strong>Chamcha, Chandabaz &amp; TikTok Star:</strong> Chamcha Patron er team er sathe CO-WIN kore; Chandabaz 3 jon theke Chanda nile Solo jite; TikTok Star 3 zone e reel kore sesh 4 jon e thakle jite!
+                    <strong>চামচা, চাঁদাবাজ ও টিকটক স্টার:</strong> চামচা বসের দলের সাথে সহ-বিজয়ী হয়; চাঁদাবাজ ৩ জনের থেকে চাঁদা নিলে একা জেতে; টিকটক স্টার ৩টি এলাকায় রিল বানিয়ে শেষ ৪ জনে টিকে থাকলে জেতে!
                   </li>
                   <li>
-                    <strong>Ghosts:</strong> Morle Adrishyo Ghost hoye jabe — wall er bhitore diye jete parbe, dead chat e kotha bolte parbe, ar Parabasi hole Ghost hoyeo tasks sesh korte parbe!
+                    <strong>ভূত মোড:</strong> মারা গেলে অদৃশ্য ভূত হয়ে যাবে — দেয়াল ভেদ করে হাঁটতে পারবে, ভূত চ্যাটে কথা বলতে পারবে, আর পাড়াবাসী হলে কাজও শেষ করতে পারবে!
                   </li>
                 </ul>
               </section>
@@ -156,15 +156,15 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <section className="rounded-xl p-3.5 bg-slate-900 border border-slate-800">
                 <h3 className="font-display font-bold text-amber-300 text-sm mb-1.5 flex items-center gap-1.5">
                   <Gamepad2 className="w-4 h-4" />
-                  Quick Controls
+                  দ্রুত নিয়ন্ত্রণ (কিবোর্ড শর্টকাট)
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs text-slate-300 font-mono-tabular">
-                  <div><strong>WASD / Arrows</strong> Move · <strong>Space</strong> Jump</div>
-                  <div><strong>Drag / [C]</strong> Free Look · <strong>[Y]</strong> Reset Cam</div>
-                  <div><strong>[E]</strong> Task / Fix / Cams · <strong>[R]</strong> Report Lash</div>
-                  <div><strong>[F]</strong> Adda Bell · <strong>[G]</strong> Role Power</div>
-                  <div><strong>[Q]</strong> Gap e Naw (Kill) · <strong>[V]</strong> Dren (Vent)</div>
-                  <div><strong>[Tab]</strong> Map &amp; Sabotage · <strong>[1–6]</strong> Meme SFX</div>
+                  <div><strong>WASD / তীর বোতাম</strong> চলা · <strong>Space</strong> লাফ</div>
+                  <div><strong>মাউস ড্র্যাগ / [C]</strong> চারদিকে তাকানো · <strong>[Y]</strong> ক্যামেরা ঠিক</div>
+                  <div><strong>[E]</strong> কাজ / মেরামত / ক্যামেরা · <strong>[R]</strong> লাশ রিপোর্ট</div>
+                  <div><strong>[F]</strong> আড্ডা ঘণ্টা · <strong>[G]</strong> বিশেষ ক্ষমতা</div>
+                  <div><strong>[Q]</strong> ঘায়েল (বাটপার) · <strong>[V]</strong> ড্রেন</div>
+                  <div><strong>[Tab]</strong> ম্যাপ ও নাশকতা · <strong>[1–6]</strong> মিম সাউন্ড</div>
                 </div>
               </section>
             </div>
@@ -175,31 +175,31 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <div className="rounded-xl p-4 bg-slate-900 border border-slate-800 space-y-2">
                 <h3 className="font-display font-bold text-amber-300 text-sm flex items-center gap-1.5">
                   <CheckSquare className="w-4 h-4" />
-                  How Moholla Tasks Work
+                  মহল্লার কাজ যেভাবে কাজ করে
                 </h3>
                 <ul className="space-y-1.5 text-xs text-slate-300 list-disc pl-4">
                   <li>
-                    Holud station er kache giye <strong>[E]</strong> chapo — 3–6s mini-task shesh korlei team Task Bar bare.
+                    হলুদ স্টেশনের কাছে গিয়ে <strong>[E]</strong> চাপো — ৩ থেকে ৬ সেকেন্ডের মিনি-কাজ শেষ করলেই দলের কাজের অগ্রগতি বাড়ে।
                   </li>
                   <li>
-                    <strong>2 Common + 2 Short + 1 Long (default 5):</strong> Common task shob Parabasi er same; Long task dead-end room e thake (beshi risk!).
+                    <strong>২টি সাধারণ + ২টি ছোট + ১টি বড় (মোট ৫টি):</strong> সাধারণ কাজ সব পাড়াবাসীর জন্য এক; বড় কাজ একটু নির্জন জায়গায় থাকে (ঝুঁকি বেশি!)।
                   </li>
                   <li>
-                    <strong>Visual Tasks:</strong> Visual tasks (jemon Cha steam, Pukur scan) 6m er moddhe onnora dekhte pay — Batpar fake task korle kono effect dekha jay na!
+                    <strong>দৃশ্যমান কাজ:</strong> কিছু কাজ (যেমন চা বানানো, পুকুর পরীক্ষা) ৬ মিটারের মধ্যে অন্যরা দেখতে পায় — বাটপার ভুয়া কাজ করলে কোনো প্রভাব দেখা যায় না!
                   </li>
                   <li>
-                    <strong>Batpar Fake List:</strong> Batpar same task names pay kintu tader task team progress baray na.
+                    <strong>বাটপারের ভুয়া তালিকা:</strong> বাটপারও একই কাজের তালিকা পায়, কিন্তু তা শেষ করলে দলের কাজের অগ্রগতি বাড়ে না।
                   </li>
                 </ul>
               </div>
               <div className="rounded-xl p-4 bg-slate-900 border border-slate-800">
                 <h3 className="font-display font-bold text-sky-300 text-sm mb-1.5">
-                  Surveillance Stations
+                  নজরদারি কেন্দ্রসমূহ
                 </h3>
                 <ul className="space-y-1 text-xs text-slate-300 list-disc pl-4">
-                  <li><strong>CCTV Booth (North):</strong> Live camera feeds across Moholla hotspots.</li>
-                  <li><strong>Admin Radar (East):</strong> Zone-wise live player headcount.</li>
-                  <li><strong>Vitals Clinic (West):</strong> Check who is Alive vs Size in real time.</li>
+                  <li><strong>সিসিটিভি বুথ (উত্তর):</strong> মহল্লার গুরুত্বপূর্ণ মোড়গুলোর লাইভ ক্যামেরা ফিড দেখো।</li>
+                  <li><strong>অ্যাডমিন রাডার (পূর্ব):</strong> কোন এলাকায় কতজন মানুষ আছে তা সরাসরি দেখো।</li>
+                  <li><strong>ভাইটালস ক্লিনিক (পশ্চিম):</strong> কে জীবিত আর কে মারা গেছে তা তাৎক্ষণিক পরীক্ষা করো।</li>
                 </ul>
               </div>
             </div>
@@ -210,17 +210,17 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <div className="rounded-xl p-4 bg-amber-950/30 border border-amber-400/35 space-y-2">
                 <h3 className="font-display font-bold text-amber-300 text-sm flex items-center gap-1.5">
                   <Zap className="w-4 h-4" />
-                  Non-Critical Sabotage (Never Ends the Game)
+                  সাধারণ নাশকতা (এতে খেলা শেষ হয় না)
                 </h3>
                 <ul className="space-y-1.5 text-xs text-slate-300 list-disc pl-4">
                   <li>
-                    <strong>Loadshedding:</strong> Parabasi vision 0.45x ar dark HUD (Batpar unaffected). DESCO panel e giye 3s <strong>[E]</strong> dhore thik koro, ba 90s pore nijei current ashbe!
+                    <strong>লোডশেডিং:</strong> পাড়াবাসীর দৃষ্টিসীমা ০.৪৫ গুণ কমে যায় ও পর্দা অন্ধকার হয় (বাটপারের সমস্যা হয় না)। ডেসকো প্যানেলে গিয়ে ৩ সেকেন্ড <strong>[E]</strong> চেপে ধরে ঠিক করো, নইলে ৯০ সেকেন্ড পর এমনিই বিদ্যুৎ ফিরবে!
                   </li>
                   <li>
-                    <strong>Wi-Fi Down:</strong> Task list &amp; bar hide hoy, digital tasks lock hoy (physical tasks kaj kore). Dish roof e giye 3s <strong>[E]</strong> dhore fix koro, ba 90s pore auto-ends!
+                    <strong>ওয়াইফাই বন্ধ:</strong> কাজের তালিকা ও প্রগ্রেস বার লুকিয়ে যায় এবং ডিজিটাল কাজ বন্ধ থাকে। ডিশ হাবের ছাদে গিয়ে ৩ সেকেন্ড <strong>[E]</strong> চেপে ধরে ঠিক করো, নইলে ৯০ সেকেন্ড পর ঠিক হবে!
                   </li>
                   <li>
-                    <strong>Shutter Door Lock:</strong> 10s door lock (18s cooldown) — never ends the game.
+                    <strong>দোকানের শাটার বন্ধ:</strong> ১০ সেকেন্ডের জন্য দরজা বন্ধ থাকে (১৮ সেকেন্ড বিরতি) — এতে খেলা শেষ হয় না।
                   </li>
                 </ul>
               </div>
@@ -228,17 +228,17 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <div className="rounded-xl p-4 bg-rose-950/40 border border-rose-500/40 space-y-2">
                 <h3 className="font-display font-bold text-rose-300 text-sm flex items-center gap-1.5">
                   <ShieldAlert className="w-4 h-4" />
-                  CRITICAL Sabotage: Gas Leak (45s)
+                  জরুরি নাশকতা: গ্যাস লিক (৪৫ সেকেন্ড)
                 </h3>
                 <ul className="space-y-1.5 text-xs text-slate-300 list-disc pl-4">
                   <li>
-                    <strong>Only Gas Leak can end the game!</strong> 45s countdown — 0 hole Batpar immediate WIN!
+                    <strong>শুধুমাত্র গ্যাস লিকেই খেলা শেষ হতে পারে!</strong> ৪৫ সেকেন্ডের মধ্যে বন্ধ না করলে বাটপাররা সাথে সাথে জিতে যাবে!
                   </li>
                   <li>
-                    <strong>Fix Rule:</strong> Dui ta alada zone er valve (Cha Dokan ar Rickshaw Garage) eksathe <strong>2 dui jon player</strong> mile 2s hold korte hobe.
+                    <strong>বন্ধ করার নিয়ম:</strong> দুইটি আলাদা এলাকার ভালভ (চায়ের দোকান ও রিকশা গ্যারেজ) একসাথে <strong>২ জন খেলোয়াড়</strong> মিলে ২ সেকেন্ড চেপে ধরে রাখতে হবে।
                   </li>
                   <li>
-                    <strong>Rules:</strong> Shuru te 40s sabotage lockout, fix/expiry er por 35s global cooldown. Adda Bell shudhu Gas Leak er shomoy blocked thake!
+                    <strong>নিয়ম:</strong> ম্যাচের শুরুতে ৪০ সেকেন্ড নাশকতা বন্ধ থাকে, এবং ঠিক বা শেষ হওয়ার পর ৩৫ সেকেন্ড বিরতি থাকে। শুধু গ্যাস লিক চলার সময়ই আড্ডা ঘণ্টা বন্ধ থাকে!
                   </li>
                 </ul>
               </div>
@@ -249,11 +249,11 @@ export function GuideModal({ onClose }: GuideModalProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div className="rounded-xl p-3 bg-slate-900 border border-rose-500/30">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="font-bold text-rose-300">Batpar (আসল বাটপার)</span>
-                  <span className="text-[11px] font-mono-tabular text-rose-200">Kill [Q] · Vent [V]</span>
+                  <span className="font-bold text-rose-300">আসল বাটপার</span>
+                  <span className="text-[11px] font-mono-tabular text-rose-200">ঘায়েল [Q] · ড্রেন [V]</span>
                 </div>
                 <p className="text-xs text-slate-300">
-                  Gap e niye size koro, Gopon Dren diye palao, ar Loadshedding/Wi-Fi/Gas Leak sabotage dao.
+                  সুযোগ বুঝে পাড়াবাসীকে ঘায়েল করো, গোপন ড্রেন দিয়ে পালাও আর লোডশেডিং, ওয়াইফাই বা গ্যাস লিক নাশকতা দাও।
                 </p>
               </div>
               {ROLE_ORDER.map((r) => {
@@ -262,7 +262,7 @@ export function GuideModal({ onClose }: GuideModalProps) {
                   <div key={r} className="rounded-xl p-3 bg-slate-900 border border-slate-800">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <span className="font-bold" style={{ color: meta.accentHex }}>
-                        {meta.title}
+                        {meta.banglaTitle}
                       </span>
                       <span className="text-[11px] font-mono-tabular text-slate-400">{meta.abilityLabel}</span>
                     </div>

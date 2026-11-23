@@ -122,6 +122,8 @@ test('bots treat human and bot players identically in chat reactions and voting'
       z: 30,
       reported: true,
       killedAt: 5500,
+      killerColorHint: 'Dark Shade',
+      killerZoneHint: 'DESCO Power',
     },
   ];
   const voteA = decideBotVote({
@@ -301,7 +303,6 @@ test('redactSnapshotForPlayer masks isBot flags during active gameplay so client
   const snapshot: RoomSnapshot = {
     roomCode: 'ADDA',
     phase: 'playing',
-    phaseTimer: 0,
     meetingTimer: 0,
     discussionTimer: 0,
     meetingCallerId: null,
@@ -317,6 +318,8 @@ test('redactSnapshotForPlayer masks isBot flags during active gameplay so client
     ejection: null,
     outcome: null,
     taskProgress: 0,
+    totalTasks: 20,
+    completedTasks: 0,
     emergencyCooldownRemaining: 10,
     netaRevealedId: null,
     prankedLampUntil: 0,
@@ -331,4 +334,60 @@ test('redactSnapshotForPlayer masks isBot flags during active gameplay so client
     assert.equal(p.isBot, false, `Player ${p.id} must not expose isBot during playing phase`);
     assert.ok((p.pingMs ?? 0) >= 20, 'Ping should look realistic across all players');
   }
+});
+
+test('bots do not blindly pile all votes onto one suspect from a single unproven chat accusation', () => {
+  const players = makePlayers();
+  const bodies: BodyMarker[] = [
+    {
+      id: 'body1',
+      victimId: 'p_human',
+      victimName: 'Lal Mia',
+      color: 'lal',
+      x: 20,
+      z: 20,
+      reported: true,
+      killedAt: 5000,
+      killerColorHint: 'সবুজ',
+      killerZoneHint: 'রাস্তার মোড়',
+    },
+  ];
+
+  const brains = new Map<string, BotBrainState>();
+  const personalities: Array<BotBrainState['personality']> = ['follower', 'skeptic', 'chill', 'paranoid'];
+  let idx = 0;
+  for (const p of players) {
+    if (!p.isBot) continue;
+    const br = createBotBrainState(makeRng(10 + idx));
+    br.personality = personalities[idx % personalities.length];
+    brains.set(p.id, br);
+    idx++;
+  }
+
+  // Only ONE weak rumor accusing Babu Bhai without first-hand witness proof
+  processChatMessageForBots({
+    msg: {
+      id: 'weak_1',
+      senderId: 'b1',
+      senderName: 'Chacha Miah',
+      senderColor: 'holud',
+      text: 'আমার তো বাবু ভাইকে সন্দেহ লাগতেছে',
+      timestamp: 9000,
+    },
+    players,
+    brains,
+    rng: () => 0.4,
+  });
+
+  const votes = new Map<string, number>();
+  const r = makeRng(99);
+  for (const p of players) {
+    if (!p.isBot || !p.alive) continue;
+    const v = decideBotVote({ bot: p, brain: brains.get(p.id)!, players, bodies, rng: r });
+    votes.set(v, (votes.get(v) ?? 0) + 1);
+  }
+
+  const maxOnOneTarget = Math.max(...Array.from(votes.entries()).filter(([k]) => k !== 'skip').map(([, c]) => c), 0);
+  assert.ok(maxOnOneTarget < 4, `Expected bots to split/skip rather than unanimous 4/4 pile-on (got ${maxOnOneTarget})`);
+  assert.ok((votes.get('skip') ?? 0) >= 1, 'Expected cautious/skeptic bots to skip on a single unproven rumor');
 });

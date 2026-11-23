@@ -644,14 +644,6 @@ export function createRickshawGarageProps(textures: ProceduralTextureSet, isSoft
   uprightRim.position.copy(uprightWheel.position);
   group.add(uprightWheel, uprightRim);
 
-  // Signboard over Garage South Opening
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(4.4, 1.3, 0.16),
-    new THREE.MeshStandardMaterial({ map: textures.rickshawSignMap, roughness: 0.4 }),
-  );
-  sign.position.set(31.2, 3.65, -23.1);
-  group.add(sign);
-
   return optimizeStaticGroup(group);
 }
 
@@ -740,13 +732,6 @@ export function createDescoTransformer(
   cableCore.position.y = 0.7;
   cableSpool.add(fl1, fl2, cableCore);
   group.add(cableSpool);
-
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(4.0, 1.2, 0.16),
-    new THREE.MeshStandardMaterial({ map: textures.descoSignMap, roughness: 0.4 }),
-  );
-  sign.position.set(0, 3.45, -2.0);
-  group.add(sign);
 
   return { group: optimizeStaticGroup(group, [exhaustFan]), exhaustFan };
 }
@@ -841,13 +826,6 @@ export function createDishHub(
   feedArm.position.set(40.5, 3.9, 36.8);
   feedArm.rotation.x = 0.9;
   group.add(mast, dish, feedArm);
-
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(4.2, 1.25, 0.16),
-    new THREE.MeshStandardMaterial({ map: textures.dishSignMap, roughness: 0.4 }),
-  );
-  sign.position.set(35.0, 3.45, 39.2);
-  group.add(sign);
 
   return { group: optimizeStaticGroup(group), serverLeds };
 }
@@ -1147,13 +1125,6 @@ export function createSaloonProps(
   ceilingFan.position.set(-65.5, 3.35, -26.0);
   group.add(ceilingFan);
 
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 1.3, 4.4),
-    new THREE.MeshStandardMaterial({ map: textures.saloonSignMap, roughness: 0.4 }),
-  );
-  sign.position.set(-56.8, 3.7, -26.0);
-  group.add(sign);
-
   return {
     group: optimizeStaticGroup(group, [barberPole, ceilingFan]),
     barberPole,
@@ -1396,13 +1367,6 @@ export function createPharmacyProps(textures: ProceduralTextureSet, isSoftwareGl
   const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 1.2), crossGreen);
   crossH.position.set(-56.7, 3.6, 20.6);
   group.add(crossV, crossH);
-
-  const sign = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 1.3, 4.4),
-    new THREE.MeshStandardMaterial({ map: textures.pharmacySignMap, roughness: 0.4 }),
-  );
-  sign.position.set(-56.8, 3.7, 26.0);
-  group.add(sign);
 
   return optimizeStaticGroup(group);
 }
@@ -1758,3 +1722,416 @@ export function createWaterTowerModel(isSoftwareGl: boolean): THREE.Group {
   group.position.set(0, 0, 39.0);
   return optimizeStaticGroup(group);
 }
+
+// =========================================================================
+// EXPANDED MOHOLLA & OPAR PARA DETAILS: JHEEL PAR, SHISHU PARK, OUTER SHOPS
+// =========================================================================
+
+export function createJheelParDetails(): {
+  group: THREE.Group;
+  boat: THREE.Group;
+  flowers: THREE.Group[];
+} {
+  const group = new THREE.Group();
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.78 });
+  const darkWoodMat = new THREE.MeshStandardMaterial({ color: '#451a03', roughness: 0.82 });
+  const padMat = new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.65 });
+  const petalMat = new THREE.MeshStandardMaterial({ color: '#f472b6', roughness: 0.42 });
+  const centerMat = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.4 });
+  const poleMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.6 });
+  const lampGlow = new THREE.MeshStandardMaterial({
+    color: '#fef08a',
+    emissive: '#fbbf24',
+    emissiveIntensity: 1.4,
+    roughness: 0.2,
+  });
+
+  // Wooden lakeside viewing pier extending onto East shore of Jheel (-130.6..-127.0, z -84.2..-79.8)
+  const pierDeck = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.1, 4.4), woodMat);
+  pierDeck.position.set(-129.0, 0.08, -82.0);
+  pierDeck.receiveShadow = true;
+  group.add(pierDeck);
+
+  for (const px of [-130.7, -127.3]) {
+    for (const pz of [-84.0, -80.0]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.95, 10), darkWoodMat);
+      post.position.set(px, 0.47, pz);
+      group.add(post);
+    }
+  }
+
+  // Twin Lakeside Lantern Posts at North and South corners of Jheel Par
+  for (const lz of [-91.2, -72.8]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 3.2, 10), poleMat);
+    post.position.set(-130.2, 1.6, lz);
+    const globe = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 14), lampGlow);
+    globe.position.set(-130.2, 3.3, lz);
+    group.add(post, globe);
+  }
+
+  // Drifting Wooden Country Boat (Nouka) on Jheel water
+  const boat = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.44, 3.8), darkWoodMat);
+  hull.castShadow = true;
+  const prowF = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1.15, 4), woodMat);
+  prowF.rotation.x = Math.PI / 2;
+  prowF.rotation.z = Math.PI / 4;
+  prowF.position.set(0, 0.08, 2.35);
+  const prowB = prowF.clone();
+  prowB.rotation.x = -Math.PI / 2;
+  prowB.position.set(0, 0.08, -2.35);
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.48), woodMat);
+  bench.position.set(0, 0.28, 0.1);
+  const oar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.5, 8), woodMat);
+  oar.rotation.z = Math.PI / 2 - 0.18;
+  oar.position.set(0.3, 0.36, -0.35);
+  boat.add(hull, prowF, prowB, bench, oar);
+  boat.position.set(-140.5, 0.08, -83.5);
+  boat.rotation.y = 0.24;
+  group.add(boat);
+
+  // Floating Shapla (Water Lilies) across Jheel Par surface
+  const flowers: THREE.Group[] = [];
+  const flowerSpots: Array<[number, number]> = [
+    [-135.2, -88.0],
+    [-143.2, -86.5],
+    [-136.0, -76.2],
+    [-142.8, -75.0],
+    [-133.5, -80.8],
+  ];
+  for (const [fx, fz] of flowerSpots) {
+    const fl = new THREE.Group();
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.04, 14), padMat);
+    const bloom = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.24, 6), petalMat);
+    bloom.rotation.x = Math.PI;
+    bloom.position.y = 0.12;
+    const bud = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), centerMat);
+    bud.position.y = 0.16;
+    fl.add(pad, bloom, bud);
+    fl.position.set(fx, 0.06, fz);
+    group.add(fl);
+    flowers.push(fl);
+  }
+
+  return { group: optimizeStaticGroup(group, [boat, ...flowers]), boat, flowers };
+}
+
+export function createShishuParkProps(
+  textures: ProceduralTextureSet,
+  isSoftwareGl: boolean,
+): { group: THREE.Group; wheelGroup: THREE.Group } {
+  const group = new THREE.Group();
+  const steelMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.4, metalness: 0.72 });
+  const hubMat = new THREE.MeshStandardMaterial({ color: '#fbbf24', roughness: 0.25, metalness: 0.78 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#ec4899', roughness: 0.32, metalness: 0.35 });
+  const spokeMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.3, metalness: 0.65 });
+  const slideMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.32 });
+  const seesawMat = new THREE.MeshStandardMaterial({ color: '#16a34a', roughness: 0.45 });
+  const benchMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.52 });
+
+  const gondolaColors = ['#f43f5e', '#38bdf8', '#facc15', '#22c55e', '#a855f7', '#fb923c', '#14b8a6', '#e879f9'];
+  const gondolaGlows = gondolaColors.map(
+    (hex) =>
+      new THREE.MeshStandardMaterial({
+        color: hex,
+        emissive: hex,
+        emissiveIntensity: 0.55,
+        roughness: 0.32,
+      }),
+  );
+
+  // Concrete octagonal platform inside park_ferris_base (136..141.5, -85..-79)
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.28, 5.6), steelMat);
+  plinth.position.set(138.75, 0.14, -82.0);
+  plinth.receiveShadow = true;
+  group.add(plinth);
+
+  // Twin A-Frame support legs reaching hub at (138.75, 5.2, -82.0)
+  for (const fz of [-83.4, -80.6]) {
+    for (const dx of [-1.85, 1.85]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 5.45, 10), steelMat);
+      leg.position.set(138.75 + dx * 0.5, 2.75, fz);
+      leg.rotation.z = dx < 0 ? -0.35 : 0.35;
+      leg.castShadow = !isSoftwareGl;
+      group.add(leg);
+    }
+  }
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 3.4, 14), hubMat);
+  axle.rotation.x = Math.PI / 2;
+  axle.position.set(138.75, 5.2, -82.0);
+  group.add(axle);
+
+  // Rotating Ferris Wheel (Nagordola) in XY plane around Z-axis
+  const wheelGroup = new THREE.Group();
+  wheelGroup.position.set(138.75, 5.2, -82.0);
+
+  const wheelRadius = 3.35;
+  for (const rz of [-0.9, 0.9]) {
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(wheelRadius, 0.085, 10, 32), rimMat);
+    rim.position.z = rz;
+    wheelGroup.add(rim);
+  }
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2;
+    const gx = Math.cos(ang) * wheelRadius;
+    const gy = Math.sin(ang) * wheelRadius;
+    for (const rz of [-0.9, 0.9]) {
+      const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, wheelRadius * 2, 8), spokeMat);
+      spoke.rotation.z = ang + Math.PI / 2;
+      spoke.position.z = rz;
+      if (i < 4) wheelGroup.add(spoke);
+    }
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.8, 8), hubMat);
+    bar.rotation.x = Math.PI / 2;
+    bar.position.set(gx, gy, 0);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.72, 1.2), gondolaGlows[i]);
+    cabin.position.set(gx, gy - 0.38, 0);
+    wheelGroup.add(bar, cabin);
+  }
+  group.add(wheelGroup);
+
+  // Park Seesaw + Slide + Benches around North/South sides (leaving task_park at 133, -82 unobstructed)
+  const slideTower = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.1, 1.4), benchMat);
+  slideTower.position.set(142.0, 1.05, -73.0);
+  const slideChute = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.14, 1.0), slideMat);
+  slideChute.position.set(140.0, 1.05, -73.0);
+  slideChute.rotation.z = 0.62;
+  group.add(slideTower, slideChute);
+
+  const seesawPivot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 0.6, 10), steelMat);
+  seesawPivot.position.set(139.0, 0.3, -90.5);
+  const seesawPlank = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.12, 0.5), seesawMat);
+  seesawPlank.position.set(139.0, 0.64, -90.5);
+  seesawPlank.rotation.z = 0.15;
+  group.add(seesawPivot, seesawPlank);
+
+  for (const bz of [-88.5, -75.5]) {
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 0.75), benchMat);
+    bench.position.set(130.5, 0.48, bz);
+    for (const dx of [-0.9, 0.9]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.44, 0.65), steelMat);
+      leg.position.set(130.5 + dx, 0.22, bz);
+      group.add(leg);
+    }
+    group.add(bench);
+  }
+
+  // Park Signboard facing West Avenue (x = 128.2, z = -82)
+  const signPostL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 4.2, 10), rimMat);
+  signPostL.position.set(128.2, 2.1, -84.0);
+  const signPostR = signPostL.clone();
+  signPostR.position.z = -80.0;
+  const signFaceMat = new THREE.MeshStandardMaterial({
+    map: textures.parkSignMap,
+    emissive: '#ffffff',
+    emissiveMap: textures.parkSignMap,
+    emissiveIntensity: 0.25,
+    roughness: 0.35,
+  });
+  const signBoard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.35, 4.6), signFaceMat);
+  signBoard.position.set(128.2, 4.15, -82.0);
+  group.add(signPostL, signPostR, signBoard);
+
+  return { group: optimizeStaticGroup(group, [wheelGroup]), wheelGroup };
+}
+
+export function createOuterShopProps(
+  textures: ProceduralTextureSet,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const group = new THREE.Group();
+  const counterWood = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.72 });
+  const darkMetal = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.42, metalness: 0.72 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.18, metalness: 0.9 });
+  const copperMat = new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.26, metalness: 0.78 });
+  const redClothMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.65 });
+  const emberMat = new THREE.MeshStandardMaterial({
+    color: '#fb923c',
+    emissive: '#ea580c',
+    emissiveIntensity: 1.6,
+  });
+
+  // 1. Nawab Kacchi Ghor: Chula Counter + 3 Copper Kacchi Deg Pots (kacchi_deg_counter -145.6..-142.2, -34.5..-21.5)
+  const kacchiCounter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.15, 12.6), counterWood);
+  kacchiCounter.position.set(-143.9, 0.575, -28.0);
+  kacchiCounter.castShadow = !isSoftwareGl;
+  group.add(kacchiCounter);
+
+  const degPts = [
+    new THREE.Vector2(0.01, 0),
+    new THREE.Vector2(0.55, 0),
+    new THREE.Vector2(0.75, 0.38),
+    new THREE.Vector2(0.58, 0.78),
+    new THREE.Vector2(0.66, 0.88),
+    new THREE.Vector2(0.01, 0.88),
+  ];
+  const degGeo = new THREE.LatheGeometry(degPts, 20);
+  for (const dz of [-31.8, -28.0, -24.2]) {
+    const ember = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.52, 0.12, 14), emberMat);
+    ember.position.set(-143.8, 1.18, dz);
+    const deg = new THREE.Mesh(degGeo, copperMat);
+    deg.position.set(-143.8, 1.2, dz);
+    const cloth = new THREE.Mesh(new THREE.CylinderGeometry(0.67, 0.63, 0.22, 16), redClothMat);
+    cloth.position.set(-143.8, 1.98, dz);
+    group.add(ember, deg, cloth);
+  }
+
+  // 2. GG Cyber Adda: Gaming Desk + 4 Glowing RGB Dual-Monitor Rigs (cyber_pc_row -145.6..-142.5, 21..35)
+  const cyberDesk = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.0, 13.6), darkMetal);
+  cyberDesk.position.set(-144.05, 0.5, 28.0);
+  cyberDesk.castShadow = !isSoftwareGl;
+  group.add(cyberDesk);
+  const rgbScreens = [
+    new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0284c7', emissiveIntensity: 1.4 }),
+    new THREE.MeshStandardMaterial({ color: '#f472b6', emissive: '#db2777', emissiveIntensity: 1.4 }),
+  ];
+  for (let i = 0; i < 4; i++) {
+    const pz = 22.8 + i * 3.45;
+    const monitor = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.92, 1.65), darkMetal);
+    monitor.position.set(-144.6, 1.56, pz);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.78, 1.48), rgbScreens[i % 2]);
+    screen.position.set(-144.5, 1.56, pz);
+    const pcTower = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.85, 0.42), darkMetal);
+    pcTower.position.set(-144.4, 1.45, pz + 1.15);
+    const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.7), rgbScreens[i % 2]);
+    chairSeat.position.set(-141.6, 0.52, pz);
+    const chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.88, 0.65), darkMetal);
+    chairBack.position.set(-141.25, 0.96, pz);
+    group.add(monitor, screen, pcTower, chairSeat, chairBack);
+  }
+
+  // 3. Shilpi Dorji Bari: Tailor Workbench, Sewing Machine & Bright Cloth Bolts (dorji_table 142.5..145.6, -34.5..-21.5)
+  const dorjiBench = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.02, 12.6), counterWood);
+  dorjiBench.position.set(144.05, 0.51, -28.0);
+  dorjiBench.castShadow = !isSoftwareGl;
+  group.add(dorjiBench);
+  const sewBody = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.48, 0.9), darkMetal);
+  sewBody.position.set(144.0, 1.26, -28.0);
+  const sewWheel = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.04, 8, 14), chromeMat);
+  sewWheel.position.set(144.0, 1.42, -27.5);
+  group.add(sewBody, sewWheel);
+  const clothColors = ['#e11d48', '#facc15', '#10b981', '#3b82f6', '#a855f7'];
+  clothColors.forEach((hex, idx) => {
+    const bolt = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.24, 1.35, 12),
+      new THREE.MeshStandardMaterial({ color: hex, roughness: 0.7 }),
+    );
+    bolt.rotation.z = Math.PI / 2;
+    bolt.position.set(144.1, 1.26, -33.0 + idx * 0.75);
+    group.add(bolt);
+  });
+
+  // 4. Tiger Para Gym: Squat Rack, Loaded Barbell & Punching Bag (gym_rack 142.5..145.6, 21.5..34.5)
+  const gymBase = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.2, 12.6), darkMetal);
+  gymBase.position.set(144.05, 0.1, 28.0);
+  group.add(gymBase);
+  for (const uz of [26.2, 29.8]) {
+    const upright = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.35, 0.18), darkMetal);
+    upright.position.set(144.2, 1.22, uz);
+    group.add(upright);
+  }
+  const topBar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 3.8), darkMetal);
+  topBar.position.set(144.2, 2.35, 28.0);
+  const barbell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 4.4, 10), chromeMat);
+  barbell.rotation.x = Math.PI / 2;
+  barbell.position.set(143.7, 1.55, 28.0);
+  for (const pz of [26.0, 30.0]) {
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.14, 16), redClothMat);
+    plate.rotation.x = Math.PI / 2;
+    plate.position.set(143.7, 1.55, pz);
+    group.add(plate);
+  }
+  const punchBag = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 1.55, 14), redClothMat);
+  punchBag.position.set(143.8, 1.45, 23.2);
+  group.add(topBar, barbell, punchBag);
+
+  // 5. Balaka Cineplex: Glowing Silver Screen & Tiered Red Velvet Seats (cinema_seats -74.5..-63.5, -140.5..-138.2)
+  const cineScreen = new THREE.Mesh(
+    new THREE.BoxGeometry(12.2, 2.25, 0.14),
+    new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#7dd3fc', emissiveIntensity: 0.72 }),
+  );
+  cineScreen.position.set(-69.0, 1.65, -142.85);
+  for (const cx of [-75.5, -62.5]) {
+    const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.6, 0.3), redClothMat);
+    curtain.position.set(cx, 1.65, -142.75);
+    group.add(curtain);
+  }
+  const seatRowBase = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.62, 2.1), darkMetal);
+  seatRowBase.position.set(-69.0, 0.31, -139.35);
+  group.add(cineScreen, seatRowBase);
+  for (let i = 0; i < 6; i++) {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.75, 1.1), redClothMat);
+    seat.position.set(-73.4 + i * 1.76, 0.85, -139.35);
+    group.add(seat);
+  }
+
+  // 6. A+ Coaching: Chalkboard & Classroom Desk Row (coach_desk 22.0..34.0, -141.5..-139.5)
+  const boardFrame = new THREE.Mesh(new THREE.BoxGeometry(10.6, 1.9, 0.14), counterWood);
+  boardFrame.position.set(28.0, 1.75, -142.85);
+  const chalkboard = new THREE.Mesh(
+    new THREE.BoxGeometry(10.1, 1.55, 0.18),
+    new THREE.MeshStandardMaterial({ color: '#064e3b', roughness: 0.85 }),
+  );
+  chalkboard.position.set(28.0, 1.75, -142.82);
+  const benchDesk = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.92, 1.85), counterWood);
+  benchDesk.position.set(28.0, 0.46, -140.5);
+  benchDesk.castShadow = !isSoftwareGl;
+  group.add(boardFrame, chalkboard, benchDesk);
+
+  // 7. Opar Mach Bazar: Twin Wet-Market Fish Stalls (mach_table_n & mach_table_s -75.5..-62.5, 121..123.5 & 132.5..135)
+  const stallMat = new THREE.MeshStandardMaterial({ color: '#0284c7', roughness: 0.58 });
+  const iceMat = new THREE.MeshStandardMaterial({ color: '#e0f2fe', roughness: 0.2 });
+  const canopyMat = new THREE.MeshStandardMaterial({ map: textures.bazarAwningMap, roughness: 0.52 });
+  for (const tz of [122.25, 133.75]) {
+    const table = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.05, 2.3), stallMat);
+    table.position.set(-69.0, 0.525, tz);
+    table.castShadow = !isSoftwareGl;
+    const iceSlab = new THREE.Mesh(new THREE.BoxGeometry(11.8, 0.12, 1.9), iceMat);
+    iceSlab.position.set(-69.0, 1.1, tz);
+    group.add(table, iceSlab);
+    for (let f = 0; f < 6; f++) {
+      const fish = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.58, 6, 8), chromeMat);
+      fish.rotation.z = Math.PI / 2;
+      fish.position.set(-73.8 + f * 1.9, 1.24, tz);
+      group.add(fish);
+    }
+  }
+  const bazarRoof = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.16, 15.6), canopyMat);
+  bazarRoof.position.set(-69.0, 3.25, 128.0);
+  group.add(bazarRoof);
+  for (const px of [-75.5, -62.5]) {
+    for (const pz of [120.8, 135.2]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 3.25, 10), darkMetal);
+      post.position.set(px, 1.625, pz);
+      group.add(post);
+    }
+  }
+
+  // 8. South Signal Yard: Elevated Steel Railway Signal Tower (signal_tower_base 31.5..36.0, 124.5..131.5)
+  const gantryBase = new THREE.Mesh(new THREE.BoxGeometry(4.3, 3.4, 6.8), darkMetal);
+  gantryBase.position.set(33.75, 1.7, 128.0);
+  gantryBase.castShadow = !isSoftwareGl;
+  const towerCab = new THREE.Mesh(
+    new THREE.BoxGeometry(4.7, 2.0, 5.2),
+    new THREE.MeshStandardMaterial({ color: '#ca8a04', roughness: 0.45 }),
+  );
+  towerCab.position.set(33.75, 4.4, 128.0);
+  const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.24, 5.6), darkMetal);
+  cabRoof.position.set(33.75, 5.5, 128.0);
+  const semMast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 7.6, 10), chromeMat);
+  semMast.position.set(31.8, 3.8, 124.9);
+  const sigGreen = new THREE.Mesh(
+    new THREE.SphereGeometry(0.26, 12, 12),
+    new THREE.MeshStandardMaterial({ color: '#22c55e', emissive: '#16a34a', emissiveIntensity: 1.8 }),
+  );
+  sigGreen.position.set(31.35, 7.2, 124.9);
+  const sigRed = new THREE.Mesh(
+    new THREE.SphereGeometry(0.26, 12, 12),
+    new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#dc2626', emissiveIntensity: 1.5 }),
+  );
+  sigRed.position.set(31.35, 6.4, 124.9);
+  group.add(gantryBase, towerCab, cabRoof, semMast, sigGreen, sigRed);
+
+  return optimizeStaticGroup(group);
+}
+

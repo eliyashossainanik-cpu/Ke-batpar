@@ -78,13 +78,13 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
       );
       soundEngine.invalidateDecodedSlot(slotId);
       if (res.ok) {
-        setStatusMsg(`Published "${file.name}" to Server! All players hear it now.`);
+        setStatusMsg(`"${file.name}" সার্ভারে আপলোড হয়েছে! এখন সব খেলোয়াড় এটি শুনতে পাবে।`);
       } else {
-        setErrorMsg(res.error ?? 'Could not upload to server.');
+        setErrorMsg(res.error ?? 'সার্ভারে আপলোড করা যায়নি।');
       }
       soundEngine.testSlot(slotId);
     } catch {
-      setErrorMsg(`Could not load "${file.name}". Try .mp3, .wav, or .ogg under 6MB.`);
+      setErrorMsg(`"${file.name}" লোড করা যায়নি। ৬ মেগাবাইটের কম .mp3, .wav বা .ogg ব্যবহার করো।`);
     } finally {
       setBusy(false);
     }
@@ -120,17 +120,17 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
     }
     setBusy(false);
     if (failed > 0 && loaded === 0) {
-      setErrorMsg('Server rejected bulk upload (check Admin PIN or 6MB file limit).');
+      setErrorMsg('আপলোড হয়নি — অ্যাডমিন পিন বা ৬ MB লিমিট চেক করো!');
     } else {
       setStatusMsg(
-        `Server-published ${loaded} viral Bangla meme clip${loaded === 1 ? '' : 's'}${failed > 0 ? ` (${failed} failed)` : ''}!`,
+        `${loaded}টি বাংলা মিম ক্লিপ সার্ভারে আপলোড হয়েছে${failed > 0 ? ` (${failed}টি ব্যর্থ)` : ''}!`,
       );
     }
   };
 
   const handleExportPack = () => {
     if (customCount === 0) {
-      setErrorMsg('Upload at least 1 custom audio clip before exporting a pack.');
+      setErrorMsg('প্যাক এক্সপোর্ট করার আগে অন্তত ১টি কাস্টম অডিও ক্লিপ আপলোড করো।');
       return;
     }
     const json = exportMemePackJson();
@@ -143,7 +143,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    setStatusMsg(`Exported ${customCount} custom meme clips to ke-batpar-meme-pack.json!`);
+    setStatusMsg(`${customCount}টি কাস্টম মিম ক্লিপ ke-batpar-meme-pack.json ফাইলে সংরক্ষিত হয়েছে!`);
   };
 
   const handleImportPack = async (file: File | null) => {
@@ -171,9 +171,9 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
           if (res.ok) synced++;
         }
       }
-      setStatusMsg(`Imported ${count} clips and synced ${synced} to the live game server!`);
+      setStatusMsg(`${count}টি ক্লিপ ইমপোর্ট হয়েছে এবং ${synced}টি লাইভ সার্ভারে সিঙ্ক হয়েছে!`);
     } catch {
-      setErrorMsg('Invalid meme pack JSON file.');
+      setErrorMsg('অবৈধ মিম প্যাক JSON ফাইল।');
     } finally {
       setBusy(false);
     }
@@ -183,7 +183,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Server Viral Bangla Meme Admin Panel"
+      aria-label="ভাইরাল বাংলা মিম প্যানেল"
       className="fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.88)' }}
     >
@@ -200,15 +200,15 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-display text-lg sm:text-xl font-bold text-white truncate">
-                  Viral Bangla Meme Admin Panel
+                  ভাইরাল বাংলা মিম প্যানেল
                 </h2>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/35 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
                   <Globe className="w-3 h-3" />
-                  Server Live: {serverCount}/{MEME_SLOTS.length}
+                  সার্ভার লাইভ: {serverCount}/{MEME_SLOTS.length}
                 </span>
               </div>
               <p className="text-xs text-slate-400 truncate">
-                Upload MP3/WAV/OGG once here — auto-syncs to Server so every multiplayer friend hears them!
+                এখানে একবার অডিও আপলোড করলে সার্ভারে সিঙ্ক হয়ে যাবে এবং সব বন্ধুরা শুনতে পাবে!
               </p>
             </div>
           </div>
@@ -216,7 +216,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close meme pack manager"
+            aria-label="মিম প্যাক বন্ধ করো"
             className="min-w-[44px] min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center shrink-0"
           >
             <X className="w-5 h-5" />
@@ -234,7 +234,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                 activeTab === 'event' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Auto Event Sounds ({eventCount})
+              ইভেন্ট সাউন্ড ({eventCount})
             </button>
             <button
               type="button"
@@ -243,7 +243,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                 activeTab === 'quick' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Quick Soundboard ({quickCount})
+              শর্টকাট সাউন্ড ({quickCount})
             </button>
           </div>
 
@@ -278,7 +278,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
               className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5"
             >
               <FolderUp className="w-3.5 h-3.5" />
-              Bulk Upload Audio
+              একসাথে অডিও আপলোড
             </button>
             <button
               type="button"
@@ -287,7 +287,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-semibold text-xs flex items-center gap-1.5"
             >
               <Upload className="w-3.5 h-3.5" />
-              Import .JSON
+              JSON ইমপোর্ট
             </button>
             <button
               type="button"
@@ -295,21 +295,21 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-1.5"
             >
               <Download className="w-3.5 h-3.5" />
-              Export Pack
+              প্যাক এক্সপোর্ট
             </button>
             <button
               type="button"
               onClick={() => {
                 void syncServerMemePack().then(() => {
                   soundEngine.invalidateDecodedSlot();
-                  setStatusMsg('Synced latest meme pack from game server!');
+                  setStatusMsg('গেম সার্ভার থেকে সর্বশেষ মিম প্যাক সিঙ্ক হয়েছে!');
                 });
               }}
-              aria-label="Sync from Server"
+              aria-label="সার্ভার থেকে সিঙ্ক করো"
               className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 font-semibold text-xs flex items-center gap-1"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Sync
+              সিঙ্ক
             </button>
             <button
               type="button"
@@ -321,7 +321,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
               }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
-              PIN
+              পিন
             </button>
             {customCount > 0 && (
               <button
@@ -332,16 +332,16 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                   void clearAllServerMemes(adminPin.trim() || undefined).then((res) => {
                     soundEngine.invalidateDecodedSlot();
                     if (res.ok) {
-                      setStatusMsg('Reset all server & browser slots back to built-in synths.');
+                      setStatusMsg('সার্ভার ও ব্রাউজারের সব স্লট ডিফল্ট সাউন্ডে রিসেট হয়েছে।');
                     } else {
-                      setErrorMsg(res.error ?? 'Failed to clear server slots.');
+                      setErrorMsg(res.error ?? 'সার্ভারের স্লট মুছতে ব্যর্থ হয়েছে।');
                     }
                   });
                 }}
                 className="px-2.5 py-2 rounded-xl bg-rose-950/90 hover:bg-rose-900 border border-rose-500/35 text-rose-200 font-semibold text-xs flex items-center gap-1"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                Clear All
+                সব রিসেট করো
               </button>
             )}
           </div>
@@ -351,14 +351,14 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
           <div className="px-4 sm:px-6 py-2 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center gap-2 text-xs">
             <label htmlFor="meme-admin-pin" className="font-semibold text-amber-200 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5 text-amber-300" />
-              Admin Passcode{requiresPin ? ' (Required by Server):' : ' (Optional if ADMIN_PASSCODE unset):'}
+              অ্যাডমিন পাসকোড{requiresPin ? ' (সার্ভারে প্রয়োজন):' : ' (ঐচ্ছিক):'}
             </label>
             <input
               id="meme-admin-pin"
               type="password"
               value={adminPin}
               onChange={(e) => setAdminPin(e.target.value)}
-              placeholder="Enter admin passcode..."
+              placeholder="অ্যাডমিন পিন লিখো..."
               className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-400"
             />
           </div>
@@ -420,14 +420,14 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                           : 'bg-slate-800 text-slate-400'
                     }`}
                   >
-                    {onServer ? 'Server Live' : hasClip ? 'Local Clip' : 'Default Synth'}
+                    {onServer ? 'সার্ভার লাইভ' : hasClip ? 'লোকাল ক্লিপ' : 'ডিফল্ট সাউন্ড'}
                   </span>
                 </div>
 
                 {slot.category === 'quick' && (
                   <div className="flex items-center gap-2">
                     <label htmlFor={`label_${slot.id}`} className="text-[11px] text-slate-400 shrink-0">
-                      Button Text:
+                      বোতামের লেখা:
                     </label>
                     <input
                       id={`label_${slot.id}`}
@@ -449,7 +449,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
 
                 {hasClip && meta?.fileName && (
                   <div className="text-[11px] text-emerald-300 font-mono-tabular truncate bg-slate-950/70 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                    File: {meta.fileName}
+                    ফাইল: {meta.fileName}
                   </div>
                 )}
 
@@ -469,17 +469,17 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                     className="flex-1 min-h-[38px] px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    {hasClip ? 'Replace Server Audio' : 'Upload to Server'}
+                    {hasClip ? 'অডিও বদলাও' : 'আপলোড করো'}
                   </label>
 
                   <button
                     type="button"
                     onClick={() => soundEngine.testSlot(slot.id)}
-                    aria-label={`Test ${slot.defaultLabel}`}
+                    aria-label={`${slot.defaultLabel} টেস্ট করো`}
                     className="min-h-[38px] px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-sky-500 hover:text-slate-950 text-white text-xs font-bold flex items-center gap-1 transition-colors"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
-                    Test
+                    শোনো
                   </button>
 
                   {hasClip && (
@@ -492,7 +492,7 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                           if (!res.ok && res.error) setErrorMsg(res.error);
                         });
                       }}
-                      aria-label={`Reset ${slot.defaultLabel}`}
+                      aria-label={`${slot.defaultLabel} রিসেট করো`}
                       className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -57,25 +57,25 @@ export interface TitleOverlayProps {
 }
 
 const SOLO_SPECIAL_OPTIONS: Array<{ value: SpecialRole | 'random'; label: string }> = [
-  { value: 'random', label: 'Random Special Roles' },
-  { value: 'goyenda', label: 'CID Mofiz (Goyenda)' },
-  { value: 'kobiraj', label: 'Tabiz Baba (Kobiraj)' },
-  { value: 'mistri', label: 'Current Babu (Mistri)' },
-  { value: 'daroga', label: 'Para Daroga (Sheriff)' },
-  { value: 'neta', label: 'Moholla Neta (Mayor 2x)' },
-  { value: 'daktar', label: 'Para Daktar (Doctor)' },
-  { value: 'ghotok_khala', label: 'Ghotok Khala (Matchmaker)' },
-  { value: 'master_moshai', label: 'Master Moshai (Teacher)' },
-  { value: 'cctv_kaku', label: 'CCTV Kaku (Remote Cam)' },
-  { value: 'hatur_daktar', label: 'Hatur Daktar (Quack Shield)' },
-  { value: 'bohurupi', label: 'Bohurupi Batpar (Shapeshifter)' },
-  { value: 'jharudar', label: 'Jharudar Batpar (Cleaner)' },
-  { value: 'supari_killer', label: 'Supari Killer (Hitman)' },
-  { value: 'dalal', label: 'Dalal Batpar (Broker Jam)' },
-  { value: 'pagol', label: 'Pagla Baba (Jester Chaos)' },
-  { value: 'chamcha', label: 'Chamcha (Sidekick Co-Win)' },
-  { value: 'chandabaz', label: 'Chandabaz (Extortionist)' },
-  { value: 'tiktok_star', label: 'TikTok Star (Viral Chaos)' },
+  { value: 'random', label: 'র‍্যান্ডম স্পেশাল রোল' },
+  { value: 'goyenda', label: 'সিআইডি মফিজ (গোয়েন্দা)' },
+  { value: 'kobiraj', label: 'তাবিজ বাবা (কবিরাজ)' },
+  { value: 'mistri', label: 'কারেন্ট বাবু (মিস্ত্রি)' },
+  { value: 'daroga', label: 'পাড়া দারোগা (পুলিশ)' },
+  { value: 'neta', label: 'মহল্লা নেতা (২ গুণ ভোট)' },
+  { value: 'daktar', label: 'পাড়া ডাক্তার (চিকিৎসক)' },
+  { value: 'ghotok_khala', label: 'ঘটক খালা (জুটি বাঁধে)' },
+  { value: 'master_moshai', label: 'মাস্টার মশাই (শিক্ষক)' },
+  { value: 'cctv_kaku', label: 'সিসিটিভি কাকু (রিমোট ক্যাম)' },
+  { value: 'hatur_daktar', label: 'হাতুড়ে ডাক্তার (ঢাল)' },
+  { value: 'bohurupi', label: 'বহুরূপী বাটপার (ছদ্মবেশী)' },
+  { value: 'jharudar', label: 'সাফাই বাটপার (লাশ গায়েব)' },
+  { value: 'supari_killer', label: 'সুপারি কিলার (খুনি)' },
+  { value: 'dalal', label: 'দালাল বাটপার (জ্যামার)' },
+  { value: 'pagol', label: 'পাগলা বাবা (উল্টা জয়)' },
+  { value: 'chamcha', label: 'চামচা (সহ-বিজয়ী)' },
+  { value: 'chandabaz', label: 'চাঁদাবাজ (চাঁদাবাজি)' },
+  { value: 'tiktok_star', label: 'টিকটক স্টার (ভাইরাল রিল)' },
 ];
 
 export function TitleOverlay({
@@ -157,8 +157,8 @@ export function TitleOverlay({
           onClick={() => {
             soundEngine.toggleBgm();
           }}
-          aria-label={bgmEnabled ? 'Turn Off Background Music' : 'Turn On Background Music'}
-          title="Background Music (frad - ditto)"
+          aria-label={bgmEnabled ? 'মিউজিক বন্ধ করো' : 'মিউজিক চালু করো'}
+          title="ব্যাকগ্রাউন্ড মিউজিক"
           className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-lg ${
             bgmEnabled
               ? 'border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900 text-emerald-200'
@@ -166,18 +166,18 @@ export function TitleOverlay({
           }`}
         >
           {bgmEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-rose-400" />}
-          <span>{bgmEnabled ? 'BGM On' : 'BGM Off'}</span>
+          <span>{bgmEnabled ? 'মিউজিক চালু' : 'মিউজিক বন্ধ'}</span>
         </button>
         <button
           type="button"
           onClick={() => {
             void toggleFullscreenMode(true);
           }}
-          aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          aria-label={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন চালু করো'}
           className="px-3 py-2 rounded-xl border border-amber-400/40 bg-slate-950/85 hover:bg-slate-900 text-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-lg"
         >
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          <span>{isFullscreen ? 'Exit Full' : 'Fullscreen'}</span>
+          <span>{isFullscreen ? 'ছোট স্ক্রিন' : 'ফুলস্ক্রিন'}</span>
         </button>
       </div>
 
@@ -197,7 +197,7 @@ export function TitleOverlay({
             viewBox="0 0 470 114"
             className="w-full max-w-[300px] sm:max-w-[420px] [@media(max-height:540px)]:max-w-[235px] h-auto"
             role="img"
-            aria-label="Ke Batpar? - Bangla 3D Social Deduction Comedy Game"
+            aria-label="KE BATPAR? - বাংলার থ্রিডি সামাজিক ধাঁধা ও কমেডি খেলা"
           >
             <g transform="translate(8, 12)">
               {/* Cute Chibi Moholla Crewmate with Sprout, Rosy Cheeks & Visor Sparkle */}
@@ -215,7 +215,7 @@ export function TitleOverlay({
               x="82"
               y="56"
               fill="#f8fafc"
-              fontFamily="'Bricolage Grotesque', sans-serif"
+              fontFamily="'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif"
               fontWeight="800"
               fontSize="44"
               letterSpacing="-1"
@@ -228,19 +228,19 @@ export function TitleOverlay({
               fill="#fbbf24"
               fontFamily="'Noto Sans Bengali', 'Plus Jakarta Sans', sans-serif"
               fontWeight="700"
-              fontSize="22"
+              fontSize="20"
             >
               কে বাটপার? · Moholla Comedy
             </text>
           </svg>
           <p className="hidden sm:block [@media(max-height:540px)]:hidden mt-2 text-sm sm:text-base text-slate-300 leading-relaxed max-w-md">
-            Dudh-Cha khao, Loadshedding samlao, ar para theke asli Batpar ke khuje pukur e chubani dao!
+            দুধ-চা খাও, লোডশেডিং সামলাও, আর পাড়া থেকে আসল বাটপারকে খুঁজে পুকুরে চুবানি দাও!
           </p>
         </div>
 
         {/* Character Setup Card */}
         <section
-          aria-label="Player setup"
+          aria-label="খেলোয়াড়ের পরিচয়"
           className="rounded-2xl p-4 sm:p-5 [@media(max-height:540px)]:p-3 border border-white/12 shadow-2xl"
           style={{ backgroundColor: 'rgba(15, 23, 42, 0.92)' }}
         >
@@ -249,7 +249,7 @@ export function TitleOverlay({
               <div>
                 <div className="flex items-center justify-between mb-1.5 [@media(max-height:540px)]:mb-1">
                   <label htmlFor="player-name-input" className="block text-xs font-semibold text-slate-300">
-                    Para Nickname
+                    পাড়ার ডাকনাম
                   </label>
                   {modeTab === 'multi' && (
                     <button
@@ -257,7 +257,7 @@ export function TitleOverlay({
                       onClick={() => setEditingMultiIdentity(false)}
                       className="text-[11px] font-semibold text-amber-300 hover:text-amber-200"
                     >
-                      Done
+                      সম্পন্ন
                     </button>
                   )}
                 </div>
@@ -267,16 +267,16 @@ export function TitleOverlay({
                   maxLength={16}
                   value={playerName}
                   onChange={(e) => onChangeName(e.target.value)}
-                  placeholder="e.g. Lal Mia"
+                  placeholder="যেমন: Lal Mia"
                   className="w-full px-3.5 py-2.5 [@media(max-height:540px)]:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-medium focus:outline-none focus:border-amber-400"
                 />
               </div>
 
               <div>
                 <span className="block text-xs font-semibold text-slate-300 mb-1.5 [@media(max-height:540px)]:mb-1">
-                  Avatar Color · {selectedSpec.label}
+                  রঙ · {selectedSpec.label}
                 </span>
-                <div className="grid grid-cols-5 gap-1.5 w-fit [@media(max-height:540px)]:gap-1" role="radiogroup" aria-label="Choose avatar color">
+                <div className="grid grid-cols-5 gap-1.5 w-fit [@media(max-height:540px)]:gap-1" role="radiogroup" aria-label="চরিত্রের রঙ বেছে নাও">
                   {PLAYER_COLORS.map((c) => {
                     const active = c.id === playerColor;
                     return (
@@ -284,7 +284,7 @@ export function TitleOverlay({
                         key={c.id}
                         type="button"
                         onClick={() => onChangeColor(c.id)}
-                        aria-label={`Color ${c.label}`}
+                        aria-label={`রঙ ${c.label}`}
                         aria-checked={active}
                         role="radio"
                         className={`w-6 h-6 [@media(max-height:540px)]:w-5 [@media(max-height:540px)]:h-5 rounded-full border-2 transition-transform ${
@@ -306,10 +306,10 @@ export function TitleOverlay({
                 />
                 <div className="min-w-0">
                   <div className="text-xs sm:text-sm font-bold text-white truncate">
-                    {playerName.trim() || 'Auto Moholla Hero'}
+                    {playerName.trim() || 'Para Hero'}
                   </div>
                   <div className="text-[11px] text-slate-400 truncate">
-                    Color: {selectedSpec.label} · Role: Auto
+                    রঙ: {selectedSpec.label} · নাম: অটো
                   </div>
                 </div>
               </div>
@@ -317,21 +317,21 @@ export function TitleOverlay({
                 <button
                   type="button"
                   onClick={applyAutoIdentity}
-                  aria-label="Shuffle auto name and color"
-                  title="Pick another funny name & color"
+                  aria-label="অটো নাম ও রঙ বদলাও"
+                  title="মজার আরেকটি নাম ও রঙ নাও"
                   className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold flex items-center gap-1"
                 >
                   <Shuffle className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Auto</span>
+                  <span className="hidden sm:inline">অটো</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingMultiIdentity(true)}
-                  aria-label="Edit nickname or color"
+                  aria-label="নাম বা রঙ পরিবর্তন করো"
                   className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Edit</span>
+                  <span className="hidden sm:inline">বদলাও</span>
                 </button>
               </div>
             </div>
@@ -349,7 +349,7 @@ export function TitleOverlay({
                 modeTab === 'solo' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Solo Match (vs AI)
+              সলো ম্যাচ (বট)
             </button>
             <button
               type="button"
@@ -364,7 +364,7 @@ export function TitleOverlay({
                 modeTab === 'multi' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
               }`}
             >
-              Online Multiplayer
+              অনলাইন রুম
             </button>
           </div>
 
@@ -382,7 +382,7 @@ export function TitleOverlay({
                   className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 shrink-0"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  Special Role
+                  স্পেশাল রোল
                 </label>
                 <select
                   id="solo-role-select"
@@ -410,12 +410,12 @@ export function TitleOverlay({
                   className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors"
                 >
                   <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                  Match Rules ({soloPlayerCount}P · {soloSettings.vondoCount} Batpar · {soloSettings.tasksPerPlayer} Tasks)
+                  ম্যাচের নিয়ম ({soloPlayerCount} জন · {soloSettings.vondoCount} বাটপার · {soloSettings.tasksPerPlayer} কাজ)
                 </button>
                 {career.matchesPlayed > 0 && (
                   <span className="text-[11px] font-mono-tabular font-semibold text-emerald-300 flex items-center gap-1">
                     <Trophy className="w-3.5 h-3.5 text-amber-300" />
-                    {career.wins}W/{career.matchesPlayed}M
+                    {career.wins} জয় / {career.matchesPlayed} ম্যাচ
                   </span>
                 )}
               </div>
@@ -423,7 +423,7 @@ export function TitleOverlay({
               {showSoloSettings && (
                 <div className="rounded-xl p-3 bg-slate-900/95 border border-slate-700/80 grid grid-cols-2 gap-2 text-xs text-slate-200">
                   <label className="flex items-center justify-between gap-1.5">
-                    <span className="text-slate-400">Players</span>
+                    <span className="text-slate-400">খেলোয়াড়</span>
                     <select
                       value={soloPlayerCount}
                       onChange={(e) => onChangeSoloPlayerCount(Number(e.target.value))}
@@ -431,50 +431,50 @@ export function TitleOverlay({
                     >
                       {[5, 6, 7, 8, 9, 10, 12, 15].map((cnt) => (
                         <option key={cnt} value={cnt}>
-                          {cnt} Players
+                          {cnt} জন
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1.5">
-                    <span className="text-slate-400">Batpars</span>
+                    <span className="text-slate-400">বাটপার</span>
                     <select
                       value={soloSettings.vondoCount}
                       onChange={(e) => onUpdateSoloSettings({ vondoCount: Number(e.target.value) })}
                       className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
                     >
-                      <option value={1}>1 Batpar</option>
+                      <option value={1}>১ জন বাটপার</option>
                       <option value={2} disabled={soloPlayerCount < 6}>
-                        2 Batpars {soloPlayerCount < 6 ? '(6P+)' : ''}
+                        ২ জন বাটপার {soloPlayerCount < 6 ? '(৬+ জন)' : ''}
                       </option>
                       <option value={3} disabled={soloPlayerCount < 11}>
-                        3 Batpars {soloPlayerCount < 11 ? '(11P+)' : ''}
+                        ৩ জন বাটপার {soloPlayerCount < 11 ? '(১১+ জন)' : ''}
                       </option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1.5">
-                    <span className="text-slate-400">Kill CD</span>
+                    <span className="text-slate-400">কিল বিরতি</span>
                     <select
                       value={soloSettings.killCooldownSec}
                       onChange={(e) => onUpdateSoloSettings({ killCooldownSec: Number(e.target.value) })}
                       className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
                     >
-                      <option value={12}>12s</option>
-                      <option value={18}>18s</option>
-                      <option value={25}>25s</option>
+                      <option value={12}>১২ সে.</option>
+                      <option value={18}>১৮ সে.</option>
+                      <option value={25}>২৫ সে.</option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1.5">
-                    <span className="text-slate-400">Tasks</span>
+                    <span className="text-slate-400">কাজ</span>
                     <select
                       value={soloSettings.tasksPerPlayer}
                       onChange={(e) => onUpdateSoloSettings({ tasksPerPlayer: Number(e.target.value) })}
                       className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
                     >
-                      <option value={4}>4 Tasks</option>
-                      <option value={5}>5 Tasks</option>
-                      <option value={6}>6 Tasks</option>
-                      <option value={8}>8 Tasks</option>
+                      <option value={4}>৪টি কাজ</option>
+                      <option value={5}>৫টি কাজ</option>
+                      <option value={6}>৬টি কাজ</option>
+                      <option value={8}>৮টি কাজ</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -484,7 +484,7 @@ export function TitleOverlay({
                       onChange={(e) => onUpdateSoloSettings({ confirmEjects: e.target.checked })}
                       className="accent-amber-400 w-3.5 h-3.5"
                     />
-                    <span>Confirm Ejects</span>
+                    <span>আসল পরিচয় দেখাও</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
@@ -493,7 +493,7 @@ export function TitleOverlay({
                       onChange={(e) => onUpdateSoloSettings({ anonymousVotes: e.target.checked })}
                       className="accent-amber-400 w-3.5 h-3.5"
                     />
-                    <span>Anonymous Votes</span>
+                    <span>গোপন ভোট</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
@@ -502,7 +502,7 @@ export function TitleOverlay({
                       onChange={(e) => onUpdateSoloSettings({ visualTasks: e.target.checked })}
                       className="accent-amber-400 w-3.5 h-3.5"
                     />
-                    <span>Visual Tasks</span>
+                    <span>লাইভ কাজের দৃশ্য</span>
                   </label>
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
                     <input
@@ -511,7 +511,7 @@ export function TitleOverlay({
                       onChange={(e) => onUpdateSoloSettings({ enableSpecialRoles: e.target.checked })}
                       className="accent-amber-400 w-3.5 h-3.5"
                     />
-                    <span>Special Roles</span>
+                    <span>স্পেশাল রোল</span>
                   </label>
                 </div>
               )}
@@ -525,7 +525,7 @@ export function TitleOverlay({
                 className="w-full py-3.5 [@media(max-height:540px)]:py-2.5 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-base [@media(max-height:540px)]:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <Play className="w-5 h-5 fill-current" />
-                Play Solo in Moholla
+                সলো ম্যাচ শুরু করো
               </button>
               <div className="flex items-center gap-2">
                 <button
@@ -542,7 +542,7 @@ export function TitleOverlay({
                   }
                   className="flex-1 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
                 >
-                  Practice as Para-basi
+                  পাড়াবাসী প্র্যাকটিস
                 </button>
                 <button
                   type="button"
@@ -556,7 +556,7 @@ export function TitleOverlay({
                   }
                   className="flex-1 py-2 px-3 rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500/30 text-rose-200 text-xs font-semibold transition-colors"
                 >
-                  Practice as Batpar
+                  বাটপার প্র্যাকটিস
                 </button>
               </div>
             </div>
@@ -564,7 +564,7 @@ export function TitleOverlay({
             <div className="space-y-3">
               {initialJoinCode && (
                 <div className="px-3 py-2 rounded-lg bg-emerald-950/80 border border-emerald-400/40 text-xs text-emerald-200 font-semibold">
-                  Invite Link Ready — Room <span className="font-mono-tabular text-amber-300">{initialJoinCode.toUpperCase()}</span> prefilled! Enter your nickname and tap Join.
+                  আমন্ত্রণ লিংক প্রস্তুত — রুম <span className="font-mono-tabular text-amber-300">{initialJoinCode.toUpperCase()}</span> বসানো আছে! নাম লিখে যোগ দাও।
                 </div>
               )}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -575,14 +575,14 @@ export function TitleOverlay({
                   className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-display font-bold text-sm flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
-                  {connecting ? 'Connecting...' : 'Create Room'}
+                  {connecting ? 'কানেক্ট হচ্ছে...' : 'রুম বানাও'}
                 </button>
                 <div className="flex items-center gap-1.5 flex-1">
                   <input
                     type="text"
                     maxLength={6}
-                    aria-label="Room code"
-                    placeholder="ROOM CODE"
+                    aria-label="রুম কোড"
+                    placeholder="রুম কোড"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                     onKeyDown={(e) => {
@@ -594,34 +594,34 @@ export function TitleOverlay({
                   />
                   <button
                     type="button"
-                    aria-label="Join with room code"
+                    aria-label="রুম কোড দিয়ে জয়েন করো"
                     disabled={connecting || joinCode.trim().length < 3}
                     onClick={() => onJoinRoom(joinCode.trim())}
                     className="px-4 py-3 rounded-xl bg-amber-400 disabled:opacity-40 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-colors whitespace-nowrap"
                   >
-                    Join
+                    জয়েন করো
                   </button>
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 leading-snug">
-                Normal game er moto <strong className="text-slate-200">Create Room</strong> chap diye code nao, ba bondhur deya <strong className="text-amber-300">Room Code</strong> likhe Join koro!
+                <strong className="text-slate-200">রুম বানাও</strong> দিয়ে বন্ধুদের কোড দাও, অথবা বন্ধুর <strong className="text-amber-300">রুম কোড</strong> লিখে জয়েন করো!
               </p>
 
               <div className="pt-2 border-t border-slate-800">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-400">Active Public Rooms</span>
+                  <span className="text-xs font-semibold text-slate-400">সচল পাবলিক রুম</span>
                   <button
                     type="button"
                     onClick={onRefreshRooms}
-                    aria-label="Refresh public rooms"
+                    aria-label="পাবলিক রুম রিফ্রেশ করো"
                     className="text-xs text-amber-300 hover:text-amber-200 flex items-center gap-1"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
-                    Refresh
+                    রিফ্রেশ
                   </button>
                 </div>
                 {publicRooms.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-1">Create a room and share your Room Code with friends!</p>
+                  <p className="text-xs text-slate-400 py-1">নতুন রুম খুলে বন্ধুদের রুম কোড শেয়ার করো!</p>
                 ) : (
                   <div className="space-y-1.5 max-h-28 overflow-y-auto">
                     {publicRooms.map((r) => (
@@ -644,7 +644,7 @@ export function TitleOverlay({
                             onClick={() => onJoinRoom(r.roomCode)}
                             className="px-2.5 py-1 rounded bg-amber-400 text-slate-950 text-xs font-bold hover:bg-amber-300"
                           >
-                            Join
+                            যোগ দাও
                           </button>
                         </div>
                       </div>
@@ -665,10 +665,10 @@ export function TitleOverlay({
               >
                 <span className="flex items-center gap-2 truncate">
                   <Music2 className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span className="truncate">Meme Pack</span>
+                  <span className="truncate">মিম প্যাক</span>
                 </span>
                 <span className="px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 font-mono-tabular text-[11px] shrink-0">
-                  {customMemeCount > 0 ? `${customMemeCount} Clips` : 'Upload'}
+                  {customMemeCount > 0 ? `${customMemeCount} ক্লিপ` : 'আপলোড'}
                 </span>
               </button>
             )}
@@ -678,7 +678,7 @@ export function TitleOverlay({
               className={`${onOpenMemePack ? '' : 'flex-1 justify-center '}py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0`}
             >
               <BookOpen className="w-4 h-4 text-sky-300 shrink-0" />
-              Rules &amp; Roles
+              নিয়ম ও চরিত্র
             </button>
           </div>
         </section>
@@ -687,7 +687,7 @@ export function TitleOverlay({
       {/* Clean Single-Line Bottom Control Hint (hidden on small/touch mobile) */}
       <footer className="hidden md:block relative z-10 px-6 sm:px-12 pb-5">
         <p className="text-xs text-slate-300/85 font-medium tracking-wide">
-          WASD Move · Space Jump · Shift Sprint · Drag Free 360°/Sky Look · Wheel Zoom · 1-6 Meme SFX · E Use · R Report · F Shalish
+          WASD হাঁটা · Space লাফ · Shift দৌড় · ড্র্যাগ ৩৬০° · হুইল জুম · ১–৬ মিম সাউন্ড · E কাজ · R রিপোর্ট · F সালিশ
         </p>
       </footer>
     </div>

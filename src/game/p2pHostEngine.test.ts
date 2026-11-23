@@ -50,7 +50,7 @@ test('P2P host room allows guest join by room code, ready check, bot fill, 5s co
   const wrongMsgs = clientInbox.get('wrong_peer') ?? [];
   assert.equal(wrongMsgs[0]?.type, 'room:error');
   if (wrongMsgs[0]?.type === 'room:error') {
-    assert.match(wrongMsgs[0].message, /Ei code e kono room nai/i);
+    assert.match(wrongMsgs[0].message, /এই কোডে কোনো রুম পাওয়া যায়নি/i);
   }
 
   // Cannot start with only 2 players
@@ -68,7 +68,7 @@ test('P2P host room allows guest join by room code, ready check, bot fill, 5s co
   const unreadyErr = clientInbox.get('host_peer')?.at(-1);
   assert.equal(unreadyErr?.type, 'room:error');
   if (unreadyErr?.type === 'room:error') {
-    assert.match(unreadyErr.message, /ready na/i);
+    assert.match(unreadyErr.message, /রেডি না/i);
   }
 
   // Guest marks ready -> Host starts 5s countdown
@@ -87,7 +87,7 @@ test('P2P host room allows guest join by room code, ready check, bot fill, 5s co
   const lateErr = clientInbox.get('late_peer')?.at(-1);
   assert.equal(lateErr?.type, 'room:error');
   if (lateErr?.type === 'room:error') {
-    assert.match(lateErr.message, /Khela shuru hoye gese/i);
+    assert.match(lateErr.message, /খেলা শুরু হয়ে গেছে/i);
   }
 
   // Advance 5.05s through countdown -> role_reveal

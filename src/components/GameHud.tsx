@@ -22,8 +22,8 @@ import {
   WALLS,
   ZONES,
   distance2D,
+  getBanglaZoneNameAt,
   getZoneIdAt,
-  getZoneNameAt,
 } from '../shared/mapData';
 import {
   MISTRI_FIX_RANGE,
@@ -132,43 +132,58 @@ export interface GameHudProps {
 }
 
 const DOOR_OPTIONS: Array<{ zoneId: DoorZoneId; label: string }> = [
-  { zoneId: 'cha_dokan', label: 'Cha Dokan' },
-  { zoneId: 'rickshaw_garage', label: 'Rickshaw' },
-  { zoneId: 'desco_power', label: 'DESCO' },
-  { zoneId: 'dish_roof', label: 'Dish Hub' },
+  { zoneId: 'cha_dokan', label: 'চায়ের দোকান' },
+  { zoneId: 'rickshaw_garage', label: 'রিকশা গ্যারেজ' },
+  { zoneId: 'desco_power', label: 'ডেসকো' },
+  { zoneId: 'dish_roof', label: 'ডিশ হাব' },
 ];
 
 const SHORT_ZONE_LABELS: Record<string, string> = {
-  adda_chowk: 'Adda',
-  cha_dokan: 'Cha',
-  rickshaw_garage: 'Garage',
-  desco_power: 'DESCO',
-  dish_roof: 'Dish',
-  pukur_ghat: 'Pukur',
-  bazar_stall: 'Bazar',
-  eidgah_north: 'Eidgah',
-  south_tank: 'WASA',
-  fuchka_corner: 'Fuchka',
-  saloon_goli: 'Saloon',
-  cricket_math: 'Cricket',
-  pharmacy_mor: 'Pharma',
-  biyer_pandal: 'Pandal',
-  kakar_bari: 'Kaka',
-  master_bari: 'Master',
-  chacha_bari: 'Chacha',
-  khalar_bari: 'Khala',
-  rail_station: 'Rail',
+  adda_chowk: 'আড্ডা',
+  cha_dokan: 'চা',
+  rickshaw_garage: 'গ্যারেজ',
+  desco_power: 'ডেসকো',
+  dish_roof: 'ডিশ',
+  pukur_ghat: 'পুকুর',
+  bazar_stall: 'বাজার',
+  eidgah_north: 'ঈদগাহ',
+  south_tank: 'ওয়াসা',
+  fuchka_corner: 'ফুচকা',
+  saloon_goli: 'সেলুন',
+  cricket_math: 'মাঠ',
+  pharmacy_mor: 'ফার্মেসি',
+  biyer_pandal: 'প্যান্ডেল',
+  kakar_bari: 'কাকা',
+  master_bari: 'মাস্টার',
+  chacha_bari: 'চাচা',
+  khalar_bari: 'খালা',
+  rail_station: 'স্টেশন',
+  nanar_bari: 'নানা',
+  cinema_hall: 'সিনেমা',
+  bhai_duplex: 'ডুপ্লেক্স',
+  coaching_center: 'কোচিং',
+  khalur_bari: 'খালু',
+  jheel_par: 'ঝিল',
+  shishu_park: 'পার্ক',
+  kacchi_house: 'কাচ্চি',
+  cyber_cafe: 'সাইবার',
+  dorji_bari: 'দর্জি',
+  tiger_gym: 'জিম',
+  mach_bazar: 'মাছ',
+  rail_colony: 'কলোনি',
+  signal_yard: 'সিগন্যাল',
+  fufu_bari: 'ফুফু',
 };
 
 const COMPASS_LABELS: Record<number, string> = {
-  0: 'N',
-  45: 'NE',
-  90: 'E',
-  135: 'SE',
-  180: 'S',
-  225: 'SW',
-  270: 'W',
-  315: 'NW',
+  0: 'উ',
+  45: 'উ-পূ',
+  90: 'পূ',
+  135: 'দ-পূ',
+  180: 'দ',
+  225: 'দ-প',
+  270: 'প',
+  315: 'উ-প',
 };
 
 function PubgCompassStrip({
@@ -197,7 +212,7 @@ function PubgCompassStrip({
 
   return (
     <div
-      aria-label={`Compass heading ${Math.round(centerDeg)} degrees`}
+      aria-label={`কম্পাস দিক ${Math.round(centerDeg)} ডিগ্রি`}
       className={`pointer-events-none flex flex-col items-center select-none ${
         compact ? 'w-[172px]' : 'w-[220px] sm:w-[270px]'
       }`}
@@ -356,6 +371,13 @@ const MinimapStaticZones = memo(function MinimapStaticZones() {
   return (
     <>
       <rect
+        x={-MAP_HALF_SIZE - 80}
+        y={-MAP_HALF_SIZE - 80}
+        width={(MAP_HALF_SIZE + 80) * 2}
+        height={(MAP_HALF_SIZE + 80) * 2}
+        fill="#060b14"
+      />
+      <rect
         x={-MAP_HALF_SIZE}
         y={-MAP_HALF_SIZE}
         width={MAP_HALF_SIZE * 2}
@@ -376,11 +398,20 @@ const MinimapStaticZones = memo(function MinimapStaticZones() {
         strokeWidth="3.6"
         strokeDasharray="3 2"
       />
-      <line x1={-90} y1={-72} x2={90} y2={-72} stroke="#334155" strokeWidth="3.2" />
-      <line x1={-90} y1={72} x2={90} y2={72} stroke="#334155" strokeWidth="3.2" />
-      <line x1={-90} y1={96} x2={90} y2={96} stroke="#334155" strokeWidth="2.8" />
-      <line x1={-86} y1={-94} x2={-86} y2={94} stroke="#334155" strokeWidth="3.0" />
-      <line x1={86} y1={-94} x2={86} y2={94} stroke="#334155" strokeWidth="3.0" />
+      <line x1={-154} y1={-114} x2={154} y2={-114} stroke="#334155" strokeWidth="3.4" />
+      <line x1={-154} y1={-72} x2={154} y2={-72} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-154} y1={-52} x2={154} y2={-52} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-154} y1={52} x2={154} y2={52} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-154} y1={72} x2={154} y2={72} stroke="#334155" strokeWidth="3.2" />
+      <line x1={-154} y1={96} x2={154} y2={96} stroke="#334155" strokeWidth="2.8" />
+      <line x1={-154} y1={112} x2={154} y2={112} stroke="#334155" strokeWidth="3.4" />
+      <line x1={-154} y1={144} x2={154} y2={144} stroke="#334155" strokeWidth="3.4" />
+      <line x1={-118} y1={-154} x2={-118} y2={154} stroke="#334155" strokeWidth="3.4" />
+      <line x1={-86} y1={-154} x2={-86} y2={154} stroke="#334155" strokeWidth="3.0" />
+      <line x1={-52} y1={-154} x2={-52} y2={154} stroke="#334155" strokeWidth="3.2" />
+      <line x1={52} y1={-154} x2={52} y2={154} stroke="#334155" strokeWidth="3.2" />
+      <line x1={86} y1={-154} x2={86} y2={154} stroke="#334155" strokeWidth="3.0" />
+      <line x1={118} y1={-154} x2={118} y2={154} stroke="#334155" strokeWidth="3.4" />
       <line
         x1={-MAP_HALF_SIZE + 2}
         y1={RAILWAY_TRACK_Z}
@@ -406,9 +437,9 @@ const MinimapStaticZones = memo(function MinimapStaticZones() {
         />
       ))}
 
-      {/* Precision WALLS + Pukur Water */}
+      {/* Precision WALLS + Pukur & Jheel Par Water */}
       {WALLS.map((w) =>
-        w.id === 'pukur_water' ? (
+        w.id === 'pukur_water' || w.id === 'jheel_water' ? (
           <rect
             key={w.id}
             x={w.minX}
@@ -488,10 +519,268 @@ const MinimapStaticLabels = memo(function MinimapStaticLabels() {
           fontSize="4.1"
           fontWeight="800"
         >
-          {SHORT_ZONE_LABELS[z.id] ?? z.name}
+          {SHORT_ZONE_LABELS[z.id] ?? z.banglaName}
         </text>
       ))}
     </>
+  );
+});
+
+const FF_RADAR_RADIUS = 54;
+const FF_RIM_RADIUS = 49.5;
+
+const FreeFireMinimap = memo(function FreeFireMinimap({
+  px,
+  pz,
+  playerYaw,
+  compassYaw,
+  zoneLabel,
+  showTasks,
+  tasks,
+  sabotage,
+  doorLocks,
+  sizeClass,
+  compact,
+  onOpenTacticalMap,
+}: {
+  px: number;
+  pz: number;
+  playerYaw: number;
+  compassYaw: number;
+  zoneLabel: string;
+  showTasks: boolean;
+  tasks: Array<{ taskId: string; completed: boolean }>;
+  sabotage: RoomSnapshot['sabotage'];
+  doorLocks: Record<DoorZoneId, number>;
+  sizeClass: string;
+  compact: boolean;
+  onOpenTacticalMap: () => void;
+}) {
+  const sabTargets: Array<{ id: string; x: number; z: number; held: boolean }> =
+    sabotage.active === 'gas_leak'
+      ? sabotage.valves.map((v) => ({ id: v.id, x: v.x, z: v.z, held: Boolean(v.holderId) }))
+      : sabotage.active
+        ? [
+            {
+              id: 'sab-fix',
+              x: sabotage.fixStationX,
+              z: sabotage.fixStationZ,
+              held: false,
+            },
+          ]
+        : [];
+
+  return (
+    <div className="pointer-events-auto flex flex-col items-center shrink-0">
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={(e) => {
+          e.currentTarget.blur();
+          onOpenTacticalMap();
+        }}
+        aria-label="ট্যাকটিক্যাল মিনিম্যাপ খোলো [Tab]"
+        title="সম্পূর্ণ মহল্লার ম্যাপ দেখো [Tab]"
+        className={`group relative rounded-full border-2 shadow-2xl transition-colors ${
+          sabotage.active
+            ? 'border-rose-400/90 hover:border-rose-300'
+            : 'border-amber-400/65 hover:border-amber-300'
+        } ${sizeClass}`}
+        style={{ backgroundColor: '#070d18' }}
+      >
+        {/* Cardinal উ / পূ / দ / প Bezel Markers */}
+        <span className="pointer-events-none absolute -top-1.5 left-1/2 -translate-x-1/2 px-1 rounded bg-slate-950 text-[8px] font-black text-amber-300 leading-tight border border-amber-400/40 z-20">
+          উ
+        </span>
+        <span className="pointer-events-none absolute top-1/2 -right-1.5 -translate-y-1/2 px-0.5 rounded bg-slate-950 text-[7px] font-bold text-slate-300 leading-tight z-20">
+          পূ
+        </span>
+        <span className="pointer-events-none absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-0.5 rounded bg-slate-950 text-[7px] font-bold text-slate-300 leading-tight z-20">
+          দ
+        </span>
+        <span className="pointer-events-none absolute top-1/2 -left-1.5 -translate-y-1/2 px-0.5 rounded bg-slate-950 text-[7px] font-bold text-slate-300 leading-tight z-20">
+          প
+        </span>
+
+        {/* Inner Clipped Circular Radar Viewport (Player-Centered 108m x 108m Window) */}
+        <div className="w-full h-full rounded-full overflow-hidden relative">
+          <svg
+            viewBox={`${px - FF_RADAR_RADIUS} ${pz - FF_RADAR_RADIUS} ${FF_RADAR_RADIUS * 2} ${FF_RADAR_RADIUS * 2}`}
+            className="w-full h-full block"
+            aria-hidden="true"
+          >
+            <MinimapStaticZones />
+
+            {/* Live Door Shutter States */}
+            {DOORS.map((d) => {
+              const locked = doorLocks[d.zoneId] > 0;
+              return (
+                <rect
+                  key={d.id}
+                  x={d.minX}
+                  y={d.minZ}
+                  width={Math.max(1.4, d.maxX - d.minX)}
+                  height={Math.max(1.4, d.maxZ - d.minZ)}
+                  fill={locked ? '#f59e0b' : '#334155'}
+                  fillOpacity={locked ? 0.95 : 0.45}
+                />
+              );
+            })}
+
+            <MinimapStaticLabels />
+
+            {/* Subtle Radar Concentric Range Ring & Crosshair Centered on Player */}
+            <circle
+              cx={px}
+              cy={pz}
+              r={27}
+              fill="none"
+              stroke="#38bdf8"
+              strokeOpacity={0.22}
+              strokeWidth="0.65"
+              strokeDasharray="2 2"
+            />
+            <line
+              x1={px - FF_RADAR_RADIUS}
+              y1={pz}
+              x2={px + FF_RADAR_RADIUS}
+              y2={pz}
+              stroke="#94a3b8"
+              strokeOpacity={0.14}
+              strokeWidth="0.5"
+            />
+            <line
+              x1={px}
+              y1={pz - FF_RADAR_RADIUS}
+              x2={px}
+              y2={pz + FF_RADAR_RADIUS}
+              stroke="#94a3b8"
+              strokeOpacity={0.14}
+              strokeWidth="0.5"
+            />
+
+            {/* Incomplete Task Markers (directly on map if close, or rim-clamped arrow if distant) */}
+            {showTasks &&
+              tasks
+                .filter((t) => !t.completed)
+                .map((t) => {
+                  const st = TASK_STATIONS.find((s) => s.id === t.taskId);
+                  if (!st) return null;
+                  const dx = st.x - px;
+                  const dz = st.z - pz;
+                  const dist = Math.hypot(dx, dz);
+                  if (dist <= FF_RIM_RADIUS - 2) {
+                    return (
+                      <circle
+                        key={st.id}
+                        cx={st.x}
+                        cy={st.z}
+                        r={2.1}
+                        fill="#fbbf24"
+                        stroke="#090f1d"
+                        strokeWidth="0.75"
+                      />
+                    );
+                  }
+                  const angle = Math.atan2(dz, dx);
+                  const rx = px + Math.cos(angle) * FF_RIM_RADIUS;
+                  const rz = pz + Math.sin(angle) * FF_RIM_RADIUS;
+                  const deg = (angle * 180) / Math.PI + 90;
+                  return (
+                    <g key={`${st.id}-rim`} transform={`translate(${rx}, ${rz}) rotate(${deg})`}>
+                      <polygon
+                        points="0,-2.8 2.2,2.1 -2.2,2.1"
+                        fill="#fbbf24"
+                        stroke="#090f1d"
+                        strokeWidth="0.65"
+                      />
+                    </g>
+                  );
+                })}
+
+            {/* Sabotage Alert Markers (directly on map or clamped on radar rim) */}
+            {sabTargets.map((st) => {
+              const dx = st.x - px;
+              const dz = st.z - pz;
+              const dist = Math.hypot(dx, dz);
+              const fillHex = st.held ? '#10b981' : '#ef4444';
+              if (dist <= FF_RIM_RADIUS - 2) {
+                return (
+                  <g key={st.id}>
+                    <circle
+                      cx={st.x}
+                      cy={st.z}
+                      r={4.2}
+                      fill={fillHex}
+                      fillOpacity={0.28}
+                    />
+                    <circle
+                      cx={st.x}
+                      cy={st.z}
+                      r={2.5}
+                      fill={fillHex}
+                      stroke="#ffffff"
+                      strokeWidth="0.85"
+                    />
+                  </g>
+                );
+              }
+              const angle = Math.atan2(dz, dx);
+              const rx = px + Math.cos(angle) * FF_RIM_RADIUS;
+              const rz = pz + Math.sin(angle) * FF_RIM_RADIUS;
+              const deg = (angle * 180) / Math.PI + 90;
+              return (
+                <g key={`${st.id}-rim`} transform={`translate(${rx}, ${rz}) rotate(${deg})`}>
+                  <polygon
+                    points="0,-3.4 2.7,2.4 -2.7,2.4"
+                    fill={fillHex}
+                    stroke="#ffffff"
+                    strokeWidth="0.75"
+                  />
+                </g>
+              );
+            })}
+
+            {/* Camera FOV Cone + Local Player Arrow */}
+            <g
+              transform={`translate(${px}, ${pz}) rotate(${(((-compassYaw * 180) / Math.PI) % 360 + 360) % 360})`}
+            >
+              <path
+                d="M 0 0 L -14 -28 A 31 31 0 0 1 14 -28 Z"
+                fill="#38bdf8"
+                fillOpacity={0.28}
+              />
+            </g>
+            <g transform={`translate(${px}, ${pz}) rotate(${180 - (playerYaw * 180) / Math.PI})`}>
+              <polygon
+                points="0,-4.4 3.4,3.1 0,1.4 -3.4,3.1"
+                fill="#38bdf8"
+                stroke="#ffffff"
+                strokeWidth="0.95"
+                strokeLinejoin="round"
+              />
+            </g>
+          </svg>
+        </div>
+      </button>
+
+      {/* Zone Pill Docked Under Radar */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={(e) => {
+          e.currentTarget.blur();
+          onOpenTacticalMap();
+        }}
+        className={`mt-1.5 rounded-lg border border-amber-400/35 bg-slate-950/90 text-slate-100 font-bold tracking-wide shadow flex items-center gap-1 ${
+          compact ? 'px-2 py-0.5 text-[9px] max-w-[98px]' : 'px-2.5 py-0.5 text-[10px] max-w-[144px]'
+        }`}
+        title={zoneLabel}
+      >
+        <span className="truncate">{zoneLabel}</span>
+        {!compact && <span className="text-amber-300 font-mono-tabular shrink-0">[Tab]</span>}
+      </button>
+    </div>
   );
 });
 
@@ -567,9 +856,9 @@ export function GameHud({
   const taskEligible = canCompleteTasks(localPlayer);
   const wifiHidden = snapshot.sabotage.active === 'wifi_down' && !isVondo;
   const specialMeta = SPECIAL_ROLES[localPlayer.specialRole];
-  const currentZone = getZoneNameAt(localPlayer.x, localPlayer.z);
+  const currentZone = getBanglaZoneNameAt(localPlayer.x, localPlayer.z);
   const currentZoneId = getZoneIdAt(localPlayer.x, localPlayer.z);
-  const currentZoneDef = ZONES.find((z) => z.name === currentZone);
+  const currentZoneDef = ZONES.find((z) => z.id === currentZoneId);
 
   // Alive OR ghost Para-basi (non-Pagol) complete real tasks; Batpar can open fake tasks for cover
   const nearbyTask =
@@ -703,7 +992,7 @@ export function GameHud({
         }
       : {
           urgent: true,
-          label: snapshot.sabotage.active === 'loadshedding' ? 'DESCO Breaker' : 'Dish Hub',
+          label: snapshot.sabotage.active === 'loadshedding' ? 'ডেসকো ব্রেকার' : 'ডিশ হাব',
           ...getDirectionCompass(
             localPlayer.x,
             localPlayer.z,
@@ -775,13 +1064,13 @@ export function GameHud({
                 className="flex items-center gap-1.5 text-amber-200 hover:text-white"
               >
                 <Smartphone className="w-3.5 h-3.5 text-amber-300" />
-                <span>Fullscreen Landscape</span>
+                <span>ফুলস্ক্রিন (আড়াআড়ি)</span>
                 <Maximize2 className="w-3 h-3 text-amber-300" />
               </button>
               <button
                 type="button"
                 onClick={() => setDismissRotatePrompt(true)}
-                aria-label="Dismiss fullscreen tip"
+                aria-label="ফুলস্ক্রিন পরামর্শ বন্ধ করো"
                 className="p-0.5 text-slate-400 hover:text-white"
               >
                 <X className="w-3 h-3" />
@@ -793,37 +1082,61 @@ export function GameHud({
         {!localPlayer.alive && (
           <div
             role="status"
-            aria-label="Ghost Mode Active"
+            aria-label="ভূত মোড চালু"
             className="self-center pointer-events-none flex items-center gap-2 rounded-xl px-3 py-1 border border-sky-400/50 shadow-lg bg-slate-950/90 text-[11px] sm:text-xs font-bold text-sky-200 max-w-[95vw] text-center"
           >
-            <span className="text-sky-300 font-display tracking-wide">GHOST MODE</span>
+            <span className="text-sky-300 font-display tracking-wide">ভূত মোড</span>
             <span className="text-slate-300 font-semibold truncate">
               {taskEligible
-                ? 'Tumi Adrishyo! Alive keu tomake dekhbe na — deyal bhed kore Tasks sesh koro!'
-                : 'Tumi Adrishyo! Alive keu tomake dekhbe na — ghoraghuri kore match dekho!'}
+                ? 'তুমি এখন ভূত! জীবিত কেউ দেখবে না — দেয়াল ভেদ করে কাজ সেরে ফেলো!'
+                : 'তুমি এখন ভূত! জীবিত কেউ দেখবে না — ঘুরে ঘুরে খেলা দেখো!'}
             </span>
           </div>
         )}
 
-        {/* Top Row: Left Task/Role Cluster · Center PUBG Compass · Right Utility/Minimap Cluster */}
+        {/* Top Row: Left Free Fire Radar + Task/Role Cluster · Center PUBG Compass · Right Utility Cluster */}
         <div className="flex items-start justify-between gap-2 sm:gap-3">
-        {/* Top-Left Cluster */}
+        {/* Top-Left Cluster: Free Fire Circular Radar + Tasks & Role Status */}
+        <div className="flex flex-col sm:flex-row items-start gap-1.5 sm:gap-2.5 shrink-0">
+          {showMinimap && (
+            <FreeFireMinimap
+              px={localPlayer.x}
+              pz={localPlayer.z}
+              playerYaw={localPlayer.yaw}
+              compassYaw={compassYaw}
+              zoneLabel={currentZoneDef ? currentZoneDef.banglaName : currentZone}
+              showTasks={!isVondo && !isNeutral && !wifiHidden}
+              tasks={localPlayer.tasks}
+              sabotage={snapshot.sabotage}
+              doorLocks={snapshot.doorLocks}
+              sizeClass={
+                isLandscapeCompact
+                  ? 'w-[84px] h-[84px]'
+                  : isNarrowMobile
+                    ? 'w-[92px] h-[92px]'
+                    : 'w-[138px] h-[138px]'
+              }
+              compact={isLandscapeCompact || isNarrowMobile}
+              onOpenTacticalMap={onOpenTacticalMap}
+            />
+          )}
+
         <div
           className={`flex flex-col gap-1.5 shrink-0 w-full ${
-            isLandscapeCompact ? 'max-w-[205px]' : 'max-w-[200px] sm:max-w-[285px]'
+            isLandscapeCompact ? 'max-w-[178px]' : isNarrowMobile ? 'max-w-[186px]' : 'max-w-[235px] lg:max-w-[258px]'
           }`}
         >
           <div
             className={`pointer-events-auto rounded-xl border border-white/12 shadow-lg ${
-              isLandscapeCompact ? 'px-2.5 py-1.5' : 'px-3 py-2 sm:px-4 sm:py-3'
+              isLandscapeCompact ? 'px-2.5 py-1.5' : 'px-3 py-2 sm:px-3.5 sm:py-2.5'
             }`}
             style={{ backgroundColor: 'rgba(12, 18, 30, 0.86)' }}
           >
             <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-              <span className="text-slate-300">Para Tasks</span>
+              <span className="text-slate-300">পাড়ার কাজ</span>
               <span className="font-mono-tabular text-amber-300">
                 {wifiHidden
-                  ? 'Wi-Fi Nai!'
+                  ? 'ওয়াই-ফাই নেই!'
                   : `${snapshot.completedTasks}/${snapshot.totalTasks} · ${taskPct}%`}
               </span>
             </div>
@@ -849,15 +1162,15 @@ export function GameHud({
                 }}
               >
                 {localPlayer.specialRole !== 'none'
-                  ? specialMeta.title.split(' ')[0].toUpperCase()
+                  ? specialMeta.banglaTitle
                   : isVondo
-                    ? 'BATPAR'
-                    : 'PARA-BASI'}
-                {localPlayer.specialRole === 'neta' && localPlayer.alive ? ' · 2x Vote' : ''}
-                {!localPlayer.alive ? ' · Ghost' : ''}
+                    ? 'বাটপার'
+                    : 'পাড়াবাসী'}
+                {localPlayer.specialRole === 'neta' && localPlayer.alive ? ' · ২ গুণ ভোট' : ''}
+                {!localPlayer.alive ? ' · ভূত' : ''}
               </span>
               <span className="text-slate-200 font-semibold truncate max-w-[130px] sm:max-w-[155px]" title={currentZone}>
-                {currentZoneDef ? `${currentZoneDef.name}` : currentZone}
+                {currentZoneDef ? currentZoneDef.banglaName : currentZone}
               </span>
             </div>
 
@@ -872,14 +1185,14 @@ export function GameHud({
                   <span className="truncate">{activeCompass.label}</span>
                 </span>
                 <span className="font-mono-tabular shrink-0 px-1.5 py-0.5 rounded bg-slate-800/90 text-white">
-                  {activeCompass.arrow} {activeCompass.distance}m
+                  {activeCompass.arrow} {activeCompass.distance}মি
                 </span>
               </div>
             )}
 
             {!localPlayer.alive && taskEligible && (
               <div className="mt-1 text-[10px] font-semibold text-sky-300">
-                Ghost Mode: Fly through walls &amp; finish tasks!
+                ভূত মোড: দেয়াল ভেদ করে কাজ শেষ করো!
               </div>
             )}
 
@@ -895,46 +1208,46 @@ export function GameHud({
                 {localPlayer.shielded && (
                   <span className="text-amber-300 flex items-center gap-1">
                     <Shield className="w-3 h-3" />
-                    Tabiz Shielded
+                    তাবিজ সুরক্ষিত
                   </span>
                 )}
                 {haturProtected && (
                   <span className="text-lime-300 flex items-center gap-1">
                     <HeartPulse className="w-3 h-3" />
-                    Jhajhro Active
+                    ঝাঁঝালো সুরক্ষা
                   </span>
                 )}
                 {localPlayer.disguiseName && (
                   <span className="text-rose-300 font-mono-tabular">
-                    Shifted: {localPlayer.disguiseName} ({Math.ceil(localPlayer.disguiseTimer)}s)
+                    ছদ্মবেশ: {localPlayer.disguiseName} ({Math.ceil(localPlayer.disguiseTimer)}সে.)
                   </span>
                 )}
                 {ghotokPartner && (
                   <span className="text-pink-300 flex items-center gap-1">
                     <Heart className="w-3 h-3" />
-                    Bond: {ghotokPartner.name}
+                    বন্ধন: {ghotokPartner.name}
                   </span>
                 )}
                 {supariTarget && (
                   <span className="text-rose-300 flex items-center gap-1">
                     <Crosshair className="w-3 h-3" />
-                    Supari: {supariTarget.name}
+                    সুপারি: {supariTarget.name}
                   </span>
                 )}
                 {chamchaPatron && (
                   <span className="text-purple-300 flex items-center gap-1">
                     <UserCheck className="w-3 h-3" />
-                    Patron: {chamchaPatron.name}
+                    বস: {chamchaPatron.name}
                   </span>
                 )}
                 {localPlayer.specialRole === 'chandabaz' && (
                   <span className="text-amber-300 font-mono-tabular">
-                    Chanda: {localPlayer.chandabazTargets?.length ?? 0}/3
+                    চাঁদা: {localPlayer.chandabazTargets?.length ?? 0}/৩
                   </span>
                 )}
                 {localPlayer.specialRole === 'tiktok_star' && (
                   <span className="text-pink-300 font-mono-tabular">
-                    Reels: {localPlayer.tiktokZones?.length ?? 0}/3
+                    রিল: {localPlayer.tiktokZones?.length ?? 0}/৩
                   </span>
                 )}
               </div>
@@ -949,7 +1262,7 @@ export function GameHud({
                 style={{ backgroundColor: 'rgba(28, 14, 44, 0.9)' }}
               >
                 <span className="font-display font-bold text-purple-300 block mb-0.5">
-                  {specialMeta.banglaTitle} · {specialMeta.title}
+                  {specialMeta.banglaTitle}
                 </span>
                 {specialMeta.shortDesc}
               </div>
@@ -959,7 +1272,7 @@ export function GameHud({
               className="rounded-xl px-3 py-2 border border-indigo-400/50 shadow-lg text-[11px] font-semibold text-indigo-200"
               style={{ backgroundColor: 'rgba(30, 27, 75, 0.92)' }}
             >
-              Wi-Fi Nai! Task List &amp; Bar Gayeb — Dish Hub e giye thik koro!
+              ওয়াই-ফাই নেই! কাজের তালিকা উধাও — ডিশ হাবে গিয়ে ঠিক করো!
             </div>
           ) : isLandscapeCompact || isNarrowMobile ? (
             <div className="pointer-events-auto">
@@ -974,7 +1287,7 @@ export function GameHud({
                 style={{ backgroundColor: 'rgba(10, 15, 28, 0.84)' }}
               >
                 <span>
-                  {isVondo ? 'Fake Tasks' : 'Tasks'} (
+                  {isVondo ? 'ভুয়া কাজ' : 'কাজসমূহ'} (
                   {localPlayer.tasks.filter((t) => t.completed).length}/{localPlayer.tasks.length})
                 </span>
                 {mobileTasksExpanded ? (
@@ -990,7 +1303,7 @@ export function GameHud({
                 >
                   {isVondo && (
                     <div className="text-[10px] font-bold text-rose-300 pb-0.5 border-b border-slate-800">
-                      Fake Task Cover (0% Team Progress)
+                      ভুয়া কাজের তালিকা (দলের অগ্রগতি ০%)
                     </div>
                   )}
                   {localPlayer.tasks.map((t) => {
@@ -1020,7 +1333,7 @@ export function GameHud({
             >
               {isVondo && (
                 <div className="text-[11px] font-bold text-rose-300 pb-1 border-b border-slate-800">
-                  Fake Task Cover (0% Team Progress)
+                  ভুয়া কাজের তালিকা (দলের অগ্রগতি ০%)
                 </div>
               )}
               {localPlayer.tasks.map((t) => {
@@ -1062,16 +1375,16 @@ export function GameHud({
                 <span className="flex items-center gap-1.5 truncate">
                   <Zap className="w-4 h-4 text-amber-300 shrink-0" />
                   {snapshot.sabotage.active === 'gas_leak' ? (
-                    <span>CRITICAL: GAS PHUTCHE! 2 Valve Hold Koro!</span>
+                    <span>জরুরি: গ্যাস লিক! ২টি ভালভ চেপে ধরো!</span>
                   ) : snapshot.sabotage.active === 'loadshedding' ? (
-                    <span>BATTI GELO! DESCO Hold-E 3s (Auto {Math.ceil(snapshot.sabotage.timeRemaining)}s)</span>
+                    <span>লোডশেডিং! ডেসকোতে E ৩সে. চেপে ধরো (অটো {Math.ceil(snapshot.sabotage.timeRemaining)}সে.)</span>
                   ) : (
-                    <span>WI-FI NAI! Dish Hold-E 3s (Auto {Math.ceil(snapshot.sabotage.timeRemaining)}s)</span>
+                    <span>ওয়াই-ফাই নেই! ডিশে E ৩সে. চেপে ধরো (অটো {Math.ceil(snapshot.sabotage.timeRemaining)}সে.)</span>
                   )}
                 </span>
                 {isCriticalSabotage(snapshot.sabotage.active) && (
                   <span className="font-mono-tabular text-amber-300 shrink-0 text-sm">
-                    {Math.ceil(snapshot.sabotage.timeRemaining)}s
+                    {Math.ceil(snapshot.sabotage.timeRemaining)}সে.
                   </span>
                 )}
               </div>
@@ -1084,7 +1397,7 @@ export function GameHud({
                         v.holderId ? 'bg-emerald-600/80 text-white' : 'bg-slate-900/70 text-rose-200'
                       }`}
                     >
-                      {v.id === 'valve_cha' ? 'Cha Dokan' : 'Garage'}: {v.holderId ? 'HELD' : 'OPEN'}
+                      {v.id === 'valve_cha' ? 'চায়ের দোকান' : 'গ্যারেজ'}: {v.holderId ? 'ধরা' : 'খোলা'}
                     </span>
                   ))}
                   {snapshot.sabotage.fixProgress > 0 && (
@@ -1103,7 +1416,7 @@ export function GameHud({
               style={{ backgroundColor: 'rgba(120, 53, 15, 0.9)' }}
             >
               <Lock className="w-3.5 h-3.5 shrink-0" />
-              SHUTTER NAMAY DISE!
+              শাটার নামানো হয়েছে!
             </div>
           )}
 
@@ -1113,9 +1426,10 @@ export function GameHud({
               style={{ backgroundColor: 'rgba(127, 29, 29, 0.88)' }}
             >
               <Radio className="w-3.5 h-3.5 shrink-0" />
-              DALAL COMMS JAMMED! (Admin/Vitals off)
+              দালাল যোগাযোগ জ্যাম করেছে! (অ্যাডমিন/ভাইটালস বন্ধ)
             </div>
           )}
+        </div>
         </div>
 
         {/* Top-Center PUBG Bearing Compass Strip (auto-sized flex center slot -> zero overlap) */}
@@ -1128,7 +1442,7 @@ export function GameHud({
           </div>
         )}
 
-        {/* Top-Right Cluster: Utility Buttons + Live Moholla SVG Minimap */}
+        {/* Top-Right Cluster: Utility Buttons & Meme Drawer */}
         <div className="flex flex-col items-end gap-1.5 sm:gap-2 shrink-0">
           <div
             className={`pointer-events-auto ${
@@ -1144,8 +1458,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 void toggleFullscreenMode(true);
               }}
-              aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-              title={isFullscreen ? 'Exit Fullscreen' : 'PUBG Fullscreen Mode'}
+              aria-label={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন চালু করো'}
+              title={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন মোড'}
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1166,9 +1480,9 @@ export function GameHud({
                 e.currentTarget.blur();
                 setShowMemeDrawer((v) => !v);
               }}
-              aria-label="Toggle Meme Soundboard [1-6]"
+              aria-label="মিম সাউন্ডবোর্ড [1-6]"
               aria-expanded={showMemeDrawer}
-              title="Bangla Meme SFX [1-6]"
+              title="বাংলা মিম সাউন্ড [1-6]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1181,7 +1495,7 @@ export function GameHud({
               style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
             >
               <Smile className="w-4 h-4" />
-              {!isLandscapeCompact && <span className="hidden 2xl:inline">Memes</span>}
+              {!isLandscapeCompact && <span className="hidden 2xl:inline">মিম</span>}
             </button>
             {!isMobileHud && (
               <button
@@ -1191,8 +1505,8 @@ export function GameHud({
                   e.currentTarget.blur();
                   onTogglePointerLook();
                 }}
-                aria-label="Toggle Free Mouse Look [C]"
-                title="PUBG Free Mouse Look [C]"
+                aria-label="মাউস দিয়ে চারপাশ দেখা [C]"
+                title="মাউস দিয়ে চারপাশ দেখা [C]"
                 className={`hidden sm:flex min-w-[42px] min-h-[42px] 2xl:px-2.5 rounded-xl border items-center justify-center gap-1.5 text-xs font-semibold ${
                   pointerLookEnabled
                     ? 'border-amber-400 text-amber-300'
@@ -1201,7 +1515,7 @@ export function GameHud({
                 style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
               >
                 <Crosshair className="w-4 h-4" />
-                <span className="hidden 2xl:inline">{pointerLookEnabled ? 'Look ON' : 'Look'}</span>
+                <span className="hidden 2xl:inline">{pointerLookEnabled ? 'লুক চালু' : 'লুক'}</span>
               </button>
             )}
             <button
@@ -1211,8 +1525,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 onResetCamera();
               }}
-              aria-label="Reset Camera Angle [Y]"
-              title="Reset Camera [Y]"
+              aria-label="ক্যামেরা ঠিক করো [Y]"
+              title="ক্যামেরা রিসেট [Y]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1230,8 +1544,8 @@ export function GameHud({
                   e.currentTarget.blur();
                   onToggleTouchControls();
                 }}
-                aria-label="Toggle Touch Joystick"
-                title="Touch Controls"
+                aria-label="টাচ জয়স্টিক চালু/বন্ধ"
+                title="টাচ কন্ট্রোল"
                 className={`min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] rounded-xl border flex items-center justify-center ${
                   touchControlsEnabled
                     ? 'border-amber-400/60 text-amber-300'
@@ -1249,8 +1563,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 onOpenTacticalMap();
               }}
-              aria-label="Open Full Tactical Map [Tab]"
-              title="Full Moholla Map [Tab]"
+              aria-label="সম্পূর্ণ ম্যাপ খোলো [Tab]"
+              title="মহল্লার ম্যাপ [Tab]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1259,7 +1573,7 @@ export function GameHud({
               style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
             >
               <MapIcon className="w-4 h-4" />
-              {!isLandscapeCompact && <span className="hidden 2xl:inline">Map</span>}
+              {!isLandscapeCompact && <span className="hidden 2xl:inline">ম্যাপ</span>}
             </button>
             <button
               type="button"
@@ -1268,8 +1582,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 onOpenGuide();
               }}
-              aria-label="Open Rules and Roles Guide [H]"
-              title="Rules & Roles [H]"
+              aria-label="নিয়ম ও চরিত্র গাইড খোলো [H]"
+              title="নিয়ম ও চরিত্রসমূহ [H]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1286,8 +1600,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 soundEngine.toggleBgm();
               }}
-              aria-label={bgmEnabled ? 'Turn Off Background Music' : 'Turn On Background Music'}
-              title={bgmEnabled ? 'BGM On (Click to Mute Music)' : 'BGM Off (Click to Play Music)'}
+              aria-label={bgmEnabled ? 'মিউজিক বন্ধ করো' : 'মিউজিক চালু করো'}
+              title={bgmEnabled ? 'মিউজিক চালু (বন্ধ করতে চাপ দাও)' : 'মিউজিক বন্ধ (চালু করতে চাপ দাও)'}
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1308,8 +1622,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 onToggleMute();
               }}
-              aria-label={muted ? 'Unmute Audio [M]' : 'Mute Audio [M]'}
-              title="Mute All [M]"
+              aria-label={muted ? 'সাউন্ড চালু করো [M]' : 'সাউন্ড মিউট করো [M]'}
+              title="সব সাউন্ড মিউট [M]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1326,8 +1640,8 @@ export function GameHud({
                 e.currentTarget.blur();
                 onPause();
               }}
-              aria-label="Pause Game [P]"
-              title="Pause [P]"
+              aria-label="গেম বিরতি [P]"
+              title="বিরতি [P]"
               className={`${
                 isLandscapeCompact
                   ? 'min-w-[34px] min-h-[34px]'
@@ -1342,7 +1656,7 @@ export function GameHud({
           {showMemeDrawer && (
             <div
               role="region"
-              aria-label="Bangla Meme Soundboard"
+              aria-label="বাংলা মিম সাউন্ডবোর্ড"
               className="pointer-events-auto rounded-xl p-2.5 border border-amber-400/40 shadow-2xl grid grid-cols-1 sm:grid-cols-2 gap-1.5 w-[210px] sm:w-[376px]"
               style={{ backgroundColor: 'rgba(12, 18, 30, 0.96)' }}
             >
@@ -1373,129 +1687,10 @@ export function GameHud({
                   className="sm:col-span-2 mt-1 px-3 py-2 rounded-lg bg-amber-400/15 hover:bg-amber-400 hover:text-slate-950 border border-amber-400/40 text-[11px] font-bold text-amber-300 flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <Music2 className="w-3.5 h-3.5" />
-                  Upload / Customize Original Memes
+                  নিজের মিম অডিও আপলোড ও সেট করো
                 </button>
               )}
             </div>
-          )}
-
-          {showMinimap && (
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                onOpenTacticalMap();
-              }}
-              aria-label="Expand Moholla Tactical Map"
-              title="Click to Expand Tactical Map [Tab]"
-              className={`pointer-events-auto rounded-xl border border-white/12 hover:border-amber-400/50 shadow-lg transition-colors ${
-                isLandscapeCompact || isNarrowMobile ? 'p-1' : 'p-2'
-              }`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.84)' }}
-            >
-              <svg
-                viewBox={`${-MAP_HALF_SIZE} ${-MAP_HALF_SIZE} ${MAP_HALF_SIZE * 2} ${MAP_HALF_SIZE * 2}`}
-                className={
-                  isLandscapeCompact
-                    ? 'w-[92px] h-[92px]'
-                    : isNarrowMobile
-                      ? 'w-24 h-24'
-                      : 'w-44 h-44'
-                }
-                aria-hidden="true"
-              >
-                <MinimapStaticZones />
-
-                {/* Dynamic Incomplete Task Markers (hidden during wifi_down for crew) */}
-                {!isVondo &&
-                  !isNeutral &&
-                  !wifiHidden &&
-                  localPlayer.tasks
-                    .filter((t) => !t.completed)
-                    .map((t) => {
-                      const st = TASK_STATIONS.find((s) => s.id === t.taskId);
-                      if (!st) return null;
-                      return (
-                        <circle
-                          key={st.id}
-                          cx={st.x}
-                          cy={st.z}
-                          r={1.9}
-                          fill="#fbbf24"
-                          stroke="#0f172a"
-                          strokeWidth="0.7"
-                        />
-                      );
-                    })}
-
-                {/* Sabotage Marker(s) */}
-                {snapshot.sabotage.active === 'gas_leak' ? (
-                  snapshot.sabotage.valves.map((v) => (
-                    <circle
-                      key={v.id}
-                      cx={v.x}
-                      cy={v.z}
-                      r={2.5}
-                      fill={v.holderId ? '#10b981' : '#ef4444'}
-                      stroke="#ffffff"
-                      strokeWidth="0.8"
-                    />
-                  ))
-                ) : snapshot.sabotage.active ? (
-                  <circle
-                    cx={snapshot.sabotage.fixStationX}
-                    cy={snapshot.sabotage.fixStationZ}
-                    r={2.5}
-                    fill="#ef4444"
-                    stroke="#ffffff"
-                    strokeWidth="0.8"
-                  />
-                ) : null}
-
-                {/* Live Door Shutter States */}
-                {DOORS.map((d) => {
-                  const locked = snapshot.doorLocks[d.zoneId] > 0;
-                  return (
-                    <rect
-                      key={d.id}
-                      x={d.minX}
-                      y={d.minZ}
-                      width={Math.max(1.4, d.maxX - d.minX)}
-                      height={Math.max(1.4, d.maxZ - d.minZ)}
-                      fill={locked ? '#f59e0b' : '#334155'}
-                      fillOpacity={locked ? 0.95 : 0.45}
-                    />
-                  );
-                })}
-
-                {/* Local Player Directional Chevron + 60-deg Camera FOV Cone */}
-                <g>
-                  <g
-                    transform={`translate(${localPlayer.x}, ${localPlayer.z}) rotate(${(((-compassYaw * 180) / Math.PI) % 360 + 360) % 360})`}
-                  >
-                    <path
-                      d="M 0 0 L -8 -16 A 17.5 17.5 0 0 1 8 -16 Z"
-                      fill="#38bdf8"
-                      fillOpacity={0.28}
-                    />
-                  </g>
-                  <g
-                    transform={`translate(${localPlayer.x}, ${localPlayer.z}) rotate(${180 - (localPlayer.yaw * 180) / Math.PI})`}
-                  >
-                    <polygon
-                      points="0,-4.4 3.4,3.1 0,1.4 -3.4,3.1"
-                      fill="#38bdf8"
-                      stroke="#ffffff"
-                      strokeWidth="0.9"
-                      strokeLinejoin="round"
-                    />
-                  </g>
-                </g>
-
-                <MinimapStaticLabels />
-              </svg>
-            </button>
           )}
         </div>
         </div>
@@ -1521,7 +1716,7 @@ export function GameHud({
             className="text-xs text-slate-200 hidden md:block px-3 py-1.5 rounded-lg border border-slate-700/50"
             style={{ backgroundColor: 'rgba(10, 15, 25, 0.84)' }}
           >
-            WASD Move · Space Jump · Shift Sprint · Drag 360°/Sky · Tab Map · E Use · R Report · F Shalish · H Guide
+            WASD হাঁটা · Space লাফ · Shift দৌড় · ড্র্যাগ ৩৬০° · Tab মানচিত্র · E ব্যবহার · R রিপোর্ট · F সালিশ · H গাইড
           </div>
         )}
 
@@ -1536,7 +1731,7 @@ export function GameHud({
               style={{ backgroundColor: 'rgba(12, 18, 30, 0.94)' }}
             >
               <span className="text-xs font-bold text-emerald-300 mr-1">
-                {ventGraph.currentVent ? `Inside ${ventGraph.currentVent.label}:` : 'Gopon Dren:'}
+                {ventGraph.currentVent ? `${ventGraph.currentVent.label}-এর ভেতরে:` : 'গোপন ড্রেন:'}
               </span>
               {ventGraph.targets.map((v) => (
                 <button
@@ -1553,7 +1748,7 @@ export function GameHud({
                 onClick={() => onVentToggle()}
                 className="min-h-[40px] px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-bold"
               >
-                Uki Maro! [V]
+                বাইরে এসো! [V]
               </button>
             </div>
           )}
@@ -1573,7 +1768,7 @@ export function GameHud({
                   }}
                   className="min-h-[42px] px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white"
                 >
-                  Gas Leak! (CRITICAL 45s)
+                  গ্যাস লিক! (জরুরি ৪৫সে.)
                 </button>
                 <button
                   type="button"
@@ -1584,7 +1779,7 @@ export function GameHud({
                   }}
                   className="min-h-[42px] px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-xs font-bold text-white"
                 >
-                  Current Khao! (90s Dark)
+                  লোডশেডিং দাও! (৯০সে. অন্ধকার)
                 </button>
                 <button
                   type="button"
@@ -1595,13 +1790,13 @@ export function GameHud({
                   }}
                   className="min-h-[42px] px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 text-xs font-bold text-white"
                 >
-                  MB Shesh! Wi-Fi Kat!
+                  ওয়াই-ফাই লাইন কাটো!
                 </button>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-1.5 pt-2 border-t border-slate-800">
                 <span className="text-[11px] font-semibold text-amber-300 flex items-center gap-1 mr-1">
                   <Lock className="w-3 h-3" />
-                  Shutter Namaw{snapshot.doorLocks.cooldownRemaining > 0 ? ` (${Math.ceil(snapshot.doorLocks.cooldownRemaining)}s)` : ':'}
+                  শাটার নামাও{snapshot.doorLocks.cooldownRemaining > 0 ? ` (${Math.ceil(snapshot.doorLocks.cooldownRemaining)}সে.)` : ':'}
                 </span>
                 {DOOR_OPTIONS.map((d) => (
                   <button
@@ -1626,7 +1821,7 @@ export function GameHud({
               className="pointer-events-auto rounded-xl p-2.5 border border-rose-500/40 flex flex-wrap items-center justify-end gap-1.5 max-w-md"
               style={{ backgroundColor: 'rgba(12, 18, 30, 0.95)' }}
             >
-              <span className="text-[11px] font-bold text-rose-300 mr-1">Shapeshift Into:</span>
+              <span className="text-[11px] font-bold text-rose-300 mr-1">ছদ্মবেশ বাছো:</span>
               {disguiseTargets.map((target) => {
                 const c = PLAYER_COLORS.find((col) => col.id === target.color) ?? PLAYER_COLORS[0];
                 return (
@@ -1653,8 +1848,8 @@ export function GameHud({
                 if (!localPlayer.alive) {
                   return {
                     id: 'prank',
-                    label: 'PRANK',
-                    subLabel: `${localPlayer.pranksLeft ?? 0}x`,
+                    label: 'মজা',
+                    subLabel: `${localPlayer.pranksLeft ?? 0}বার`,
                     icon: <Sparkles className="w-4 h-4" />,
                     accentHex: '#38bdf8',
                     bgClass: 'bg-sky-600/90 border-2 border-sky-300 text-slate-950',
@@ -1666,8 +1861,8 @@ export function GameHud({
                   case 'goyenda':
                     return {
                       id: 'goyenda',
-                      label: inspectableBody ? 'SCAN' : 'CLUE',
-                      subLabel: `${localPlayer.scansLeft ?? 2}x`,
+                      label: inspectableBody ? 'স্ক্যান' : 'সূত্র',
+                      subLabel: `${localPlayer.scansLeft ?? 2}বার`,
                       icon: <Search className="w-4 h-4" />,
                       accentHex: '#22d3ee',
                       bgClass: 'bg-cyan-500/92 border-2 border-cyan-200 text-slate-950',
@@ -1678,8 +1873,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'kobiraj',
-                      label: 'TABIZ',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : shieldTarget ? shieldTarget.name : 'SELF',
+                      label: 'তাবিজ',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : shieldTarget ? shieldTarget.name : 'নিজে',
                       icon: <Shield className="w-4 h-4" />,
                       accentHex: '#34d399',
                       bgClass: 'bg-emerald-500/92 border-2 border-emerald-200 text-slate-950',
@@ -1692,13 +1887,13 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'daroga',
-                      label: 'ARREST',
+                      label: 'গ্রেপ্তার',
                       subLabel:
                         (localPlayer.shotsLeft ?? 1) <= 0
-                          ? 'USED'
+                          ? 'শেষ'
                           : cd > 0.05
-                            ? `${Math.ceil(cd)}s`
-                            : darogaTarget?.name ?? 'SHOT',
+                            ? `${Math.ceil(cd)}সে.`
+                            : darogaTarget?.name ?? 'গুলি',
                       icon: <Gavel className="w-4 h-4" />,
                       accentHex: '#fb923c',
                       bgClass: 'bg-orange-500/92 border-2 border-orange-200 text-slate-950',
@@ -1710,11 +1905,11 @@ export function GameHud({
                   case 'daktar':
                     return {
                       id: 'daktar',
-                      label: 'REVIVE',
+                      label: 'বাঁচাও',
                       subLabel:
                         (localPlayer.revivesLeft ?? 0) <= 0
-                          ? 'USED'
-                          : revivableBody?.victimName ?? `${localPlayer.revivesLeft ?? 0}x`,
+                          ? 'শেষ'
+                          : revivableBody?.victimName ?? `${localPlayer.revivesLeft ?? 0}বার`,
                       icon: <HeartPulse className="w-4 h-4" />,
                       accentHex: '#2dd4bf',
                       bgClass: 'bg-teal-400/92 border-2 border-teal-100 text-slate-950',
@@ -1725,12 +1920,12 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'jharudar',
-                      label: 'CLEAN',
+                      label: 'সাফাই',
                       subLabel: localPlayer.jharuTargetBodyId
-                        ? `${(localPlayer.jharuTimer ?? 0).toFixed(1)}s`
+                        ? `${(localPlayer.jharuTimer ?? 0).toFixed(1)}সে.`
                         : cd > 0.05
-                          ? `${Math.ceil(cd)}s`
-                          : cleanableBody?.victimName ?? `${localPlayer.cleansLeft ?? 3}x`,
+                          ? `${Math.ceil(cd)}সে.`
+                          : cleanableBody?.victimName ?? `${localPlayer.cleansLeft ?? 3}বার`,
                       icon: <Sparkle className="w-4 h-4" />,
                       accentHex: '#fb7185',
                       bgClass: 'bg-rose-500/92 border-2 border-rose-200 text-white',
@@ -1747,11 +1942,11 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'bohurupi',
-                      label: localPlayer.disguiseColor ? 'UNSHIFT' : 'SHIFT',
+                      label: localPlayer.disguiseColor ? 'আসল রূপ' : 'বদলাও',
                       subLabel: localPlayer.disguiseColor
-                        ? `${Math.ceil(localPlayer.disguiseTimer)}s`
+                        ? `${Math.ceil(localPlayer.disguiseTimer)}সে.`
                         : cd > 0.05
-                          ? `${Math.ceil(cd)}s`
+                          ? `${Math.ceil(cd)}সে.`
                           : undefined,
                       icon: <Sparkles className="w-4 h-4" />,
                       accentHex: '#e879f9',
@@ -1771,8 +1966,8 @@ export function GameHud({
                   case 'ghotok_khala':
                     return {
                       id: 'ghotok',
-                      label: 'BOND',
-                      subLabel: snapshot.ghotokLinkedIds ? 'SET ✓' : ghotokPair?.[0].name,
+                      label: 'বন্ধন',
+                      subLabel: snapshot.ghotokLinkedIds ? 'সেট ✓' : ghotokPair?.[0].name,
                       icon: <Heart className="w-4 h-4" />,
                       accentHex: '#f472b6',
                       bgClass: 'bg-pink-500/92 border-2 border-pink-100 text-slate-950',
@@ -1783,8 +1978,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'master',
-                      label: 'KHATA',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : masterTarget?.name,
+                      label: 'খাতা',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : masterTarget?.name,
                       icon: <BookOpen className="w-4 h-4" />,
                       accentHex: '#60a5fa',
                       bgClass: 'bg-blue-500/92 border-2 border-blue-200 text-slate-950',
@@ -1797,8 +1992,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'cctv_kaku',
-                      label: 'CCTV',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : 'CAM',
+                      label: 'সিসিটিভি',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'ক্যামেরা',
                       icon: <Video className="w-4 h-4" />,
                       accentHex: '#fb923c',
                       bgClass: 'bg-orange-400/92 border-2 border-orange-100 text-slate-950',
@@ -1814,8 +2009,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'hatur',
-                      label: 'JHAJHRO',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : haturTarget?.name ?? 'SELF',
+                      label: 'ইনজেকশন',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : haturTarget?.name ?? 'নিজে',
                       icon: <HeartPulse className="w-4 h-4" />,
                       accentHex: '#a3e635',
                       bgClass: 'bg-lime-400/92 border-2 border-lime-100 text-slate-950',
@@ -1828,8 +2023,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'supari',
-                      label: 'SUPARI',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : supariTarget?.name,
+                      label: 'সুপারি',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : supariTarget?.name,
                       icon: <Crosshair className="w-4 h-4" />,
                       accentHex: '#f87171',
                       bgClass: 'bg-red-600/92 border-2 border-red-200 text-white',
@@ -1841,8 +2036,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'dalal',
-                      label: 'JAM',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : 'COMMS',
+                      label: 'জ্যাম',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'নেট',
                       icon: <Radio className="w-4 h-4" />,
                       accentHex: '#fb7185',
                       bgClass: 'bg-rose-700/92 border-2 border-rose-200 text-white',
@@ -1855,8 +2050,8 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'chamcha',
-                      label: 'PATRON',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : chamchaTarget?.name,
+                      label: 'বস',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : chamchaTarget?.name,
                       icon: <UserCheck className="w-4 h-4" />,
                       accentHex: '#c084fc',
                       bgClass: 'bg-purple-500/92 border-2 border-purple-100 text-white',
@@ -1868,11 +2063,11 @@ export function GameHud({
                     const cd = localPlayer.abilityCooldown;
                     return {
                       id: 'chandabaz',
-                      label: 'CHANDA',
+                      label: 'চাঁদা',
                       subLabel:
                         cd > 0.05
-                          ? `${Math.ceil(cd)}s`
-                          : chandabazTarget?.name ?? `${localPlayer.chandabazTargets?.length ?? 0}/3`,
+                          ? `${Math.ceil(cd)}সে.`
+                          : chandabazTarget?.name ?? `${localPlayer.chandabazTargets?.length ?? 0}/৩`,
                       icon: <DollarSign className="w-4 h-4" />,
                       accentHex: '#fbbf24',
                       bgClass: 'bg-amber-400/92 border-2 border-amber-100 text-slate-950',
@@ -1886,8 +2081,8 @@ export function GameHud({
                     const filmedHere = Boolean(currentZoneId && localPlayer.tiktokZones?.includes(currentZoneId));
                     return {
                       id: 'tiktok',
-                      label: filmedHere ? 'FILMED' : 'REEL',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}s` : `${localPlayer.tiktokZones?.length ?? 0}/3`,
+                      label: filmedHere ? 'শুটিং শেষ' : 'রিল',
+                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : `${localPlayer.tiktokZones?.length ?? 0}/৩`,
                       icon: <Camera className="w-4 h-4" />,
                       accentHex: '#f472b6',
                       bgClass: 'bg-pink-500/92 border-2 border-pink-100 text-white',
@@ -1904,7 +2099,7 @@ export function GameHud({
               const interactSlot: MobileArcSlot | null = nearSabotageFix
                 ? {
                     id: 'fix',
-                    label: 'FIX',
+                    label: 'মেরামত',
                     subLabel: `${Math.round(snapshot.sabotage.fixProgress * 100)}%`,
                     icon: <Wrench className="w-5 h-5" />,
                     accentHex: '#fde047',
@@ -1916,8 +2111,8 @@ export function GameHud({
                 : nearbyTask
                   ? {
                       id: 'task',
-                      label: nearbyTaskLocked ? 'NO WIFI' : isVondo ? 'FAKE' : 'TASK',
-                      subLabel: nearbyTask.zoneName.split(' ')[0],
+                      label: nearbyTaskLocked ? 'নেট নেই' : isVondo ? 'ভুয়া' : 'কাজ',
+                      subLabel: nearbyTask.zoneName,
                       icon: <Wrench className="w-5 h-5" />,
                       accentHex: '#fbbf24',
                       bgClass: nearbyTaskLocked
@@ -1929,7 +2124,7 @@ export function GameHud({
                   : nearCams
                     ? {
                         id: 'cams',
-                        label: 'CCTV',
+                        label: 'সিসিটিভি',
                         icon: <Video className="w-5 h-5" />,
                         accentHex: '#fb7185',
                         bgClass: 'bg-rose-500 border-2 border-rose-200 text-white',
@@ -1938,7 +2133,7 @@ export function GameHud({
                     : nearAdmin
                       ? {
                           id: 'admin',
-                          label: 'ADMIN',
+                          label: 'অ্যাডমিন',
                           icon: <Radar className="w-5 h-5" />,
                           accentHex: '#38bdf8',
                           bgClass: 'bg-sky-500 border-2 border-sky-200 text-slate-950',
@@ -1947,7 +2142,7 @@ export function GameHud({
                       : nearVitals
                         ? {
                             id: 'vitals',
-                            label: 'VITALS',
+                            label: 'ভাইটালস',
                             icon: <Activity className="w-5 h-5" />,
                             accentHex: '#34d399',
                             bgClass: 'bg-emerald-500 border-2 border-emerald-200 text-slate-950',
@@ -1961,8 +2156,8 @@ export function GameHud({
                       id: 'kill',
                       label:
                         localPlayer.killCooldownRemaining > 0.05
-                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}s`
-                          : 'SIZE',
+                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}সে.`
+                          : 'ঘায়েল',
                       subLabel: killTarget ? killTarget.name : undefined,
                       icon: <Skull className="w-5 h-5" />,
                       accentHex: '#fda4af',
@@ -1979,7 +2174,7 @@ export function GameHud({
                     }
                   : interactSlot ?? {
                       id: 'use_idle',
-                      label: 'USE',
+                      label: 'ব্যবহার',
                       icon: <Wrench className="w-5 h-5" />,
                       accentHex: '#94a3b8',
                       bgClass: 'bg-slate-900/90 border-2 border-slate-600/60 text-slate-400',
@@ -1993,7 +2188,7 @@ export function GameHud({
               if (nearbyBody) {
                 arcQueue.push({
                   id: 'report',
-                  label: 'REPORT',
+                  label: 'রিপোর্ট',
                   subLabel: nearbyBody.victimName,
                   icon: <Bell className="w-4 h-4" />,
                   accentHex: '#fed7aa',
@@ -2008,13 +2203,13 @@ export function GameHud({
               if (nearBell) {
                 arcQueue.push({
                   id: 'bell',
-                  label: 'SHALISH',
+                  label: 'সালিশ',
                   subLabel:
                     localPlayer.emergencyMeetingsLeft <= 0
-                      ? '0x'
+                      ? '০বার'
                       : emergencyCd > 0
-                        ? `${emergencyCd}s`
-                        : `${localPlayer.emergencyMeetingsLeft}x`,
+                        ? `${emergencyCd}সে.`
+                        : `${localPlayer.emergencyMeetingsLeft}বার`,
                   icon: <Bell className="w-4 h-4" />,
                   accentHex: '#7dd3fc',
                   bgClass: 'bg-sky-500 border-2 border-sky-100 text-slate-950',
@@ -2025,12 +2220,12 @@ export function GameHud({
               if (localPlayer.alive && (isVondo || localPlayer.specialRole === 'mistri')) {
                 arcQueue.push({
                   id: 'vent',
-                  label: 'DREN',
+                  label: 'ড্রেন',
                   subLabel:
                     localPlayer.specialRole === 'mistri' && !localPlayer.inVent && localPlayer.abilityCooldown > 0.05
-                      ? `${Math.ceil(localPlayer.abilityCooldown)}s`
+                      ? `${Math.ceil(localPlayer.abilityCooldown)}সে.`
                       : localPlayer.inVent
-                        ? 'OUT'
+                        ? 'বের হও'
                         : undefined,
                   icon: <DoorOpen className="w-4 h-4" />,
                   accentHex: '#6ee7b7',
@@ -2042,10 +2237,10 @@ export function GameHud({
               if (isVondo && localPlayer.alive) {
                 arcQueue.push({
                   id: 'sabo',
-                  label: 'SABO',
+                  label: 'নাশকতা',
                   subLabel:
                     snapshot.sabotage.cooldownRemaining > 0
-                      ? `${Math.ceil(snapshot.sabotage.cooldownRemaining)}s`
+                      ? `${Math.ceil(snapshot.sabotage.cooldownRemaining)}সে.`
                       : undefined,
                   icon: <Zap className="w-4 h-4" />,
                   accentHex: '#fcd34d',
@@ -2103,8 +2298,8 @@ export function GameHud({
                     <Wrench className="w-4 h-4" />
                     <span>
                       {nearGasValve
-                        ? `Hold Valve (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`
-                        : `Hold to Fix (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`}
+                        ? `ভালভ চেপে ধরো (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`
+                        : `মেরামতে চেপে ধরো (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 text-[10px] font-black">E</kbd>
                   </button>
@@ -2124,9 +2319,9 @@ export function GameHud({
                     <Wrench className="w-4 h-4" />
                     <span>
                       {nearbyTaskLocked
-                        ? `${nearbyTask.title} (Wi-Fi Nai!)`
+                        ? `${nearbyTask.title} (ওয়াই-ফাই নেই!)`
                         : isVondo
-                          ? `Fake: ${nearbyTask.title}`
+                          ? `ভুয়া কাজ: ${nearbyTask.title}`
                           : nearbyTask.title}
                     </span>
                     {!nearbyTaskLocked && (
@@ -2142,7 +2337,7 @@ export function GameHud({
                     className="min-h-[48px] px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 transition-transform text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-rose-300/60"
                   >
                     <Video className="w-4 h-4" />
-                    <span>CCTV</span>
+                    <span>সিসিটিভি</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">E</kbd>
                   </button>
                 )}
@@ -2154,7 +2349,7 @@ export function GameHud({
                     className="min-h-[48px] px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-sky-200/70"
                   >
                     <Radar className="w-4 h-4" />
-                    <span>Admin Map</span>
+                    <span>অ্যাডমিন ম্যাপ</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">E</kbd>
                   </button>
                 )}
@@ -2166,7 +2361,7 @@ export function GameHud({
                     className="min-h-[48px] px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-emerald-200/70"
                   >
                     <Activity className="w-4 h-4" />
-                    <span>Vitals</span>
+                    <span>ভাইটালস</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-emerald-300 text-[10px] font-black">E</kbd>
                   </button>
                 )}
@@ -2181,10 +2376,10 @@ export function GameHud({
                     <Bell className="w-4 h-4" />
                     <span>
                       {localPlayer.emergencyMeetingsLeft <= 0
-                        ? 'Bell Shesh!'
+                        ? 'ঘণ্টা শেষ!'
                         : emergencyCd > 0
-                          ? `Shalish CD ${emergencyCd}s`
-                          : `Shalish Dako! (${localPlayer.emergencyMeetingsLeft})`}
+                          ? `সালিশ অপেক্ষা ${emergencyCd}সে.`
+                          : `সালিশ ডাকো! (${localPlayer.emergencyMeetingsLeft})`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">F</kbd>
                   </button>
@@ -2197,7 +2392,7 @@ export function GameHud({
                     className="min-h-[48px] px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg border-2 border-orange-200"
                   >
                     <Bell className="w-4 h-4" />
-                    <span>Haire! {nearbyBody.victimName} Size!</span>
+                    <span>লাশ: {nearbyBody.victimName}! রিপোর্ট করো</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">R</kbd>
                   </button>
                 )}
@@ -2211,7 +2406,7 @@ export function GameHud({
                     className="min-h-[48px] px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-sky-200/70"
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span>{(localPlayer.pranksLeft ?? 0) <= 0 ? 'Prank Used' : 'Lamp Prank'}</span>
+                    <span>{(localPlayer.pranksLeft ?? 0) <= 0 ? 'মজা শেষ' : 'বাতি নিভাও!'}</span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">G</kbd>
                   </button>
                 )}
@@ -2227,10 +2422,10 @@ export function GameHud({
                     <Search className="w-4 h-4" />
                     <span>
                       {(localPlayer.scansLeft ?? 2) <= 0
-                        ? 'Scan Shesh'
+                        ? 'স্ক্যান শেষ'
                         : inspectableBody
-                          ? `Scan (${localPlayer.scansLeft ?? 2})`
-                          : `Clue (${localPlayer.scansLeft ?? 2})`}
+                          ? `স্ক্যান (${localPlayer.scansLeft ?? 2})`
+                          : `সূত্র (${localPlayer.scansLeft ?? 2})`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2246,10 +2441,10 @@ export function GameHud({
                     <Shield className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Tabiz (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `তাবিজ (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : shieldTarget
-                          ? `Shield ${shieldTarget.name}`
-                          : 'Self Tabiz'}
+                          ? `তাবিজ দাও: ${shieldTarget.name}`
+                          : 'নিজেকে তাবিজ'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-emerald-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2265,12 +2460,12 @@ export function GameHud({
                     <Gavel className="w-4 h-4" />
                     <span>
                       {(localPlayer.shotsLeft ?? 1) <= 0
-                        ? 'Shot Used'
+                        ? 'গুলি শেষ'
                         : localPlayer.abilityCooldown > 0.05
-                          ? `Daroga (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                          ? `দারোগা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                           : darogaTarget
-                            ? `Arrest ${darogaTarget.name}`
-                            : 'Arrest Shot'}
+                            ? `গ্রেপ্তার ${darogaTarget.name}`
+                            : 'গ্রেপ্তার গুলি'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2286,10 +2481,10 @@ export function GameHud({
                     <HeartPulse className="w-4 h-4" />
                     <span>
                       {(localPlayer.revivesLeft ?? 0) <= 0
-                        ? 'Saline Used'
+                        ? 'স্যালাইন শেষ'
                         : revivableBody
-                          ? `Revive ${revivableBody.victimName}`
-                          : `Saline Revive (${localPlayer.revivesLeft ?? 0})`}
+                          ? `বাঁচাও: ${revivableBody.victimName}`
+                          : `স্যালাইন দিয়ে বাঁচাও (${localPlayer.revivesLeft ?? 0})`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-teal-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2310,14 +2505,14 @@ export function GameHud({
                     <Sparkle className="w-4 h-4" />
                     <span>
                       {localPlayer.jharuTargetBodyId
-                        ? `Jharu... ${(localPlayer.jharuTimer ?? 0).toFixed(1)}s`
+                        ? `সাফ হচ্ছে... ${(localPlayer.jharuTimer ?? 0).toFixed(1)}সে.`
                         : (localPlayer.cleansLeft ?? 3) <= 0
-                          ? 'Clean Shesh'
+                          ? 'সাফাই শেষ'
                           : localPlayer.abilityCooldown > 0.05
-                            ? `Clean (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                            ? `সাফাই (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                             : cleanableBody
-                              ? `Clean ${cleanableBody.victimName} (${localPlayer.cleansLeft ?? 3})`
-                              : `Clean (${localPlayer.cleansLeft ?? 3})`}
+                              ? `সাফ করো: ${cleanableBody.victimName} (${localPlayer.cleansLeft ?? 3})`
+                              : `লাশ সাফ (${localPlayer.cleansLeft ?? 3})`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2340,10 +2535,10 @@ export function GameHud({
                     <Sparkles className="w-4 h-4" />
                     <span>
                       {localPlayer.disguiseColor
-                        ? `Drop Shift (${Math.ceil(localPlayer.disguiseTimer)}s)`
+                        ? `আসল রূপে ফেরো (${Math.ceil(localPlayer.disguiseTimer)}সে.)`
                         : localPlayer.abilityCooldown > 0.05
-                          ? `Shift (${Math.ceil(localPlayer.abilityCooldown)}s)`
-                          : 'Shapeshift'}
+                          ? `ছদ্মবেশ (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
+                          : 'রূপ বদলাও'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-fuchsia-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2359,10 +2554,10 @@ export function GameHud({
                     <Heart className="w-4 h-4" />
                     <span>
                       {snapshot.ghotokLinkedIds
-                        ? 'Bond Set ✓'
+                        ? 'বন্ধন তৈরি ✓'
                         : ghotokPair
-                          ? `Bond ${ghotokPair[0].name}`
-                          : 'Moholla Bond'}
+                          ? `বন্ধন: ${ghotokPair[0].name}`
+                          : 'মহল্লা বন্ধন'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-pink-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2378,10 +2573,10 @@ export function GameHud({
                     <BookOpen className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Khata (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `খাতা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : masterTarget
-                          ? `Check ${masterTarget.name}`
-                          : 'Khata Check'}
+                          ? `চেক: ${masterTarget.name}`
+                          : 'খাতা চেক'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-blue-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2400,8 +2595,8 @@ export function GameHud({
                     <Video className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `CCTV (${Math.ceil(localPlayer.abilityCooldown)}s)`
-                        : 'Remote CCTV'}
+                        ? `সিসিটিভি (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
+                        : 'পকেট সিসিটিভি'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2417,10 +2612,10 @@ export function GameHud({
                     <HeartPulse className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Jhajhro (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `ইনজেকশন (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : haturTarget
-                          ? `Inject ${haturTarget.name}`
-                          : 'Self Jhajhro'}
+                          ? `ইনজেকশন: ${haturTarget.name}`
+                          : 'নিজেকে ইনজেকশন'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-lime-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2436,10 +2631,10 @@ export function GameHud({
                     <Crosshair className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Supari (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `সুপারি (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : supariTarget
-                          ? `Switch (${supariTarget.name})`
-                          : 'Pick Supari'}
+                          ? `বদলাও (${supariTarget.name})`
+                          : 'সুপারি বাছাই'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-red-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2455,8 +2650,8 @@ export function GameHud({
                     <Radio className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Jam (${Math.ceil(localPlayer.abilityCooldown)}s)`
-                        : 'Broker Jam'}
+                        ? `জ্যাম (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
+                        : 'যোগাযোগ জ্যাম'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2472,10 +2667,10 @@ export function GameHud({
                     <UserCheck className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Patron (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `বস (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : chamchaTarget
-                          ? `Patron: ${chamchaTarget.name}`
-                          : 'Pick Patron'}
+                          ? `বস: ${chamchaTarget.name}`
+                          : 'বস বাছাই'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-purple-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2491,10 +2686,10 @@ export function GameHud({
                     <DollarSign className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Chanda (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `চাঁদা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : chandabazTarget
-                          ? `Vasool ${chandabazTarget.name} (${localPlayer.chandabazTargets?.length ?? 0}/3)`
-                          : `Chanda (${localPlayer.chandabazTargets?.length ?? 0}/3)`}
+                          ? `চাঁদা তোলো: ${chandabazTarget.name} (${localPlayer.chandabazTargets?.length ?? 0}/৩)`
+                          : `চাঁদা (${localPlayer.chandabazTargets?.length ?? 0}/৩)`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 text-[10px] font-black">G</kbd>
                   </button>
@@ -2514,12 +2709,12 @@ export function GameHud({
                     <Camera className="w-4 h-4" />
                     <span>
                       {localPlayer.abilityCooldown > 0.05
-                        ? `Reel (${Math.ceil(localPlayer.abilityCooldown)}s)`
+                        ? `রিল (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
                         : !currentZoneId
-                          ? 'Enter Zone'
+                          ? 'এলাকায় ঢোকো'
                           : localPlayer.tiktokZones?.includes(currentZoneId)
-                            ? `Filmed (${localPlayer.tiktokZones.length}/3)`
-                            : `Shoot Reel (${localPlayer.tiktokZones?.length ?? 0}/3)`}
+                            ? `শুটিং শেষ (${localPlayer.tiktokZones.length}/৩)`
+                            : `রিল বানাও (${localPlayer.tiktokZones?.length ?? 0}/৩)`}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-pink-200 text-[10px] font-black">G</kbd>
                   </button>
@@ -2536,8 +2731,8 @@ export function GameHud({
                     <DoorOpen className="w-4 h-4" />
                     <span>
                       {localPlayer.specialRole === 'mistri' && !localPlayer.inVent && localPlayer.abilityCooldown > 0.05
-                        ? `Dren (${Math.ceil(localPlayer.abilityCooldown)}s)`
-                        : 'Dren e Dhuko'}
+                        ? `ড্রেন (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
+                        : 'ড্রেনে ঢোকো'}
                     </span>
                     <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-emerald-200 text-[10px] font-black">V</kbd>
                   </button>
@@ -2553,8 +2748,8 @@ export function GameHud({
                       <Zap className="w-4 h-4" />
                       <span>
                         {snapshot.sabotage.cooldownRemaining > 0
-                          ? `Jhamela (${Math.ceil(snapshot.sabotage.cooldownRemaining)}s)`
-                          : 'Jhamela Koro'}
+                          ? `নাশকতা (${Math.ceil(snapshot.sabotage.cooldownRemaining)}সে.)`
+                          : 'নাশকতা করো'}
                       </span>
                       <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-amber-200 text-[10px] font-black">X</kbd>
                     </button>
@@ -2568,10 +2763,10 @@ export function GameHud({
                       <Skull className="w-4 h-4" />
                       <span>
                         {localPlayer.killCooldownRemaining > 0.05
-                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}s`
+                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}সে.`
                           : killTarget
-                            ? `Size Koro ${killTarget.name}`
-                            : 'Gap e Nao!'}
+                            ? `ঘায়েল করো: ${killTarget.name}`
+                            : 'কাছে যাও!'}
                       </span>
                       <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">Q</kbd>
                     </button>

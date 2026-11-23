@@ -2,8 +2,8 @@
 
 @layer base {
   :root {
-    --font-display: 'Bricolage Grotesque', 'Noto Sans Bengali', sans-serif;
-    --font-sans: 'Plus Jakarta Sans', 'Noto Sans Bengali', sans-serif;
+    --font-display: 'Noto Sans Bengali', 'Bricolage Grotesque', sans-serif;
+    --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
 

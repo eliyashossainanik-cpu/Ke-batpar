@@ -59,6 +59,38 @@ export interface ProceduralTextureSet {
   khalaSignMap: THREE.CanvasTexture;
   railStationSignMap: THREE.CanvasTexture;
   cricketTurfMap: THREE.CanvasTexture;
+  nanaWallMap: THREE.CanvasTexture;
+  cinemaWallMap: THREE.CanvasTexture;
+  bhaiWallMap: THREE.CanvasTexture;
+  coachingWallMap: THREE.CanvasTexture;
+  khaluWallMap: THREE.CanvasTexture;
+  kacchiWallMap: THREE.CanvasTexture;
+  cyberWallMap: THREE.CanvasTexture;
+  dorjiWallMap: THREE.CanvasTexture;
+  gymWallMap: THREE.CanvasTexture;
+  colonyWallMap: THREE.CanvasTexture;
+  fufuWallMap: THREE.CanvasTexture;
+  nanaSignMap: THREE.CanvasTexture;
+  cinemaSignMap: THREE.CanvasTexture;
+  bhaiSignMap: THREE.CanvasTexture;
+  coachingSignMap: THREE.CanvasTexture;
+  khaluSignMap: THREE.CanvasTexture;
+  jheelSignMap: THREE.CanvasTexture;
+  parkSignMap: THREE.CanvasTexture;
+  kacchiSignMap: THREE.CanvasTexture;
+  cyberSignMap: THREE.CanvasTexture;
+  dorjiSignMap: THREE.CanvasTexture;
+  gymSignMap: THREE.CanvasTexture;
+  machSignMap: THREE.CanvasTexture;
+  colonySignMap: THREE.CanvasTexture;
+  signalSignMap: THREE.CanvasTexture;
+  fufuSignMap: THREE.CanvasTexture;
+  hoardingGgMap: THREE.CanvasTexture;
+  hoardingKacchiMap: THREE.CanvasTexture;
+  hoardingRailMap: THREE.CanvasTexture;
+  hoardingAdMap: THREE.CanvasTexture;
+  gantryNorthMap: THREE.CanvasTexture;
+  gantrySouthMap: THREE.CanvasTexture;
   dispose: () => void;
 }
 
@@ -122,6 +154,27 @@ function heightCanvasToNormalMap(
   return tex;
 }
 
+function drawFittedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  baseSizePx: number,
+  fontWeight: string | number,
+  fontFamily: string,
+  minSizePx = 14,
+): void {
+  let size = baseSizePx;
+  while (size > minSizePx) {
+    ctx.font = `${fontWeight} ${size}px ${fontFamily}`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 2;
+  }
+  ctx.font = `${fontWeight} ${size}px ${fontFamily}`;
+  ctx.fillText(text, x, y, maxWidth);
+}
+
 function makeSignTexture(
   title: string,
   subtitle: string,
@@ -130,34 +183,72 @@ function makeSignTexture(
   maxAnisotropy: number,
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 192;
+  canvas.width = 768;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = bgHex;
-  ctx.fillRect(0, 0, 512, 192);
+  const grad = ctx.createLinearGradient(0, 0, 768, 256);
+  grad.addColorStop(0, bgHex);
+  grad.addColorStop(1, '#090f1d');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 768, 256);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  for (let i = 0; i < 40; i++) {
-    ctx.fillRect((i * 47) % 500, (i * 29) % 180, 18, 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
+  for (let i = 0; i < 48; i++) {
+    ctx.fillRect((i * 63) % 740, (i * 37) % 240, 22, 2);
   }
 
   ctx.strokeStyle = accentHex;
-  ctx.lineWidth = 10;
-  ctx.strokeRect(10, 10, 492, 172);
+  ctx.lineWidth = 12;
+  ctx.strokeRect(12, 12, 744, 232);
   ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(20, 20, 472, 152);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(24, 24, 720, 208);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 46px "Noto Sans Bengali", "Bricolage Grotesque", sans-serif';
+  // Corner mounting rivets
+  ctx.fillStyle = accentHex;
+  for (const [rx, ry] of [
+    [34, 34],
+    [734, 34],
+    [34, 222],
+    [734, 222],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(rx, ry, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(title, 256, 74);
+  ctx.shadowColor = 'rgba(0,0,0,0.65)';
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = '#ffffff';
+  drawFittedText(
+    ctx,
+    title,
+    384,
+    98,
+    670,
+    64,
+    '800',
+    '"Noto Sans Bengali", "Bricolage Grotesque", sans-serif',
+    28,
+  );
 
+  ctx.shadowBlur = 4;
   ctx.fillStyle = accentHex;
-  ctx.font = '600 22px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(subtitle, 256, 134);
+  drawFittedText(
+    ctx,
+    subtitle,
+    384,
+    176,
+    660,
+    30,
+    '600',
+    '"Noto Sans Bengali", "Plus Jakarta Sans", sans-serif',
+    16,
+  );
+  ctx.shadowBlur = 0;
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -191,18 +282,167 @@ function makePosterTexture(
   ctx.font = 'bold 26px "Noto Sans Bengali", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('জরুরী বিজ্ঞপ্তি', 128, 56);
+  ctx.fillText('জরুরি বিজ্ঞপ্তি', 128, 56);
 
   ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 24px "Noto Sans Bengali", sans-serif';
-  ctx.fillText(banglaLine, 128, 148);
+  drawFittedText(ctx, banglaLine, 128, 148, 206, 26, '800', '"Noto Sans Bengali", sans-serif', 16);
 
   ctx.fillStyle = inkHex;
-  ctx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText(subLine, 128, 212);
+  drawFittedText(ctx, subLine, 128, 212, 204, 21, '700', '"Noto Sans Bengali", sans-serif', 14);
 
-  ctx.fillStyle = 'rgba(15,23,42,0.18)';
+  ctx.fillStyle = 'rgba(15,23,42,0.16)';
   ctx.fillRect(36, 252, 184, 26);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAnisotropy;
+  return tex;
+}
+
+function makeHoardingTexture(
+  headline: string,
+  tagline: string,
+  badge: string,
+  bgTopHex: string,
+  bgBottomHex: string,
+  accentHex: string,
+  maxAnisotropy: number,
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+
+  const grad = ctx.createLinearGradient(0, 0, 1024, 512);
+  grad.addColorStop(0, bgTopHex);
+  grad.addColorStop(1, bgBottomHex);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1024, 512);
+
+  // Diagonal tactical accent stripes
+  ctx.save();
+  ctx.fillStyle = accentHex;
+  ctx.globalAlpha = 0.14;
+  for (let i = -512; i < 1280; i += 88) {
+    ctx.beginPath();
+    ctx.moveTo(i, 512);
+    ctx.lineTo(i + 44, 512);
+    ctx.lineTo(i + 300, 0);
+    ctx.lineTo(i + 256, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.strokeStyle = accentHex;
+  ctx.lineWidth = 18;
+  ctx.strokeRect(14, 14, 996, 484);
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(30, 30, 964, 452);
+
+  // Top-left promo badge
+  ctx.fillStyle = accentHex;
+  ctx.fillRect(52, 50, 320, 68);
+  ctx.fillStyle = '#090f1d';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  drawFittedText(ctx, badge, 212, 85, 290, 32, '800', '"Noto Sans Bengali", sans-serif', 20);
+
+  ctx.shadowColor = 'rgba(0,0,0,0.75)';
+  ctx.shadowBlur = 14;
+  ctx.fillStyle = '#ffffff';
+  drawFittedText(
+    ctx,
+    headline,
+    512,
+    250,
+    900,
+    80,
+    '800',
+    '"Noto Sans Bengali", "Bricolage Grotesque", sans-serif',
+    36,
+  );
+
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = accentHex;
+  drawFittedText(
+    ctx,
+    tagline,
+    512,
+    384,
+    880,
+    40,
+    '700',
+    '"Noto Sans Bengali", "Plus Jakarta Sans", sans-serif',
+    22,
+  );
+  ctx.shadowBlur = 0;
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAnisotropy;
+  return tex;
+}
+
+function makeGantryBannerTexture(
+  mainText: string,
+  subText: string,
+  bgHex: string,
+  accentHex: string,
+  maxAnisotropy: number,
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 224;
+  const ctx = canvas.getContext('2d')!;
+
+  const grad = ctx.createLinearGradient(0, 0, 1024, 0);
+  grad.addColorStop(0, '#090f1d');
+  grad.addColorStop(0.5, bgHex);
+  grad.addColorStop(1, '#090f1d');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1024, 224);
+
+  ctx.strokeStyle = accentHex;
+  ctx.lineWidth = 12;
+  ctx.strokeRect(10, 10, 1004, 204);
+
+  ctx.fillStyle = accentHex;
+  ctx.fillRect(30, 30, 18, 164);
+  ctx.fillRect(976, 30, 18, 164);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#ffffff';
+  drawFittedText(
+    ctx,
+    mainText,
+    512,
+    84,
+    890,
+    56,
+    '800',
+    '"Noto Sans Bengali", "Bricolage Grotesque", sans-serif',
+    28,
+  );
+
+  ctx.shadowBlur = 4;
+  ctx.fillStyle = accentHex;
+  drawFittedText(
+    ctx,
+    subText,
+    512,
+    158,
+    880,
+    30,
+    '700',
+    '"Noto Sans Bengali", "Plus Jakarta Sans", sans-serif',
+    18,
+  );
+  ctx.shadowBlur = 0;
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -635,7 +875,18 @@ export function createProceduralTextures(
   const dishWallMap = makeBuildingWallTex('#1d4ed8', '#cbd5e1', '#1e3a8a', '#38bdf8', 'blocks');
   const saloonWallMap = makeBuildingWallTex('#9d174d', '#fce7f3', '#831843', '#f472b6', 'tiles');
   const pharmacyWallMap = makeBuildingWallTex('#0369a1', '#f0f9ff', '#0e7490', '#38bdf8', 'tiles');
-  const alleyStuccoMap = makeBuildingWallTex('#94a3b8', '#cbd5e1', '#64748b', '#475569', 'stucco');
+  const alleyStuccoMap = makeBuildingWallTex('#9a3412', '#f3e5d0', '#7c2d12', '#d97706', 'plaster');
+  const nanaWallMap = makeBuildingWallTex('#b45309', '#fffbeb', '#78350f', '#f59e0b', 'plaster');
+  const cinemaWallMap = makeBuildingWallTex('#581c87', '#e9d5ff', '#1e1b4b', '#ec4899', 'tiles');
+  const bhaiWallMap = makeBuildingWallTex('#1e40af', '#eff6ff', '#1e293b', '#38bdf8', 'stucco');
+  const coachingWallMap = makeBuildingWallTex('#047857', '#ecfdf5', '#064e3b', '#10b981', 'blocks');
+  const khaluWallMap = makeBuildingWallTex('#0f766e', '#f0fdfa', '#134e4a', '#14b8a6', 'stucco');
+  const kacchiWallMap = makeBuildingWallTex('#991b1b', '#fef2f2', '#450a0a', '#fbbf24', 'tiles');
+  const cyberWallMap = makeBuildingWallTex('#312e81', '#1e1b4b', '#0f172a', '#22d3ee', 'steel');
+  const dorjiWallMap = makeBuildingWallTex('#86198f', '#fdf4ff', '#4a044e', '#f472b6', 'plaster');
+  const gymWallMap = makeBuildingWallTex('#991b1b', '#1e293b', '#090f1d', '#ef4444', 'steel');
+  const colonyWallMap = makeBuildingWallTex('#475569', '#e2e8f0', '#334155', '#eab308', 'blocks');
+  const fufuWallMap = makeBuildingWallTex('#9d174d', '#fff1f2', '#831843', '#fb7185', 'stucco');
 
   // 4b. PUBG-Style Slatted Wooden Supply Crate Albedo + Normal Map
   const crateCanvas = document.createElement('canvas');
@@ -745,26 +996,41 @@ export function createProceduralTextures(
   sCtx.fillRect(0, 0, 128, 128);
   const contactShadowMap = new THREE.CanvasTexture(shCanvas);
 
-  // 7. Satire Shop Signboards, Chalkboard Menus & Posters (All 19 Districts Labeled!)
-  const addaSignMap = makeSignTexture('আড্ডা চক', 'ADDA CHOWK · CENTRAL PLAZA', '#1e293b', '#fbbf24', maxAniso);
-  const pukurSignMap = makeSignTexture('পুকুর ঘাট', 'PUKUR GHAT · WEST POND', '#164e63', '#22d3ee', maxAniso);
-  const bazarSignMap = makeSignTexture('মহল্লা বাজার', 'MOHOLLA BAZAR · MARKET', '#7c2d12', '#fbbf24', maxAniso);
-  const eidgahSignMap = makeSignTexture('ঈদগাহ মাঠ', 'EIDGAH MAIDAN · NORTH', '#064e3b', '#34d399', maxAniso);
-  const wasaSignMap = makeSignTexture('পানির ট্যাংক', 'WASA WATER TOWER', '#1e3a8a', '#38bdf8', maxAniso);
-  const chaSignMap = makeSignTexture('মামা টং ও চা', 'MAMA CHA-ER DOKAN', '#451a03', '#fbbf24', maxAniso);
-  const rickshawSignMap = makeSignTexture('সোনার বাংলা গ্যারেজ', 'SONAR BANGLA GARAGE', '#064e3b', '#34d399', maxAniso);
-  const descoSignMap = makeSignTexture('ডেসকো পাওয়ার', 'LOADSHEDDING CONTROL', '#450a0a', '#f87171', maxAniso);
-  const dishSignMap = makeSignTexture('আকাশ ডিশ হাব', 'DISH & WIFI STATION', '#172554', '#60a5fa', maxAniso);
-  const fuchkaSignMap = makeSignTexture('মামা ঝাল ফুচকা', 'SPICY FUCHKA STAND', '#7c2d12', '#fde047', maxAniso);
-  const saloonSignMap = makeSignTexture('হিরো সেলুন', 'HERO BARBER & STYLE', '#500724', '#f472b6', maxAniso);
-  const cricketSignMap = makeSignTexture('পাড়া ক্রিকেট মাঠ', 'GULLY CRICKET ARENA', '#052e16', '#4ade80', maxAniso);
-  const pharmacySignMap = makeSignTexture('দাদু ফার্মেসি', 'DADU 24H PHARMACY', '#0c4a6e', '#38bdf8', maxAniso);
-  const pandalSignMap = makeSignTexture('বিয়ে বাড়ি প্যান্ডেল', 'BIYER DJ PANDAL', '#881337', '#fbbf24', maxAniso);
-  const kakaSignMap = makeSignTexture('কাকার বাড়ি', "KAKA'S PARA HOUSE", '#78350f', '#fbbf24', maxAniso);
-  const masterSignMap = makeSignTexture('মাস্টার বাড়ি', 'MASTER BARI · TUITION', '#451a03', '#fde047', maxAniso);
-  const chachaSignMap = makeSignTexture('চাচার বাড়ি', "CHACHA'S RESIDENCE", '#881337', '#fda4af', maxAniso);
-  const khalaSignMap = makeSignTexture('খালার বাড়ি', "KHALA'S VERANDA", '#115e59', '#5eead4', maxAniso);
-  const railStationSignMap = makeSignTexture('মোহল্লা রেল স্টেশন', 'BANGLA RAIL · PLATFORM 1', '#0c4a6e', '#fde047', maxAniso);
+  // 7. Pure Bangla Moholla Shop Signboards, Chalkboard Menus & Posters
+  const addaSignMap = makeSignTexture('আড্ডা চক', 'মহল্লার কেন্দ্রস্থল · প্রধান চত্বর', '#1e293b', '#fbbf24', maxAniso);
+  const pukurSignMap = makeSignTexture('পুকুর ঘাট', 'পশ্চিম পাড়ার শানবাঁধানো ঘাট', '#164e63', '#22d3ee', maxAniso);
+  const bazarSignMap = makeSignTexture('মহল্লা বাজার', 'টাটকা শাকসবজি ও মুদি দোকান', '#7c2d12', '#fbbf24', maxAniso);
+  const eidgahSignMap = makeSignTexture('ঈদগাহ মাঠ', 'উত্তর পাড়ার খোলা ময়দান', '#064e3b', '#34d399', maxAniso);
+  const wasaSignMap = makeSignTexture('পানির ট্যাংক', 'ওয়াসা পানি সরবরাহ কেন্দ্র', '#1e3a8a', '#38bdf8', maxAniso);
+  const chaSignMap = makeSignTexture('মামা টং ও চা', 'গরম দুধ চা ও সিঙ্গারা', '#451a03', '#fbbf24', maxAniso);
+  const rickshawSignMap = makeSignTexture('সোনার বাংলা গ্যারেজ', 'রিকশা ও সিএনজি মেরামত', '#064e3b', '#34d399', maxAniso);
+  const descoSignMap = makeSignTexture('ডেসকো পাওয়ার', 'বিদ্যুৎ সাব-স্টেশন · সতর্ক থাকুন', '#450a0a', '#f87171', maxAniso);
+  const dishSignMap = makeSignTexture('আকাশ ডিশ হাব', 'কেবল টিভি ও ওয়াইফাই কন্ট্রোল', '#172554', '#60a5fa', maxAniso);
+  const fuchkaSignMap = makeSignTexture('মামা ঝাল ফুচকা', 'স্পেশাল তেঁতুল ও চটপটি', '#7c2d12', '#fde047', maxAniso);
+  const saloonSignMap = makeSignTexture('হিরো সেলুন', 'স্টাইলিশ চুল কাটা ও শেভ', '#500724', '#f472b6', maxAniso);
+  const cricketSignMap = makeSignTexture('পাড়া ক্রিকেট মাঠ', 'টেপ টেনিস মহল্লা অ্যারেনা', '#052e16', '#4ade80', maxAniso);
+  const pharmacySignMap = makeSignTexture('দাদু ফার্মেসি', '২৪ ঘণ্টা জরুরি ওষুধ ও সেবা', '#0c4a6e', '#38bdf8', maxAniso);
+  const pandalSignMap = makeSignTexture('বিয়ে বাড়ি প্যান্ডেল', 'আলোকসজ্জা ও ডিজে সাউন্ড', '#881337', '#fbbf24', maxAniso);
+  const kakaSignMap = makeSignTexture('কাকার বাড়ি', 'উত্তর-পশ্চিম আবাসিক ভবন', '#78350f', '#fbbf24', maxAniso);
+  const masterSignMap = makeSignTexture('মাস্টার বাড়ি', 'হোম টিউশন ও পাঠশালা', '#451a03', '#fde047', maxAniso);
+  const chachaSignMap = makeSignTexture('চাচার বাড়ি', 'লাল দালান · পুরনো মহল্লা', '#881337', '#fda4af', maxAniso);
+  const khalaSignMap = makeSignTexture('খালার বাড়ি', 'ছাদবাগান ও বারান্দা মহল', '#115e59', '#5eead4', maxAniso);
+  const railStationSignMap = makeSignTexture('মহল্লা রেল স্টেশন', 'বাংলা রেল · ১নং প্ল্যাটফর্ম', '#0c4a6e', '#fde047', maxAniso);
+  const nanaSignMap = makeSignTexture('নানার বাড়ি', 'উঠানবাড়ি ও তেহারি ঘর', '#78350f', '#fde047', maxAniso);
+  const cinemaSignMap = makeSignTexture('বলাকা সিনেমা হল', 'মেগা শো ও পপকর্ন কর্নার', '#4c1d95', '#f472b6', maxAniso);
+  const bhaiSignMap = makeSignTexture('বড় ভাই ডুপ্লেক্স', 'ভিআইপি ডুপ্লেক্স ভিলা', '#1e3a8a', '#7dd3fc', maxAniso);
+  const coachingSignMap = makeSignTexture('জিপিএ-৫ কোচিং', 'সাফল্যের শতভাগ নিশ্চয়তা', '#064e3b', '#34d399', maxAniso);
+  const khaluSignMap = makeSignTexture('খালুর বাড়ি', 'বাগানবাড়ি · পূর্ব গলি', '#115e59', '#5eead4', maxAniso);
+  const jheelSignMap = makeSignTexture('ঝিল পাড় লেক', 'নৌকা ঘাট ও শাপলা পুকুর', '#0e7490', '#7dd3fc', maxAniso);
+  const parkSignMap = makeSignTexture('শিশু পার্ক', 'নাগরদোলা ও আনন্দ মেলা', '#831843', '#f472b6', maxAniso);
+  const kacchiSignMap = makeSignTexture('নবাব কাচ্চি ঘর', 'শাহী বাসমতি কাচ্চি ও বোরহানি', '#7f1d1d', '#fbbf24', maxAniso);
+  const cyberSignMap = makeSignTexture('সাইবার গেমিং আড্ডা', 'হাই-স্পিড গেমিং জোন', '#1e1b4b', '#22d3ee', maxAniso);
+  const dorjiSignMap = makeSignTexture('শিল্পী দর্জি বাড়ি', 'ঈদ পাঞ্জাবি ও ফ্যাশন টেইলার', '#701a75', '#f0abfc', maxAniso);
+  const gymSignMap = makeSignTexture('টাইগার পাড়া জিম', 'বডিবিল্ডিং ও ফিটনেস ক্লাব', '#7f1d1d', '#f87171', maxAniso);
+  const machSignMap = makeSignTexture('ওপার মাছ বাজার', 'পদ্মার তাজা ইলিশ ও রুই', '#075985', '#7dd3fc', maxAniso);
+  const colonySignMap = makeSignTexture('রেল কলোনি কোয়ার্টার', 'রেলওয়ে কর্মচারী আবাসন', '#334155', '#fde047', maxAniso);
+  const signalSignMap = makeSignTexture('সিগন্যাল টাওয়ার', 'দক্ষিণ রেল কন্ট্রোল ইয়ার্ড', '#713f12', '#facc15', maxAniso);
+  const fufuSignMap = makeSignTexture('ফুফুর বাড়ি', 'ওপার পাড়ার আতিথেয়তা', '#881337', '#fda4af', maxAniso);
 
   // Cha Menu Chalkboard
   const cmCanvas = document.createElement('canvas');
@@ -801,15 +1067,15 @@ export function createProceduralTextures(
   scCtx.lineWidth = 6;
   scCtx.strokeRect(6, 6, 244, 148);
   scCtx.fillStyle = '#fbbf24';
-  scCtx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+  scCtx.font = 'bold 22px "Noto Sans Bengali", sans-serif';
   scCtx.textAlign = 'center';
-  scCtx.fillText('MOHALLA PREMIER', 128, 34);
+  scCtx.fillText('মহল্লা প্রিমিয়ার লিগ', 128, 34);
   scCtx.fillStyle = '#ffffff';
-  scCtx.font = 'bold 34px "Plus Jakarta Sans", sans-serif';
-  scCtx.fillText('142 / 4', 128, 86);
+  scCtx.font = 'bold 34px "Noto Sans Bengali", sans-serif';
+  scCtx.fillText('১৪২ / ৪', 128, 86);
   scCtx.fillStyle = '#4ade80';
-  scCtx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
-  scCtx.fillText('OVERS: 11.4  TAR: 150', 128, 130);
+  scCtx.font = 'bold 18px "Noto Sans Bengali", sans-serif';
+  scCtx.fillText('ওভার: ১১.৪ · লক্ষ্য: ১৫০', 128, 130);
   const scoreboardMap = new THREE.CanvasTexture(scCanvas);
   scoreboardMap.colorSpace = THREE.SRGBColorSpace;
   scoreboardMap.anisotropy = maxAniso;
@@ -837,17 +1103,69 @@ export function createProceduralTextures(
   spCtx.arc(128, 126, 46, Math.PI, 0);
   spCtx.fill();
   spCtx.fillStyle = '#fde047';
-  spCtx.font = 'bold 20px "Plus Jakarta Sans", sans-serif';
-  spCtx.fillText('FADE • SPIKE • SPA', 128, 248);
-  spCtx.fillText('ONLY 60 TAKA!', 128, 282);
+  spCtx.font = 'bold 20px "Noto Sans Bengali", sans-serif';
+  spCtx.fillText('ফেড · স্পাইক · স্পা', 128, 248);
+  spCtx.fillText('মাত্র ৬০ টাকা!', 128, 282);
   const saloonPosterMap = new THREE.CanvasTexture(spCanvas);
   saloonPosterMap.colorSpace = THREE.SRGBColorSpace;
   saloonPosterMap.anisotropy = maxAniso;
 
   const posterMaps: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    makePosterTexture('এখানে পোস্টার লাগাবেন না!', 'PARABASI WATCHING YOU', '#fef3c7', '#b91c1c', maxAniso),
-    makePosterTexture('১০০% জিপিএ-৫ কোচিং', 'TONG ADDA SPECIAL', '#e0f2fe', '#1d4ed8', maxAniso),
+    makePosterTexture('এখানে পোস্টার লাগাবেন না!', 'পাড়াবাসী সব দেখছে', '#fef3c7', '#b91c1c', maxAniso),
+    makePosterTexture('১০০% জিপিএ-৫ কোচিং', 'টং আড্ডার পাশে ভর্তি চলছে', '#e0f2fe', '#1d4ed8', maxAniso),
   ];
+
+  // 7c. High-Resolution Bangla Roadside Billboard Hoardings & Boulevard Gantry Banners
+  const hoardingGgMap = makeHoardingTexture(
+    'সাইবার গেমিং আড্ডা',
+    'মহল্লা স্কোয়াড টুর্নামেন্ট · পুরস্কার ৫০০০৳',
+    'ই-স্পোর্টস অ্যারেনা',
+    '#0f172a',
+    '#312e81',
+    '#22d3ee',
+    maxAniso,
+  );
+  const hoardingKacchiMap = makeHoardingTexture(
+    'নবাব কাচ্চি ও তেহারি',
+    'গরম বাসমতি প্লেটার · খোলা ২৪ ঘণ্টা',
+    'শাহী ভোজ',
+    '#450a0a',
+    '#991b1b',
+    '#fbbf24',
+    maxAniso,
+  );
+  const hoardingRailMap = makeHoardingTexture(
+    'বাংলা এক্সপ্রেস রেলওয়ে',
+    'লেভেল ক্রসিংয়ে দুই দিক দেখে পার হোন',
+    'রেল সতর্কতা',
+    '#064e3b',
+    '#0f172a',
+    '#facc15',
+    maxAniso,
+  );
+  const hoardingAdMap = makeHoardingTexture(
+    'স্পেশাল এয়ারড্রপ জোন',
+    'মহল্লার বাটপার খুঁজুন · সতর্ক থাকুন',
+    'জরুরি সতর্কতা',
+    '#1e293b',
+    '#7c2d12',
+    '#fb923c',
+    maxAniso,
+  );
+  const gantryNorthMap = makeGantryBannerTexture(
+    'স্বাগতম · উত্তর মহল্লা অ্যাভিনিউ',
+    'বলাকা সিনেমা • বড় ভাই ডুপ্লেক্স • ঈদগাহ মাঠ • কোচিং সেন্টার',
+    '#0f172a',
+    '#fbbf24',
+    maxAniso,
+  );
+  const gantrySouthMap = makeGantryBannerTexture(
+    'ওপার বাংলা · দক্ষিণ রেল ও বাজার',
+    'রেল জংশন • ওপার মাছ বাজার • রেল কলোনি • সিগন্যাল টাওয়ার',
+    '#0c4a6e',
+    '#fde047',
+    maxAniso,
+  );
 
   // 7b. Hand-Painted Dhaka Rickshaw Folk-Art Panel
   const rCanvas = document.createElement('canvas');
@@ -1009,6 +1327,38 @@ export function createProceduralTextures(
     khalaSignMap,
     railStationSignMap,
     cricketTurfMap,
+    nanaWallMap,
+    cinemaWallMap,
+    bhaiWallMap,
+    coachingWallMap,
+    khaluWallMap,
+    kacchiWallMap,
+    cyberWallMap,
+    dorjiWallMap,
+    gymWallMap,
+    colonyWallMap,
+    fufuWallMap,
+    nanaSignMap,
+    cinemaSignMap,
+    bhaiSignMap,
+    coachingSignMap,
+    khaluSignMap,
+    jheelSignMap,
+    parkSignMap,
+    kacchiSignMap,
+    cyberSignMap,
+    dorjiSignMap,
+    gymSignMap,
+    machSignMap,
+    colonySignMap,
+    signalSignMap,
+    fufuSignMap,
+    hoardingGgMap,
+    hoardingKacchiMap,
+    hoardingRailMap,
+    hoardingAdMap,
+    gantryNorthMap,
+    gantrySouthMap,
     dispose: () => {
       cobbleMap.dispose();
       cobbleNormal.dispose();
@@ -1069,6 +1419,38 @@ export function createProceduralTextures(
       khalaSignMap.dispose();
       railStationSignMap.dispose();
       cricketTurfMap.dispose();
+      nanaWallMap.dispose();
+      cinemaWallMap.dispose();
+      bhaiWallMap.dispose();
+      coachingWallMap.dispose();
+      khaluWallMap.dispose();
+      kacchiWallMap.dispose();
+      cyberWallMap.dispose();
+      dorjiWallMap.dispose();
+      gymWallMap.dispose();
+      colonyWallMap.dispose();
+      fufuWallMap.dispose();
+      nanaSignMap.dispose();
+      cinemaSignMap.dispose();
+      bhaiSignMap.dispose();
+      coachingSignMap.dispose();
+      khaluSignMap.dispose();
+      jheelSignMap.dispose();
+      parkSignMap.dispose();
+      kacchiSignMap.dispose();
+      cyberSignMap.dispose();
+      dorjiSignMap.dispose();
+      gymSignMap.dispose();
+      machSignMap.dispose();
+      colonySignMap.dispose();
+      signalSignMap.dispose();
+      fufuSignMap.dispose();
+      hoardingGgMap.dispose();
+      hoardingKacchiMap.dispose();
+      hoardingRailMap.dispose();
+      hoardingAdMap.dispose();
+      gantryNorthMap.dispose();
+      gantrySouthMap.dispose();
     },
   };
 }

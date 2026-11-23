@@ -214,7 +214,7 @@ test('Goyenda clue inspection, Kobiraj shield targeting, and Mistri vent permiss
   };
   assert.equal(findNearestInspectableBody(goyenda, [body])?.id, 'b1');
   const clue = inspectBodyClue(body, 25000);
-  assert.ok(clue.detail.includes('15s ago'));
+  assert.ok(clue.detail.includes('15 সেকেন্ড আগে'));
   assert.ok(clue.detail.includes('Cha Dokan'));
 
   const kobiraj = makePlayer({ id: 'k', role: 'parabasi', specialRole: 'kobiraj', x: 0, z: 0 });
@@ -466,9 +466,9 @@ test('Phase 1 sabotage rules: non-critical auto-expires harmlessly, gas_leak req
   assert.equal(fixedRes.fixed, true);
   assert.equal(gas.active, null);
 
-  // Gas leak 45s timeout ends match
+  // Gas leak 75s timeout ends match
   const gasTimeout = createSabotageState('gas_leak');
-  const expRes = advanceSabotageState(gasTimeout, [c1, c2], 46, new Map());
+  const expRes = advanceSabotageState(gasTimeout, [c1, c2], 76, new Map());
   assert.equal(expRes.expiredCritical, true);
 });
 
@@ -818,9 +818,9 @@ test('Phase 6: 15P capacity, 15 unique colors, 3 Batpars at 11P+, and all 9 exte
   assert.equal(evaluateMatchOutcome([tiktok, bat, n1, n2, n3], 0.2)?.winner, 'tiktok_star');
 });
 
-test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad rooftops & Rail Overbridge', () => {
-  assert.equal(ROOFTOPS.length, 11);
-  assert.equal(STAIR_RAMPS.length, 12);
+test('Phase 4: Exterior staircases climb smoothly onto all 22 walkable Chhad rooftops & Rail Overbridge', () => {
+  assert.equal(ROOFTOPS.length, 22);
+  assert.equal(STAIR_RAMPS.length, 23);
 
   const chaStair = STAIR_RAMPS.find((r) => r.id === 'cha_stair')!;
   const chaRoof = ROOFTOPS.find((d) => d.id === 'cha_roof')!;
@@ -830,10 +830,10 @@ test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad roo
   for (let z = -26.5; z >= -34.6; z -= 0.6) {
     pos = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -46.0, z, PLAYER_RADIUS, WALLS);
   }
-  assert.ok(pos.y >= 2.8, `Expected near top of cha_stair, got y=${pos.y}`);
+  assert.ok(pos.y >= chaRoof.elevationY - 0.5, `Expected near top of cha_stair, got y=${pos.y}`);
   const onRoof = resolvePlayerMoveWithElevation(pos.x, pos.z, pos.y, -42.5, -35.2, PLAYER_RADIUS, WALLS);
   assert.equal(onRoof.y, chaRoof.elevationY);
-  assert.equal(getWalkableFloorY(onRoof.x, onRoof.z, onRoof.y), 3.15);
+  assert.equal(getWalkableFloorY(onRoof.x, onRoof.z, onRoof.y), chaRoof.elevationY);
 
   // Parapet edge containment on Cha roof
   const clampedNorth = resolvePlayerMoveWithElevation(onRoof.x, onRoof.z, onRoof.y, -35.0, -43.0, PLAYER_RADIUS, WALLS);
@@ -847,7 +847,7 @@ test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad roo
   for (let z = 26.2; z <= 35.0; z += 0.6) {
     dishPos = resolvePlayerMoveWithElevation(dishPos.x, dishPos.z, dishPos.y, 46.5, z, PLAYER_RADIUS, WALLS);
   }
-  assert.ok(dishPos.y >= 2.8, `Expected near top of dish_stair, got y=${dishPos.y}`);
+  assert.ok(dishPos.y >= dishRoof.elevationY - 0.5, `Expected near top of dish_stair, got y=${dishPos.y}`);
   const onDish = resolvePlayerMoveWithElevation(dishPos.x, dishPos.z, dishPos.y, 41.0, 35.0, PLAYER_RADIUS, WALLS);
   assert.equal(onDish.y, dishRoof.elevationY);
 
@@ -857,7 +857,7 @@ test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad roo
   for (let z = -80.0; z >= -88.2; z -= 0.6) {
     kakaPos = resolvePlayerMoveWithElevation(kakaPos.x, kakaPos.z, kakaPos.y, -64.5, z, PLAYER_RADIUS, WALLS);
   }
-  assert.ok(kakaPos.y >= 2.8, `Expected near top of kaka_stair, got y=${kakaPos.y}`);
+  assert.ok(kakaPos.y >= kakaRoof.elevationY - 0.5, `Expected near top of kaka_stair, got y=${kakaPos.y}`);
   const onKaka = resolvePlayerMoveWithElevation(kakaPos.x, kakaPos.z, kakaPos.y, -70.0, -88.0, PLAYER_RADIUS, WALLS);
   assert.equal(onKaka.y, kakaRoof.elevationY);
 
@@ -867,9 +867,46 @@ test('Phase 4: Exterior staircases climb smoothly onto all 11 walkable Chhad roo
   for (let z = 71.8; z <= 80.0; z += 0.6) {
     bridgePos = resolvePlayerMoveWithElevation(bridgePos.x, bridgePos.z, bridgePos.y, 16.0, z, PLAYER_RADIUS, WALLS);
   }
-  assert.ok(bridgePos.y >= 3.5, `Expected near top of rail_bridge_stair_n, got y=${bridgePos.y}`);
+  assert.ok(bridgePos.y >= overbridge.elevationY - 0.5, `Expected near top of rail_bridge_stair_n, got y=${bridgePos.y}`);
   const onBridge = resolvePlayerMoveWithElevation(bridgePos.x, bridgePos.z, bridgePos.y, 16.0, 86.5, PLAYER_RADIUS, WALLS);
   assert.equal(onBridge.y, overbridge.elevationY);
+
+  // 5. Climb Nana-r Bari (North-West Corner), Kacchi House (West), Dorji Bari (East), Fufu-r Bari (Opar Para)
+  const nanaRoof = ROOFTOPS.find((d) => d.id === 'nana_roof')!;
+  let nanaPos = { x: -127.5, z: -127.0, y: 0 };
+  for (let z = -127.0; z >= -136.0; z -= 0.6) {
+    nanaPos = resolvePlayerMoveWithElevation(nanaPos.x, nanaPos.z, nanaPos.y, -127.5, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(nanaPos.y >= nanaRoof.elevationY - 0.5, `Expected near top of nana_stair, got y=${nanaPos.y}`);
+  const onNana = resolvePlayerMoveWithElevation(nanaPos.x, nanaPos.z, nanaPos.y, -133.0, -135.8, PLAYER_RADIUS, WALLS);
+  assert.equal(onNana.y, nanaRoof.elevationY);
+
+  const kacchiRoof = ROOFTOPS.find((d) => d.id === 'kacchi_roof')!;
+  let kacchiPos = { x: -130.5, z: -16.5, y: 0 };
+  for (let x = -130.5; x >= -139.5; x -= 0.6) {
+    kacchiPos = resolvePlayerMoveWithElevation(kacchiPos.x, kacchiPos.z, kacchiPos.y, x, -16.5, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(kacchiPos.y >= kacchiRoof.elevationY - 0.5, `Expected near top of kacchi_stair, got y=${kacchiPos.y}`);
+  const onKacchi = resolvePlayerMoveWithElevation(kacchiPos.x, kacchiPos.z, kacchiPos.y, -139.5, -21.0, PLAYER_RADIUS, WALLS);
+  assert.equal(onKacchi.y, kacchiRoof.elevationY);
+
+  const dorjiRoof = ROOFTOPS.find((d) => d.id === 'dorji_roof')!;
+  let dorjiPos = { x: 130.5, z: -16.5, y: 0 };
+  for (let x = 130.5; x <= 139.5; x += 0.6) {
+    dorjiPos = resolvePlayerMoveWithElevation(dorjiPos.x, dorjiPos.z, dorjiPos.y, x, -16.5, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(dorjiPos.y >= dorjiRoof.elevationY - 0.5, `Expected near top of dorji_stair, got y=${dorjiPos.y}`);
+  const onDorji = resolvePlayerMoveWithElevation(dorjiPos.x, dorjiPos.z, dorjiPos.y, 139.5, -21.0, PLAYER_RADIUS, WALLS);
+  assert.equal(onDorji.y, dorjiRoof.elevationY);
+
+  const fufuRoof = ROOFTOPS.find((d) => d.id === 'fufu_roof')!;
+  let fufuPos = { x: 79.5, z: 121.5, y: 0 };
+  for (let z = 121.5; z <= 130.8; z += 0.6) {
+    fufuPos = resolvePlayerMoveWithElevation(fufuPos.x, fufuPos.z, fufuPos.y, 79.5, z, PLAYER_RADIUS, WALLS);
+  }
+  assert.ok(fufuPos.y >= fufuRoof.elevationY - 0.5, `Expected near top of fufu_stair, got y=${fufuPos.y}`);
+  const onFufu = resolvePlayerMoveWithElevation(fufuPos.x, fufuPos.z, fufuPos.y, 74.0, 130.8, PLAYER_RADIUS, WALLS);
+  assert.equal(onFufu.y, fufuRoof.elevationY);
 });
 
 

@@ -140,7 +140,7 @@ export class WorkerRoomSession {
       if (this.engine && this.engine.hasHumanClients()) {
         this.sendToClient(clientId, {
           type: 'room:error',
-          message: `Room "${this.roomCode}" is already active. Creating a new code...`,
+          message: `রুম "${this.roomCode}" আগে থেকেই চালু আছে। নতুন কোড তৈরি হচ্ছে...`,
         });
         return;
       }
@@ -159,7 +159,7 @@ export class WorkerRoomSession {
       if (!this.engine || !this.engine.hasHumanClients()) {
         this.sendToClient(clientId, {
           type: 'room:error',
-          message: `Ei code e kono room nai (${normalizeRoomCode(msg.roomCode) || this.roomCode} not found or Host is offline).`,
+          message: `এই কোডে কোনো রুম পাওয়া যায়নি (${normalizeRoomCode(msg.roomCode) || this.roomCode} খুঁজে পাওয়া যায়নি বা হোস্ট অফলাইন)।`,
         });
         return;
       }

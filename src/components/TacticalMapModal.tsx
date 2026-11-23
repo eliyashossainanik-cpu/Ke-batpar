@@ -32,10 +32,10 @@ export interface TacticalMapModalProps {
 }
 
 const DOOR_CARDS: Array<{ zoneId: DoorZoneId; label: string; x: number; z: number }> = [
-  { zoneId: 'cha_dokan', label: 'Cha Dokan', x: -31, z: -31 },
-  { zoneId: 'rickshaw_garage', label: 'Rickshaw', x: 31, z: -31 },
-  { zoneId: 'desco_power', label: 'DESCO', x: -31, z: 31 },
-  { zoneId: 'dish_roof', label: 'Dish Hub', x: 31, z: 31 },
+  { zoneId: 'cha_dokan', label: 'চায়ের দোকান', x: -31, z: -31 },
+  { zoneId: 'rickshaw_garage', label: 'রিকশা গ্যারেজ', x: 31, z: -31 },
+  { zoneId: 'desco_power', label: 'ডেসকো কেন্দ্র', x: -31, z: 31 },
+  { zoneId: 'dish_roof', label: 'ডিশ হাব', x: 31, z: 31 },
 ];
 
 export function TacticalMapModal({
@@ -66,7 +66,7 @@ export function TacticalMapModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Moholla Tactical Map"
+      aria-label="মহল্লার কৌশলগত ম্যাপ"
       className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.86)' }}
     >
@@ -80,18 +80,18 @@ export function TacticalMapModal({
             <div>
               <h2 className="font-display text-lg sm:text-xl font-bold text-white leading-tight">
                 {isVondo && localPlayer.alive
-                  ? 'Batpar Sabotage Map · কে বাটপার?'
-                  : 'Moholla Tactical Map · মহল্লা ম্যাপ'}
+                  ? 'বাটপার নাশকতা ম্যাপ · কে বাটপার?'
+                  : 'মহল্লা ম্যাপ · কে বাটপার?'}
               </h2>
               <p className="text-[11px] text-slate-400">
-                19 Zones · {incompleteTasks.length > 0 ? `${incompleteTasks.length} Tasks Remaining` : 'Cams, Admin, Vitals & Rail Station'} · Press [Tab] or [Esc] to close
+                ৩৪টি এলাকা · {incompleteTasks.length > 0 ? `বাকি কাজ ${incompleteTasks.length}টি` : 'ক্যামেরা, অ্যাডমিন, ভাইটালস, রেললাইন ও ওপার পাড়া'} · বন্ধ করতে [Tab] বা [Esc] চাপো
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close Tactical Map"
+            aria-label="ম্যাপ বন্ধ করো"
             className="min-w-[40px] min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-200"
           >
             <X className="w-4 h-4" />
@@ -104,7 +104,7 @@ export function TacticalMapModal({
               viewBox={`${-MAP_HALF_SIZE - 8} ${-MAP_HALF_SIZE - 8} ${(MAP_HALF_SIZE + 8) * 2} ${(MAP_HALF_SIZE + 8) * 2}`}
               className="w-full h-full"
               role="img"
-              aria-label="Detailed 19-zone Moholla map"
+              aria-label="৩৪ এলাকার সম্পূর্ণ মহল্লা ম্যাপ"
             >
               <rect
                 x={-MAP_HALF_SIZE - 8}
@@ -128,12 +128,21 @@ export function TacticalMapModal({
                 strokeWidth="4.2"
                 strokeDasharray="3 2"
               />
-              {/* Expanded Outer Para Avenues (z = -72, +72, +96, x = ±86) */}
-              <line x1={-92} y1={-72} x2={92} y2={-72} stroke="#334155" strokeWidth="4.0" />
-              <line x1={-92} y1={72} x2={92} y2={72} stroke="#334155" strokeWidth="4.0" />
-              <line x1={-92} y1={96} x2={92} y2={96} stroke="#334155" strokeWidth="3.5" />
-              <line x1={-86} y1={-96} x2={-86} y2={96} stroke="#334155" strokeWidth="3.8" />
-              <line x1={86} y1={-96} x2={86} y2={96} stroke="#334155" strokeWidth="3.8" />
+              {/* Expanded Outer Para & Opar Para Avenues (z = -114, -72, ±52, 72, 96, 112, 144, x = ±52, ±86, ±118) */}
+              <line x1={-154} y1={-114} x2={154} y2={-114} stroke="#334155" strokeWidth="4.2" />
+              <line x1={-154} y1={-72} x2={154} y2={-72} stroke="#334155" strokeWidth="4.0" />
+              <line x1={-154} y1={-52} x2={154} y2={-52} stroke="#334155" strokeWidth="3.8" />
+              <line x1={-154} y1={52} x2={154} y2={52} stroke="#334155" strokeWidth="3.8" />
+              <line x1={-154} y1={72} x2={154} y2={72} stroke="#334155" strokeWidth="4.0" />
+              <line x1={-154} y1={96} x2={154} y2={96} stroke="#334155" strokeWidth="3.5" />
+              <line x1={-154} y1={112} x2={154} y2={112} stroke="#334155" strokeWidth="4.2" />
+              <line x1={-154} y1={144} x2={154} y2={144} stroke="#334155" strokeWidth="4.0" />
+              <line x1={-118} y1={-154} x2={-118} y2={154} stroke="#334155" strokeWidth="4.2" />
+              <line x1={-86} y1={-154} x2={-86} y2={154} stroke="#334155" strokeWidth="3.8" />
+              <line x1={-52} y1={-154} x2={-52} y2={154} stroke="#334155" strokeWidth="3.8" />
+              <line x1={52} y1={-154} x2={52} y2={154} stroke="#334155" strokeWidth="3.8" />
+              <line x1={86} y1={-154} x2={86} y2={154} stroke="#334155" strokeWidth="3.8" />
+              <line x1={118} y1={-154} x2={118} y2={154} stroke="#334155" strokeWidth="4.2" />
               {/* South Rail Line & Crossings */}
               <line x1={-MAP_HALF_SIZE + 2} y1={RAILWAY_TRACK_Z - 1.1} x2={MAP_HALF_SIZE - 2} y2={RAILWAY_TRACK_Z - 1.1} stroke="#94a3b8" strokeWidth="0.65" />
               <line x1={-MAP_HALF_SIZE + 2} y1={RAILWAY_TRACK_Z + 1.1} x2={MAP_HALF_SIZE - 2} y2={RAILWAY_TRACK_Z + 1.1} stroke="#94a3b8" strokeWidth="0.65" />
@@ -143,14 +152,17 @@ export function TacticalMapModal({
               <line x1={-7} y1={11.5} x2={7} y2={11.5} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <line x1={-11.5} y1={-7} x2={-11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
               <line x1={11.5} y1={-7} x2={11.5} y2={7} stroke="#94a3b8" strokeOpacity={0.35} strokeWidth="1.2" strokeDasharray="1.4 1.4" />
-              <text x={-34} y={-74.5} textAnchor="middle" fill="#64748b" fontSize="2.5" fontWeight="700">
-                NORTH PARA AVENUE
+              <text x={-34} y={-116.5} textAnchor="middle" fill="#64748b" fontSize="2.5" fontWeight="700">
+                উত্তর কলোনি সড়ক
               </text>
               <text x={-36} y={RAILWAY_TRACK_Z + 5.4} textAnchor="middle" fill="#94a3b8" fontSize="2.4" fontWeight="700">
-                BANGLA EXPRESS RAILWAY LINE
+                বাংলা এক্সপ্রেস রেললাইন
+              </text>
+              <text x={0} y={114.6} textAnchor="middle" fill="#64748b" fontSize="2.5" fontWeight="700">
+                ওপার পাড়া সড়ক
               </text>
 
-              {/* Layer 1: 19 Zone Footprints */}
+              {/* Layer 1: 34 Zone Footprints */}
               {ZONES.map((z) => {
                 const lockedSec =
                   z.id === 'cha_dokan'
@@ -185,16 +197,16 @@ export function TacticalMapModal({
                         fontSize="2.3"
                         fontWeight="800"
                       >
-                        LOCKED {Math.ceil(lockedSec)}s
+                        বন্ধ {Math.ceil(lockedSec)}সে.
                       </text>
                     )}
                   </g>
                 );
               })}
 
-              {/* Layer 1B: Precision Architecture — Pukur Water, Building Walls, Rooftops & Stairs */}
+              {/* Layer 1B: Precision Architecture — Pukur & Jheel Par Water, Building Walls, Rooftops & Stairs */}
               {WALLS.map((w) => {
-                if (w.id === 'pukur_water') {
+                if (w.id === 'pukur_water' || w.id === 'jheel_water') {
                   return (
                     <g key={w.id}>
                       <rect
@@ -208,7 +220,9 @@ export function TacticalMapModal({
                         strokeWidth="0.6"
                         rx="1.2"
                       />
-                      <line x1={w.maxX} y1={-4} x2={w.maxX} y2={4} stroke="#cbd5e1" strokeWidth="1.2" />
+                      {w.id === 'pukur_water' && (
+                        <line x1={w.maxX} y1={-4} x2={w.maxX} y2={4} stroke="#cbd5e1" strokeWidth="1.2" />
+                      )}
                     </g>
                   );
                 }
@@ -320,22 +334,22 @@ export function TacticalMapModal({
               <g>
                 <circle cx={EMERGENCY_BELL_POS.x} cy={EMERGENCY_BELL_POS.z} r={2.1} fill="#38bdf8" stroke="#0f172a" strokeWidth="0.7" />
                 <text x={EMERGENCY_BELL_POS.x} y={EMERGENCY_BELL_POS.z - 3.0} textAnchor="middle" fill="#7dd3fc" fontSize="2.1" fontWeight="700">
-                  BELL
+                  ঘণ্টা
                 </text>
 
                 <circle cx={SECURITY_CAMS_POS.x} cy={SECURITY_CAMS_POS.z} r={2.0} fill="#fb7185" stroke="#0f172a" strokeWidth="0.7" />
                 <text x={SECURITY_CAMS_POS.x} y={SECURITY_CAMS_POS.z + 4.3} textAnchor="middle" fill="#fda4af" fontSize="2.1" fontWeight="700">
-                  CCTV
+                  সিসিটিভি
                 </text>
 
                 <circle cx={ADMIN_TABLE_POS.x} cy={ADMIN_TABLE_POS.z} r={2.0} fill="#38bdf8" stroke="#0f172a" strokeWidth="0.7" />
                 <text x={ADMIN_TABLE_POS.x} y={ADMIN_TABLE_POS.z + 4.3} textAnchor="middle" fill="#bae6fd" fontSize="2.1" fontWeight="700">
-                  ADMIN
+                  অ্যাডমিন
                 </text>
 
                 <circle cx={VITALS_POS.x} cy={VITALS_POS.z} r={2.0} fill="#34d399" stroke="#0f172a" strokeWidth="0.7" />
                 <text x={VITALS_POS.x} y={VITALS_POS.z + 4.3} textAnchor="middle" fill="#6ee7b7" fontSize="2.1" fontWeight="700">
-                  VITALS
+                  ভাইটালস
                 </text>
               </g>
 
@@ -433,7 +447,7 @@ export function TacticalMapModal({
                       fontSize="2.4"
                       fontWeight="800"
                     >
-                      GAS VALVE {idx + 1}!
+                      গ্যাস ভালভ {idx + 1}!
                     </text>
                   </g>
                 ))
@@ -475,7 +489,7 @@ export function TacticalMapModal({
                       fontSize="2.4"
                       fontWeight="800"
                     >
-                      FIX SABOTAGE!
+                      সমস্যা ঠিক করো!
                     </text>
                   </g>
                 )
@@ -510,15 +524,15 @@ export function TacticalMapModal({
                   fontSize="2.4"
                   fontWeight="800"
                 >
-                  YOU{(localPlayer.y ?? 0) >= 2.2 ? ' (CHHAD)' : ''}
+                  তুমি{(localPlayer.y ?? 0) >= 2.2 ? ' (ছাদ)' : ''}
                 </text>
               </g>
 
-              {/* Layer 3: Unobstructed Bilingual District Name Headers (above each zone box) */}
+              {/* Layer 3: Clean Bangla District Name Headers (above each zone box) */}
               {ZONES.map((z) => {
                 const topY = z.z - z.depth / 2;
                 const badgeW = Math.max(z.width + 4, 24);
-                const badgeH = 5.4;
+                const badgeH = 3.8;
                 const badgeY = topY - badgeH - 0.35;
                 return (
                   <g key={`${z.id}-badge`}>
@@ -527,7 +541,7 @@ export function TacticalMapModal({
                       y={badgeY}
                       width={badgeW}
                       height={badgeH}
-                      rx="1.3"
+                      rx="1.2"
                       fill="#090f1d"
                       fillOpacity={0.94}
                       stroke={z.color}
@@ -535,21 +549,11 @@ export function TacticalMapModal({
                     />
                     <text
                       x={z.x}
-                      y={badgeY + 2.4}
-                      textAnchor="middle"
-                      fill="#f8fafc"
-                      fontSize="2.15"
-                      fontWeight="800"
-                    >
-                      {z.name}
-                    </text>
-                    <text
-                      x={z.x}
-                      y={badgeY + 4.55}
+                      y={badgeY + 2.65}
                       textAnchor="middle"
                       fill="#fde68a"
-                      fontSize="1.9"
-                      fontWeight="700"
+                      fontSize="2.2"
+                      fontWeight="800"
                     >
                       {z.banglaName}
                     </text>
@@ -565,7 +569,7 @@ export function TacticalMapModal({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-rose-200 flex items-center gap-1.5 mr-1">
                   <Zap className="w-4 h-4 text-amber-300" />
-                  Sabotage:
+                  নাশকতা:
                 </span>
                 <button
                   type="button"
@@ -576,7 +580,7 @@ export function TacticalMapModal({
                   }}
                   className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-xs font-bold text-white"
                 >
-                  Current Khao (DESCO)
+                  লোডশেডিং (ডেসকো)
                 </button>
                 <button
                   type="button"
@@ -587,7 +591,7 @@ export function TacticalMapModal({
                   }}
                   className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-xs font-bold text-white"
                 >
-                  MB Shesh (Dish Hub)
+                  ওয়াইফাই বন্ধ (ডিশ হাব)
                 </button>
                 <button
                   type="button"
@@ -598,13 +602,13 @@ export function TacticalMapModal({
                   }}
                   className="px-3 py-1.5 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-40 text-xs font-bold text-white border border-amber-300/40"
                 >
-                  Gas Leak (CRITICAL)
+                  গ্যাস লিক (জরুরি!)
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs font-bold text-amber-300 flex items-center gap-1 mr-1">
                   <Lock className="w-3.5 h-3.5" />
-                  Shutter{snapshot.doorLocks.cooldownRemaining > 0 ? ` (${Math.ceil(snapshot.doorLocks.cooldownRemaining)}s)` : ':'}
+                  শাটার{snapshot.doorLocks.cooldownRemaining > 0 ? ` (${Math.ceil(snapshot.doorLocks.cooldownRemaining)}সে.)` : ':'}
                 </span>
                 {DOOR_CARDS.map((d) => (
                   <button
@@ -622,23 +626,23 @@ export function TacticalMapModal({
           ) : (
             <div className="w-full flex flex-wrap items-center justify-center gap-4 text-xs text-slate-300">
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" /> Assigned Tasks
+                <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" /> নির্ধারিত কাজ
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-sky-400 inline-block" /> Adda Bell / Admin
+                <span className="w-3 h-3 rounded-full bg-sky-400 inline-block" /> আড্ডা ঘণ্টা / অ্যাডমিন
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-rose-400 inline-block" /> CCTV Cams
+                <span className="w-3 h-3 rounded-full bg-rose-400 inline-block" /> সিসিটিভি ক্যামেরা
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> Vitals Clinic
+                <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block" /> ভাইটালস ক্লিনিক
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-amber-400/70 border border-amber-300 inline-block" /> Rooftop Stairs
+                <span className="w-3 h-3 rounded bg-amber-400/70 border border-amber-300 inline-block" /> ছাদের সিঁড়ি
               </span>
               {showVents && (
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> Gopon Dren
+                  <span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> গোপন ড্রেন
                 </span>
               )}
             </div>

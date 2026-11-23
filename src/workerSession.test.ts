@@ -26,7 +26,7 @@ test('WorkerRoomSession rejects join when room has no active host', () => {
 
   assert.equal(guest.sent.length, 1);
   assert.equal(guest.sent[0].type, 'room:error');
-  assert.match(guest.sent[0].message, /not found or Host is offline/i);
+  assert.match(guest.sent[0].message, /খুঁজে পাওয়া যায়নি বা হোস্ট অফলাইন/i);
 });
 
 test('WorkerRoomSession supports host create, remote guest join, match start, and host migration', () => {

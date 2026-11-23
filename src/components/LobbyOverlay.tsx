@@ -131,10 +131,10 @@ export function LobbyOverlay({
         >
           <div>
             <span className="block text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-              {isSolo ? 'Moholla Waiting Lobby' : 'Moholla Room Code'}
+              {isSolo ? 'সলো লবি' : 'মহল্লা রুম কোড'}
             </span>
             <span className="font-mono-tabular text-xl sm:text-2xl font-bold text-amber-300 tracking-widest">
-              {isSolo ? 'Solo Room' : snapshot.roomCode}
+              {isSolo ? 'প্রাইভেট ম্যাচ' : snapshot.roomCode}
             </span>
           </div>
 
@@ -143,20 +143,20 @@ export function LobbyOverlay({
               <button
                 type="button"
                 onClick={handleCopyCode}
-                aria-label="Copy room code"
+                aria-label="রুম কোড কপি করো"
                 className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-xs font-bold text-slate-950 flex items-center gap-1.5"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-700" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? 'কপি হয়েছে!' : 'কপি'}
               </button>
               <button
                 type="button"
                 onClick={handleCopyInviteLink}
-                aria-label="Share room invite link"
+                aria-label="আমন্ত্রণ লিংক শেয়ার করো"
                 className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Link2 className="w-3.5 h-3.5" />}
-                {copiedLink ? 'Link Copied' : 'Share Link'}
+                {copiedLink ? 'লিংক কপি হয়েছে' : 'লিংক শেয়ার'}
               </button>
             </div>
           )}
@@ -170,7 +170,7 @@ export function LobbyOverlay({
             style={{ backgroundColor: 'rgba(15, 23, 42, 0.92)' }}
           >
             <BookOpen className="w-4 h-4 text-sky-300" />
-            How to play
+            খেলার নিয়ম
           </button>
           <button
             type="button"
@@ -179,7 +179,7 @@ export function LobbyOverlay({
             style={{ backgroundColor: 'rgba(15, 23, 42, 0.92)' }}
           >
             <LogOut className="w-4 h-4" />
-            Leave
+            বের হও
           </button>
         </div>
       </div>
@@ -194,7 +194,7 @@ export function LobbyOverlay({
             style={{ backgroundColor: 'rgba(9, 15, 28, 0.94)' }}
           >
             <p className="text-xs uppercase tracking-widest text-amber-300 font-bold">
-              Khela Shuru Hocche!
+              খেলা শুরু হচ্ছে!
             </p>
             <div className="font-mono-tabular text-5xl font-black text-white">
               {snapshot.lobbyCountdownSec}
@@ -206,7 +206,7 @@ export function LobbyOverlay({
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold inline-flex items-center gap-1"
               >
                 <X className="w-3.5 h-3.5" />
-                Cancel Start
+                ক্যানসেল করো
               </button>
             )}
           </div>
@@ -232,7 +232,7 @@ export function LobbyOverlay({
           <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800">
             <div className="flex flex-wrap items-center gap-2">
               <label htmlFor="lobby-name-input" className="text-[11px] font-semibold text-slate-400">
-                Name:
+                নাম:
               </label>
               <input
                 id="lobby-name-input"
@@ -254,10 +254,10 @@ export function LobbyOverlay({
                 onClick={submitName}
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-amber-300"
               >
-                Save
+                সেভ
               </button>
 
-              <div className="flex flex-wrap items-center gap-1 pl-1 max-w-xs sm:max-w-md" role="radiogroup" aria-label="Pick lobby color">
+              <div className="flex flex-wrap items-center gap-1 pl-1 max-w-xs sm:max-w-md" role="radiogroup" aria-label="লবির রঙ বেছে নাও">
                 {PLAYER_COLORS.map((c) => {
                   const isMine = localPlayer?.color === c.id;
                   const isTaken = takenColors.has(c.id);
@@ -267,10 +267,10 @@ export function LobbyOverlay({
                       type="button"
                       disabled={isTaken}
                       onClick={() => onCustomize(undefined, c.id)}
-                      aria-label={`Color ${c.label}${isTaken ? ' (taken)' : ''}`}
+                      aria-label={`রঙ ${c.label}${isTaken ? ' (নেওয়া হয়েছে)' : ''}`}
                       aria-checked={isMine}
                       role="radio"
-                      title={isTaken ? `${c.label} already taken` : c.label}
+                      title={isTaken ? `${c.label} নেওয়া হয়ে গেছে` : c.label}
                       className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-transform ${
                         isMine
                           ? 'border-amber-300 scale-110'
@@ -287,7 +287,7 @@ export function LobbyOverlay({
 
             <div className="flex flex-wrap items-center gap-2">
               <span className="hidden md:inline text-[11px] text-slate-400">
-                WASD Walk · Drag Look · 1–6 Meme SFX
+                WASD হাঁটা · মাউস ঘোরানো · ১–৬ মিম সাউন্ড
               </span>
               {isHost && (
                 <>
@@ -298,7 +298,7 @@ export function LobbyOverlay({
                     className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-semibold text-slate-200 flex items-center gap-1"
                   >
                     <Bot className="w-3.5 h-3.5 text-amber-300" />
-                    + Add Bot
+                    + বট যোগ করো
                   </button>
                   {snapshot.players.some((p) => p.isBot) && (
                     <button
@@ -306,7 +306,7 @@ export function LobbyOverlay({
                       onClick={onRemoveBots}
                       className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
                     >
-                      Clear Bots
+                      সব বট সরাও
                     </button>
                   )}
                 </>
@@ -317,7 +317,7 @@ export function LobbyOverlay({
                 className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-amber-200 flex items-center gap-1"
               >
                 <Settings2 className="w-3.5 h-3.5" />
-                {showSettingsDrawer ? 'Hide Rules' : 'Room Rules'}
+                {showSettingsDrawer ? 'সেটিংস লুকাও' : 'ম্যাচ সেটিংস'}
               </button>
             </div>
           </div>
@@ -328,9 +328,9 @@ export function LobbyOverlay({
             <div className="lg:col-span-4 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
                 <span>
-                  Moholla Players ({snapshot.players.length}/{MAX_MATCH_PLAYERS} · min {MIN_MATCH_PLAYERS})
+                  মহল্লার খেলোয়াড় ({snapshot.players.length}/{MAX_MATCH_PLAYERS} · সর্বনিম্ন {MIN_MATCH_PLAYERS})
                 </span>
-                <span className="text-amber-300">{rolePreview.batparCount} Batpar</span>
+                <span className="text-amber-300">{rolePreview.batparCount} বাটপার</span>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-0.5">
                 {snapshot.players.map((p) => {
@@ -352,10 +352,10 @@ export function LobbyOverlay({
                         />
                         <span className="font-semibold text-white truncate">
                           {p.name}
-                          {p.id === localPlayerId ? ' (You)' : ''}
+                          {p.id === localPlayerId ? ' (তুমি)' : ''}
                         </span>
                         {p.isHost && (
-                          <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-label="Host" />
+                          <Crown className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-label="হোস্ট" />
                         )}
                       </div>
 
@@ -367,7 +367,7 @@ export function LobbyOverlay({
                           className={`text-[10px] font-bold ${
                             isReady ? 'text-emerald-400' : 'text-slate-500'
                           }`}
-                          title={isReady ? 'Ready' : 'Not Ready'}
+                          title={isReady ? 'প্রস্তুত' : 'অপেক্ষায়'}
                         >
                           {isReady ? '✓' : '…'}
                         </span>
@@ -376,7 +376,7 @@ export function LobbyOverlay({
                             <button
                               type="button"
                               onClick={() => onRemoveBot(p.id)}
-                              aria-label={`Remove bot ${p.name}`}
+                              aria-label={`বট সরাও ${p.name}`}
                               className="p-1 rounded bg-slate-800 hover:bg-rose-900/70 text-slate-300 hover:text-rose-200"
                             >
                               <UserMinus className="w-3 h-3" />
@@ -385,7 +385,7 @@ export function LobbyOverlay({
                             <button
                               type="button"
                               onClick={() => onKickPlayer(p.id)}
-                              aria-label={`Kick ${p.name}`}
+                              aria-label={`বাদ দাও ${p.name}`}
                               className="p-1 rounded bg-slate-800 hover:bg-rose-900/70 text-slate-300 hover:text-rose-200"
                             >
                               <UserX className="w-3 h-3" />
@@ -402,8 +402,8 @@ export function LobbyOverlay({
                     key={`empty_${idx}`}
                     className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-dashed border-slate-800 text-[11px] text-slate-500"
                   >
-                    <span>Empty Slot #{snapshot.players.length + idx + 1}</span>
-                    <span>Open</span>
+                    <span>খালি স্লট #{snapshot.players.length + idx + 1}</span>
+                    <span>উন্মুক্ত</span>
                   </div>
                 ))}
               </div>
@@ -413,31 +413,31 @@ export function LobbyOverlay({
             {showSettingsDrawer && (
               <div className="lg:col-span-5 space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
-                  <span>{isHost ? 'Host Settings (Live Synced)' : 'Match Settings (Read-only)'}</span>
+                  <span>{isHost ? 'হোস্ট সেটিংস (লাইভ)' : 'রুমের সেটিংস'}</span>
                   <span className="text-sky-300">
-                    {snapshot.settings.enableSpecialRoles ? 'Special Roles ON' : 'Classic Mode'}
+                    {snapshot.settings.enableSpecialRoles ? 'স্পেশাল রোল চালু' : 'সাধারণ মোড'}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-slate-200">
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Batpar</span>
+                    <span className="text-slate-400">বাটপার</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.vondoCount}
                       onChange={(e) => onUpdateSettings({ vondoCount: Number(e.target.value) })}
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
-                      <option value={1} className="bg-slate-900">1</option>
+                      <option value={1} className="bg-slate-900">১</option>
                       <option value={2} disabled={snapshot.players.length < 6} className="bg-slate-900">
-                        2 {snapshot.players.length < 6 ? '(6P+)' : ''}
+                        ২ {snapshot.players.length < 6 ? '(৬+ জন)' : ''}
                       </option>
                       <option value={3} disabled={snapshot.players.length < 11} className="bg-slate-900">
-                        3 {snapshot.players.length < 11 ? '(11P+)' : ''}
+                        ৩ {snapshot.players.length < 11 ? '(১১+ জন)' : ''}
                       </option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Kill CD</span>
+                    <span className="text-slate-400">কিল বিরতি</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.killCooldownSec}
@@ -445,12 +445,12 @@ export function LobbyOverlay({
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
                       {[12, 18, 25, 30].map((v) => (
-                        <option key={v} value={v} className="bg-slate-900">{v}s</option>
+                        <option key={v} value={v} className="bg-slate-900">{v} সে.</option>
                       ))}
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Tasks</span>
+                    <span className="text-slate-400">কাজ</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.tasksPerPlayer}
@@ -463,7 +463,7 @@ export function LobbyOverlay({
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Shalish</span>
+                    <span className="text-slate-400">সালিশ</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.meetingTimeSec}
@@ -471,25 +471,25 @@ export function LobbyOverlay({
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
                       {[20, 30, 45, 60].map((v) => (
-                        <option key={v} value={v} className="bg-slate-900">{v}s</option>
+                        <option key={v} value={v} className="bg-slate-900">{v} সে.</option>
                       ))}
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Speed</span>
+                    <span className="text-slate-400">গতি</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.moveSpeed}
                       onChange={(e) => onUpdateSettings({ moveSpeed: Number(e.target.value) })}
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
-                      <option value={7.4} className="bg-slate-900">0.85x</option>
-                      <option value={8.6} className="bg-slate-900">1.0x</option>
-                      <option value={10.2} className="bg-slate-900">1.2x</option>
+                      <option value={7.4} className="bg-slate-900">০.৮৫x</option>
+                      <option value={8.6} className="bg-slate-900">১.০x</option>
+                      <option value={10.2} className="bg-slate-900">১.২x</option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400">Bells/CD</span>
+                    <span className="text-slate-400">ঘণ্টা/বিরতি</span>
                     <select
                       disabled={!isHost}
                       value={snapshot.settings.emergencyMeetingsPerPlayer}
@@ -500,7 +500,7 @@ export function LobbyOverlay({
                     >
                       {[1, 2, 3].map((v) => (
                         <option key={v} value={v} className="bg-slate-900">
-                          {v}/{snapshot.settings.emergencyCooldownSec}s
+                          {v}/{snapshot.settings.emergencyCooldownSec}সে.
                         </option>
                       ))}
                     </select>
@@ -511,12 +511,12 @@ export function LobbyOverlay({
                 <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11px] text-slate-300 px-1">
                   {(
                     [
-                      ['confirmEjects', 'Confirm Ejects'],
-                      ['anonymousVotes', 'Anon Votes'],
-                      ['visualTasks', 'Visual Tasks'],
-                      ['enableSpecialRoles', 'Special Roles'],
-                      ['enableNeutralRoles', 'Neutrals (Chaos)'],
-                      ['autoFillBots', 'Auto-fill Bots'],
+                      ['confirmEjects', 'আসল পরিচয় দেখাও'],
+                      ['anonymousVotes', 'গোপন ভোট'],
+                      ['visualTasks', 'লাইভ কাজের দৃশ্য'],
+                      ['enableSpecialRoles', 'স্পেশাল রোল'],
+                      ['enableNeutralRoles', 'নিরপেক্ষ চরিত্র'],
+                      ['autoFillBots', 'অটো বট পূরণ'],
                     ] as const
                   ).map(([key, label]) => (
                     <label key={key} className="flex items-center gap-1 cursor-pointer select-none">
@@ -535,7 +535,7 @@ export function LobbyOverlay({
                 {/* Role Pool Preview */}
                 <div className="rounded-xl px-2.5 py-2 bg-slate-950/75 border border-slate-800 text-[11px] text-slate-300">
                   <span className="font-bold text-amber-300 block mb-0.5">
-                    Role Pool Preview ({snapshot.players.length}P):
+                    চরিত্রের তালিকা ({snapshot.players.length} জন):
                   </span>
                   <span>{rolePreview.summary}</span>
                 </div>
@@ -550,12 +550,12 @@ export function LobbyOverlay({
             >
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 pb-1.5 border-b border-slate-800/80">
                 <MessageSquare className="w-3.5 h-3.5 text-amber-300" />
-                <span>Adda Lobby Chat</span>
+                <span>লবি আড্ডা</span>
               </div>
               <div className="flex-1 overflow-y-auto space-y-1 py-1.5 text-xs">
                 {(snapshot.lobbyChat ?? []).length === 0 ? (
                   <p className="text-[11px] text-slate-500 italic">
-                    Adda jomao! Say salam before khela starts...
+                    খেলা শুরুর আগে এখানে আড্ডা দাও...
                   </p>
                 ) : (
                   (snapshot.lobbyChat ?? []).map((m) => {
@@ -578,13 +578,13 @@ export function LobbyOverlay({
                   maxLength={LOBBY_CHAT_MAX_CHARS}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Chat (max 120)..."
-                  aria-label="Lobby chat message"
+                  placeholder="মেসেজ লিখো..."
+                  aria-label="লবি চ্যাট বার্তা"
                   className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
                 />
                 <button
                   type="submit"
-                  aria-label="Send lobby chat"
+                  aria-label="লবি চ্যাট পাঠাও"
                   className="p-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -599,7 +599,7 @@ export function LobbyOverlay({
               {isHost ? (
                 startCheck.ok ? (
                   <span className="text-emerald-300 font-semibold">
-                    Shobai ready! Press Play to start the 5s countdown.
+                    সবাই প্রস্তুত! খেলা শুরু করতে শুরু বোতামে চাপ দাও।
                   </span>
                 ) : (
                   <span className="text-amber-300 font-semibold">{startCheck.reason}</span>
@@ -607,8 +607,8 @@ export function LobbyOverlay({
               ) : (
                 <span className="text-slate-300">
                   {localPlayer?.ready
-                    ? 'Tumi Ready! Host Play dile khela shuru hobe.'
-                    : 'Press Ready so the Host can start the match!'}
+                    ? 'রেডি হয়েছ! হোস্ট শুরু করলেই ম্যাচ শুরু হবে।'
+                    : 'রেডি বাটনে চাপ দাও — সবাই রেডি হলে হোস্ট শুরু করবে!'}
                 </span>
               )}
             </div>
@@ -621,7 +621,7 @@ export function LobbyOverlay({
                     onClick={onCancelStart}
                     className="min-h-[42px] px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-display font-bold text-sm"
                   >
-                    Cancel ({snapshot.lobbyCountdownSec}s)
+                    বাতিল ({snapshot.lobbyCountdownSec} সে.)
                   </button>
                 ) : (
                   <button
@@ -629,11 +629,11 @@ export function LobbyOverlay({
                     data-start="true"
                     disabled={!startCheck.ok}
                     onClick={onStartMatch}
-                    title={startCheck.reason ?? 'Start match'}
+                    title={startCheck.reason ?? 'খেলা শুরু করো'}
                     className="min-h-[42px] px-6 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-display font-bold text-sm flex items-center gap-2"
                   >
                     <Play className="w-4 h-4 fill-current" />
-                    Play ({snapshot.players.length}/{MAX_MATCH_PLAYERS})
+                    খেলো ({snapshot.players.length}/{MAX_MATCH_PLAYERS})
                   </button>
                 )
               ) : (
@@ -649,7 +649,7 @@ export function LobbyOverlay({
                     }`}
                   >
                     <Check className="w-4 h-4" />
-                    {localPlayer.ready ? 'Ready ✓' : 'Ready'}
+                    {localPlayer.ready ? 'রেডি ✓' : 'রেডি হও'}
                   </button>
                 )
               )}

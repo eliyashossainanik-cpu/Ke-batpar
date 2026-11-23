@@ -19,7 +19,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
       role="dialog"
       aria-modal="true"
       aria-label={
-        kind === 'cams' ? 'Security CCTV Monitor' : kind === 'admin' ? 'Admin Para Map' : 'Para Vitals ECG'
+        kind === 'cams' ? 'নিরাপত্তা সিসিটিভি মনিটর' : kind === 'admin' ? 'অ্যাডমিন পাড়া রাডার' : 'মহল্লা স্বাস্থ্য পরীক্ষা'
       }
       className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.8)' }}
@@ -36,17 +36,17 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
             <div>
               <h2 className="font-display text-lg sm:text-xl font-bold text-white">
                 {kind === 'cams'
-                  ? 'Moholla CCTV Security Feeds'
+                  ? 'মহল্লা সিসিটিভি ক্যামেরা ফিড'
                   : kind === 'admin'
-                  ? 'Admin Table · Live Para Radar'
-                  : 'Moholla Health Vitals ECG'}
+                  ? 'অ্যাডমিন টেবিল · লাইভ পাড়া রাডার'
+                  : 'মহল্লা হেলথ ভাইটালস ইসিজি'}
               </h2>
               <p className="text-xs text-slate-400">
                 {kind === 'cams'
-                  ? 'Red camera LEDs blink outside while you watch.'
+                  ? 'তুমি ক্যামেরা দেখার সময় বাইরে লাল লাইট জ্বলতে থাকে।'
                   : kind === 'admin'
-                  ? 'Shows anonymous occupancy counts per building (including vents & bodies).'
-                  : 'Tracks heartbeat status for all Para-basi in real time.'}
+                  ? 'প্রতিটি ভবনে কতজন আছে তা দেখায় (ড্রেন ও লাশসহ)।'
+                  : 'সব পাড়াবাসীর হৃৎস্পন্দনের অবস্থা সরাসরি দেখায়।'}
               </p>
             </div>
           </div>
@@ -54,7 +54,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close station"
+            aria-label="স্টেশন বন্ধ করো"
             className="min-w-[44px] min-h-[44px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center"
           >
             <X className="w-5 h-5" />
@@ -65,17 +65,17 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
           {wifiDown ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-3 rounded-xl bg-slate-950 border border-rose-500/40">
               <WifiOff className="w-10 h-10 text-rose-400" />
-              <h3 className="font-display text-xl font-bold text-rose-300">WI-FI CONNECTION LOST</h3>
+              <h3 className="font-display text-xl font-bold text-rose-300">ওয়াইফাই সংযোগ বিচ্ছিন্ন!</h3>
               <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
-                Batpar Dish Cable Hub er tar kete dise! Reset the Dish Router before monitoring feeds.
+                বাটপার ডিশ কেবল হাবের তার কেটে দিয়েছে! মনিটর দেখার আগে ডিশ রাউটার ঠিক করো।
               </p>
             </div>
           ) : commsJammed ? (
             <div className="py-12 flex flex-col items-center justify-center text-center gap-3 rounded-xl bg-slate-950 border border-amber-500/45">
               <WifiOff className="w-10 h-10 text-amber-400" />
-              <h3 className="font-display text-xl font-bold text-amber-300">COMMS JAMMED BY DALAL!</h3>
+              <h3 className="font-display text-xl font-bold text-amber-300">দালালের কারণে সিগন্যাল জ্যাম!</h3>
               <p className="text-xs sm:text-sm text-slate-400 max-w-sm">
-                Broker Jam cholche — kichu second por Admin Radar ar Vitals ECG signal phire ashbe.
+                দালাল জ্যাম চলছে — কয়েক সেকেন্ড পর অ্যাডমিন রাডার ও ভাইটালস ইসিজি সিগন্যাল ফিরে আসবে।
               </p>
             </div>
           ) : kind === 'cams' ? (
@@ -98,13 +98,13 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono-tabular text-xs font-bold text-emerald-300">{cam.label}</span>
                       <span className="px-2 py-0.5 rounded bg-rose-600/90 text-[10px] font-mono-tabular font-bold text-white">
-                        REC
+                        রেকর্ডিং
                       </span>
                     </div>
 
                     <div className="flex-1 flex flex-wrap items-center gap-2 py-2">
                       {visiblePlayers.length === 0 && visibleBodies.length === 0 ? (
-                        <span className="text-xs text-slate-500 font-mono-tabular">No movement detected...</span>
+                        <span className="text-xs text-slate-500 font-mono-tabular">কোনো নড়াচড়া নেই...</span>
                       ) : (
                         <>
                           {visiblePlayers.map((p) => {
@@ -123,7 +123,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
                                 />
                                 <span className="text-xs font-semibold text-white">{visName}</span>
                                 <span className="text-[10px] text-slate-400">
-                                  {moving ? 'Walking' : 'Idle'}
+                                  {moving ? 'হাঁটছে' : 'দাঁড়িয়ে'}
                                 </span>
                               </div>
                             );
@@ -134,7 +134,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
                               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-950/90 border border-rose-500/50 text-rose-200 text-xs font-bold"
                             >
                               <Skull className="w-3.5 h-3.5" />
-                              Body: {b.victimName}
+                              লাশ: {b.victimName}
                             </div>
                           ))}
                         </>
@@ -142,7 +142,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
                     </div>
 
                     <div className="text-[11px] font-mono-tabular text-slate-500 border-t border-slate-900 pt-1.5">
-                      Sector radius {cam.viewRadius}m · Live feed
+                      পরিসীমা {cam.viewRadius} মি. · লাইভ ফিড
                     </div>
                   </div>
                 );
@@ -167,19 +167,18 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
                         : 'bg-slate-950 border-slate-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-display text-sm font-bold text-white">{zone.name}</span>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="font-display text-sm font-bold text-white">{zone.banglaName}</span>
                       <span className="font-mono-tabular text-xs font-bold text-amber-300">{totalSignals}</span>
                     </div>
-                    <p className="text-[11px] text-slate-400 mb-3">{zone.banglaName}</p>
                     <div className="flex flex-wrap gap-1.5 min-h-[24px]">
                       {totalSignals === 0 ? (
-                        <span className="text-[11px] text-slate-500">Empty</span>
+                        <span className="text-[11px] text-slate-500">খালি</span>
                       ) : (
                         Array.from({ length: totalSignals }).map((_, idx) => (
                           <span
                             key={idx}
-                            title="Anonymous Para-basi signal"
+                            title="অজ্ঞাত পাড়াবাসী সিগন্যাল"
                             className="w-5 h-5 rounded-md bg-amber-300/90 border border-slate-950 inline-block"
                           />
                         ))
@@ -194,7 +193,7 @@ export function StationModal({ kind, snapshot, onClose }: StationModalProps) {
               {snapshot.players.map((p) => {
                 const c = PLAYER_COLORS.find((col) => col.id === p.color) ?? PLAYER_COLORS[0];
                 const hasBody = snapshot.bodies.some((b) => b.victimId === p.id);
-                const statusLabel = p.alive ? 'OK' : hasBody ? 'DEAD' : 'GHOST';
+                const statusLabel = p.alive ? 'সুস্থ' : hasBody ? 'মৃত' : 'ভূত';
                 const statusColor = p.alive
                   ? 'text-emerald-400 border-emerald-500/40 bg-emerald-950/30'
                   : hasBody

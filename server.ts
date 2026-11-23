@@ -29,8 +29,8 @@ import {
   VENTS,
   WALLS,
   distance2D,
+  getBanglaZoneNameAt,
   getZoneIdAt,
-  getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
   resolvePlayerMoveWithElevation,
@@ -198,10 +198,10 @@ async function generateGeminiBotMeetingChats(
       contents: `Generate one natural meeting round of short, casual chat lines for the non-silent bots below.\nContext JSON:\n${JSON.stringify(promptPayload)}`,
       config: {
         systemInstruction:
-          'You write realistic human player chat messages in an Among Us-style Dhaka neighborhood game ("Ke Batpar?"). ' +
+          'You write realistic human player chat messages in an Among Us-style Dhaka neighborhood game ("কে বাটপার?"). ' +
           'Each bot MUST ONLY know its own privateMemory, ownRecentZones, personality, role, partnerName (if vondo), and recentChat. ' +
           'Never leak hidden roles or cheat. Never treat any player specially. ' +
-          'Write short, natural 4-14 word lines in casual mixed Banglish/English/Bangla with realistic lowercase, mild typos, slang ("bhai", "bro", "kasam", "sus", "ken", "re", "pukur"), and personality fit. ' +
+          'Write short, natural 4-14 word lines in pure natural casual Bangla script (বাংলা অক্ষরে, যেমন: "ভাই", "মামা", "কসম", "সন্দেহ লাগতেছে", "কেন", "আরেহ", "পুকুরে ফ্যালো") with realistic casual phrasing, mild conversational quirks, and personality fit. ' +
           'Skip bots where shouldBeSilent is true (or output fewer messages so some stay quiet). ' +
           'Vondo bots lie using fakeAlibiZone, deflect naturally, or bus a heavily suspected partner. ' +
           'Parabasi bots share honest (slightly uncertain) observations, ask sharp questions, or call out contradictions. ' +
@@ -251,21 +251,21 @@ async function generateGeminiBotMeetingChats(
 }
 
 const BOT_NAMES = [
-  'Chacha Miah',
-  'Babu Bhai',
-  'Pintu Da',
-  'Tuktuki Apa',
-  'Raju Rickshaw',
-  'Kallu Ustad',
-  'Mitu Moni',
-  'Golapi Rani',
-  'Akashi Tara',
-  'Badami Mama',
-  'Tute Chacha',
-  'Jam Kaka',
-  'Pata Bhai',
-  'Shona Babu',
-  'Lal Mia',
+  'চাচা মিয়া',
+  'বাবু ভাই',
+  'পিন্টু দা',
+  'টুকটুকি আপা',
+  'রাজু রিকশা',
+  'কাল্লু ওস্তাদ',
+  'মিতু মণি',
+  'গোলাপী রানী',
+  'আকাশী তারা',
+  'বাদামী মামা',
+  'টুটু চাচা',
+  'জাম কাকা',
+  'পাতা ভাই',
+  'সোনা বাবু',
+  'লাল মিয়া',
 ];
 
 interface RoomInternal {
@@ -426,7 +426,7 @@ function pushSystemChat(room: RoomInternal, text: string): void {
   room.chat.push({
     id: `sys_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     senderId: 'system',
-    senderName: 'Moholla Announcement',
+    senderName: 'মহল্লা ঘোষণা',
     senderColor: 'holud',
     text,
     timestamp: Date.now(),
@@ -652,7 +652,7 @@ function startMatch(room: RoomInternal): void {
 
   room.phase = 'role_reveal';
   room.phaseTimer = 8.0;
-  pushSystemChat(room, 'Khela shuru! Para tasks shesh koro ba Batpar ke Pukur e felo!');
+  pushSystemChat(room, 'খেলা শুরু! পাড়ার সব কাজ শেষ করো অথবা বাটপারকে পুকুরে ফেলো!');
   broadcastRoom(room);
 }
 
@@ -664,8 +664,8 @@ function handleRoomDeathSideEffects(room: RoomInternal, victim: PlayerState): vo
     if (pWs) {
       sendToSocket(pWs, {
         type: 'clue:result',
-        title: 'Ghotok Bond Alert!',
-        detail: `Tomar Ghotok-bonded partner ${victim.name} ei muhurte mara gese!`,
+        title: 'ঘটকের জুটি সতর্কবার্তা!',
+        detail: `তোমার ঘটক-জুটি সঙ্গী ${victim.name} এই মুহূর্তে মারা গেছে!`,
       });
     }
   }
@@ -674,8 +674,8 @@ function handleRoomDeathSideEffects(room: RoomInternal, victim: PlayerState): vo
     if (gWs) {
       sendToSocket(gWs, {
         type: 'clue:result',
-        title: 'Ghotok Bond Alert!',
-        detail: `Bonded neighbor ${victim.name} just fell in Moholla!`,
+        title: 'ঘটকের জুটি সতর্কবার্তা!',
+        detail: `জুটি বাঁধা প্রতিবেশী ${victim.name} এইমাত্র মারা গেছে!`,
       });
     }
   }
@@ -729,7 +729,7 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
       room.netaRevealedId = aliveNeta.id;
       pushSystemChat(
         room,
-        `${aliveNeta.name} mohollar Neta (Mayor) — tar Shalish vote 2x hisebe count hobe!`,
+        `${aliveNeta.name} মহল্লার নেতা — তার সালিশের ভোট ২ গুণ হিসেবে গণনা হবে!`,
       );
     }
   }
@@ -739,9 +739,9 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
   room.typingPlayers.clear();
 
   if (reason === 'body') {
-    pushSystemChat(room, `${caller.name} found ${victimName ?? 'a fallen neighbor'}! Adda called!`);
+    pushSystemChat(room, `${caller.name} ${victimName ?? 'এক প্রতিবেশীর'} লাশ পেয়েছে! জরুরি সালিশ ডাকা হয়েছে!`);
   } else {
-    pushSystemChat(room, `${caller.name} rang the Adda Bell! Urgent Moholla meeting!`);
+    pushSystemChat(room, `${caller.name} আড্ডার ঘণ্টা বাজিয়েছে! জরুরি মহল্লা সালিশ!`);
   }
 
   const allPlayers = Array.from(room.players.values());
@@ -832,8 +832,8 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
           if (targetWs) {
             sendToSocket(targetWs, {
               type: 'clue:result',
-              title: 'Protection Saved You!',
-              detail: 'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz/Injection bachay dise!',
+              title: 'সুরক্ষা তোমাকে বাঁচিয়েছে!',
+              detail: 'একজন বাটপার হামলা করেছিল, কিন্তু তাবিজ বা ইনজেকশন বাঁচিয়ে দিয়েছে!',
             });
           }
         } else {
@@ -927,8 +927,8 @@ setInterval(() => {
               sendToSocket(pWs, { type: 'sfx:event', kind: 'clean' });
               sendToSocket(pWs, {
                 type: 'clue:result',
-                title: 'Lash Gayeb!',
-                detail: `Cleaned ${jRes.completedBody.victimName}'s body — nobody can report it now!`,
+                title: 'লাশ গায়েব!',
+                detail: `${jRes.completedBody.victimName}-এর লাশ সরানো হয়েছে — এখন কেউ রিপোর্ট করতে পারবে না!`,
               });
             }
           } else if (jRes.cancelled) {
@@ -936,8 +936,8 @@ setInterval(() => {
             if (pWs) {
               sendToSocket(pWs, {
                 type: 'clue:result',
-                title: 'Clean Cancelled',
-                detail: 'Tumi shoray geso ba lash report hoye gese!',
+                title: 'সাফাই বাতিল',
+                detail: 'তুমি সরে গেছো অথবা লাশ আগেই রিপোর্ট হয়ে গেছে!',
               });
             }
           }
@@ -981,8 +981,8 @@ setInterval(() => {
         pushSystemChat(
           room,
           sabStep.expiredNonCriticalType === 'loadshedding'
-            ? 'Current ashche! DESCO line nijei thik hoye gese!'
-            : 'Wi-Fi ashche! Dish line abar chaloo hoye gese!',
+            ? 'কারেন্ট এসেছে! বিদ্যুৎ সংযোগ নিজেই ঠিক হয়ে গেছে!'
+            : 'ওয়াই-ফাই এসেছে! ডিশ সংযোগ আবার চালু হয়েছে!',
         );
       }
       broadcastRoom(room);
@@ -1075,7 +1075,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         playerCount: r.players.size,
         maxPlayers: MAX_PLAYERS,
         phase: r.phase,
-        hostName: host?.name ?? 'Host',
+        hostName: host?.name ?? 'হোস্ট',
       });
     }
     sendToSocket(ws, { type: 'room:list_result', rooms: list });
@@ -1101,7 +1101,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       const code = msg.roomCode.trim().toUpperCase();
       room = rooms.get(code);
       if (!room) {
-        sendToSocket(ws, { type: 'room:error', message: `Ei code e kono room nai (${code} not found).` });
+        sendToSocket(ws, { type: 'room:error', message: `এই কোডে কোনো রুম পাওয়া যায়নি (${code})।` });
         return;
       }
       pruneExpiredReconnectSlots(room);
@@ -1133,11 +1133,11 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         return;
       }
       if (room.phase !== 'lobby' || room.lobbyCountdownSec !== null) {
-        sendToSocket(ws, { type: 'room:error', message: 'Khela shuru hoye gese! Match already in progress.' });
+        sendToSocket(ws, { type: 'room:error', message: 'খেলা শুরু হয়ে গেছে! ম্যাচ এখন চলছে।' });
         return;
       }
       if (room.players.size + room.disconnectedSlots.size >= MAX_PLAYERS) {
-        sendToSocket(ws, { type: 'room:error', message: `Room bhorti! Max ${MAX_PLAYERS} jon (room is full).` });
+        sendToSocket(ws, { type: 'room:error', message: `রুম ভর্তি! সর্বোচ্চ ${MAX_PLAYERS} জন খেলতে পারবে।` });
         return;
       }
     }
@@ -1247,7 +1247,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (targetWs) {
           sendToSocket(targetWs, {
             type: 'room:kicked',
-            message: 'Host tomake room theke kick korse.',
+            message: 'হোস্ট তোমাকে রুম থেকে বের করে দিয়েছে।',
           });
           socketToPlayer.delete(targetWs);
         }
@@ -1331,7 +1331,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       if (!check.ok) {
         sendToSocket(ws, {
           type: 'room:error',
-          message: check.reason ?? `Aro players lagbe (min ${MIN_MATCH_PLAYERS})!`,
+          message: check.reason ?? `আরও খেলোয়াড় লাগবে (কমপক্ষে ${MIN_MATCH_PLAYERS} জন)!`,
         });
         return;
       }
@@ -1416,8 +1416,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if ((player.pranksLeft ?? 0) <= 0) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Lamp Prank Used',
-            detail: 'Ei round e lamp prank shesh — next Shalish er por abar parbe!',
+            title: 'ল্যাম্প প্র্যাঙ্ক শেষ',
+            detail: 'এই রাউন্ডে ল্যাম্প প্র্যাঙ্ক শেষ — পরের সালিশের পর আবার পারবে!',
           });
           return;
         }
@@ -1426,8 +1426,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room, { type: 'sfx:event', kind: 'prank' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Moholla Lamp Flicker!',
-          detail: 'Harmless ghost prank — streetlamps 3.5s flicker korche!',
+          title: 'মহল্লার বাতি ঝিকমিক!',
+          detail: 'ভূতের মজার প্র্যাঙ্ক — রাস্তার বাতি ৩.৫ সেকেন্ড ঝিকমিক করছে!',
         });
         broadcastRoom(room);
         return;
@@ -1438,11 +1438,11 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!scan.ok) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Goyenda Scanner',
+            title: 'গোয়েন্দা স্ক্যানার',
             detail:
               scan.reason === 'no_scans_left'
-                ? 'Shob forensic scan (2/2) shesh hoye gese!'
-                : 'Move near a fallen neighbor body to scan forensic clues.',
+                ? 'সব ফরেনসিক স্ক্যান (২/২) শেষ হয়ে গেছে!'
+                : 'ফরেনসিক সূত্র স্ক্যান করতে পড়ে থাকা প্রতিবেশীর লাশের কাছে যাও।',
           });
           return;
         }
@@ -1464,11 +1464,11 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'shield' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Tabiz Shield Active',
+          title: 'তাবিজের সুরক্ষা চালু',
           detail:
             receiver.id === player.id
-              ? 'You placed a protective Tabiz shield on yourself!'
-              : `Protected ${receiver.name} with a Kobiraj Tabiz shield!`,
+              ? 'নিজের গায়ে সুরক্ষার তাবিজ পরে নিয়েছ!'
+              : `${receiver.name}-কে কবিরাজের তাবিজ দিয়ে সুরক্ষা দিয়েছ!`,
         });
         broadcastRoom(room);
         return;
@@ -1496,8 +1496,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room, { type: 'sfx:event', kind: 'disguise' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Bohurupi Shapeshift',
-          detail: `Disguised as ${chosen.name} for ${BOHURUPI_DISGUISE_DURATION_SEC}s!`,
+          title: 'বহুরূপী ছদ্মবেশ',
+          detail: `${BOHURUPI_DISGUISE_DURATION_SEC} সেকেন্ডের জন্য ${chosen.name}-এর বেশ ধরেছ!`,
         });
         broadcastRoom(room);
         return;
@@ -1506,8 +1506,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if ((player.shotsLeft ?? 1) <= 0) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Para Daroga',
-            detail: 'Tomar 1 ta Sheriff shot already use hoye gese!',
+            title: 'পাড়ার দারোগা',
+            detail: 'তোমার ১টি দারোগার গুলি আগেই ব্যবহার হয়ে গেছে!',
           });
           return;
         }
@@ -1518,8 +1518,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!target) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Para Daroga',
-            detail: 'Move close to a suspect to make an Arrest Shot!',
+            title: 'পাড়ার দারোগা',
+            detail: 'গুলি চালাতে সন্দেহভাজনের একদম কাছে যাও!',
           });
           return;
         }
@@ -1541,12 +1541,12 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
             reported: false,
             killedAt: Date.now(),
             killerColorHint: getColorShadeHint(player.color),
-            killerZoneHint: getZoneNameAt(target.x, target.z),
+            killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
           });
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Daroga Bullseye!',
-            detail: `${target.name} CHILO ASLI BATPAR! Size kore diso!`,
+            title: 'দারোগার নিখুঁত নিশানা!',
+            detail: `${target.name} ছিল আসল বাটপার! একেবারে সাইজ করে দিয়েছ!`,
           });
         } else {
           player.alive = false;
@@ -1561,12 +1561,12 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
             reported: false,
             killedAt: Date.now(),
             killerColorHint: getColorShadeHint(player.color),
-            killerZoneHint: getZoneNameAt(player.x, player.z),
+            killerZoneHint: getBanglaZoneNameAt(player.x, player.z),
           });
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Daroga Misfire!',
-            detail: `${target.name} niraparadh Para-basi chilo! Ulto tomar job gelo!`,
+            title: 'দারোগার ভুল গুলি!',
+            detail: `${target.name} নিরপরাধ পাড়াবাসী ছিল! উল্টো তোমার চাকরি চলে গেল!`,
           });
         }
         handleRoomDeathSideEffects(room, res.hitVondo ? target : player);
@@ -1581,8 +1581,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!body) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Para Daktar',
-            detail: 'Move near an unreported fallen body to apply Saline!',
+            title: 'পাড়ার ডাক্তার',
+            detail: 'স্যালাইন দিতে রিপোর্ট না হওয়া লাশের কাছে যাও!',
           });
           return;
         }
@@ -1597,8 +1597,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room, { type: 'sfx:event', kind: 'revive' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Saline Revive Success!',
-          detail: `${victim.name} ke Para Daktar bachaye tulsen!`,
+          title: 'স্যালাইনে জীবন বাঁচলো!',
+          detail: `পাড়ার ডাক্তার ${victim.name}-কে বাঁচিয়ে তুলেছেন!`,
         });
         broadcastRoom(room);
         return;
@@ -1607,8 +1607,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if ((player.cleansLeft ?? JHARUDAR_CLEAN_USES) <= 0) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Safai Batpar',
-            detail: 'Shob clean (3/3) use hoye gese!',
+            title: 'সাফাই বাটপার',
+            detail: 'সব সাফাই (৩/৩) ব্যবহার হয়ে গেছে!',
           });
           return;
         }
@@ -1617,8 +1617,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!body) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Safai Batpar',
-            detail: 'Move near an unreported fallen body to clean it!',
+            title: 'সাফাই বাটপার',
+            detail: 'সাফ করতে রিপোর্ট না হওয়া লাশের কাছে যাও!',
           });
           return;
         }
@@ -1626,8 +1626,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         player.jharuTimer = JHARUDAR_CLEAN_CHANNEL_SEC;
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Jharu Dichhe...',
-          detail: `Hold steady near ${body.victimName} for 2s to sweep the body!`,
+          title: 'ঝাড়ু দেওয়া হচ্ছে...',
+          detail: `লাশ সরাতে ${body.victimName}-এর পাশে ২ সেকেন্ড স্থির হয়ে দাঁড়াও!`,
         });
         broadcastRoom(room);
         return;
@@ -1635,12 +1635,12 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       if (player.specialRole === 'ghotok_khala') {
         if (room.ghotokLinkedIds) {
           const [aId, bId] = room.ghotokLinkedIds;
-          const aName = room.players.get(aId)?.name ?? 'Player A';
-          const bName = room.players.get(bId)?.name ?? 'Player B';
+          const aName = room.players.get(aId)?.name ?? 'প্রথম জন';
+          const bName = room.players.get(bId)?.name ?? 'দ্বিতীয় জন';
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Ghotok Bond Active',
-            detail: `${aName} & ${bName} already bonded!`,
+            title: 'ঘটকের জুটি চালু',
+            detail: `${aName} ও ${bName} আগে থেকেই জুটি বাঁধা!`,
           });
           return;
         }
@@ -1648,8 +1648,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!pair) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Ghotok Khala',
-            detail: 'Move close to 2 neighbors to form a Ghotok Bond!',
+            title: 'ঘটক খালা',
+            detail: 'জুটি বাঁধতে ২ জন প্রতিবেশীর কাছে যাও!',
           });
           return;
         }
@@ -1659,15 +1659,15 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Moholla Bond Formed!',
-          detail: `Linked ${pair[0].name} & ${pair[1].name} — ekjon morle arekjon alert pabe!`,
+          title: 'মহল্লা জুটি বাঁধা হয়েছে!',
+          detail: `${pair[0].name} ও ${pair[1].name} জুটি হয়েছে — একজন মরলে আরেকজন খবর পাবে!`,
         });
         const p0Ws = room.clients.get(pair[0].id);
         if (p0Ws) {
           sendToSocket(p0Ws, {
             type: 'clue:result',
-            title: 'Ghotok Bonded!',
-            detail: `Ghotok Khala linked you with ${pair[1].name}!`,
+            title: 'ঘটক জুটি!',
+            detail: `ঘটক খালা তোমাকে ${pair[1].name}-এর সাথে জুটি করে দিয়েছে!`,
           });
         }
         if (pair[1].id !== player.id) {
@@ -1675,8 +1675,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
           if (p1Ws) {
             sendToSocket(p1Ws, {
               type: 'clue:result',
-              title: 'Ghotok Bonded!',
-              detail: `Ghotok Khala linked you with ${pair[0].name}!`,
+              title: 'ঘটক জুটি!',
+              detail: `ঘটক খালা তোমাকে ${pair[0].name}-এর সাথে জুটি করে দিয়েছে!`,
             });
           }
         }
@@ -1691,8 +1691,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!target) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Master Moshai',
-            detail: 'Move near a neighbor to check their Moholla Khata!',
+            title: 'মাস্টার মশাই',
+            detail: 'খাতা পরীক্ষা করতে প্রতিবেশীর কাছে যাও!',
           });
           return;
         }
@@ -1730,11 +1730,11 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'shield' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Jhajhro Injection Active!',
+          title: 'ঝাঁঝালো ইনজেকশন চালু!',
           detail:
             receiver.id === player.id
-              ? 'Self-injected! You survive Batpar attacks for 12s!'
-              : `Injected ${receiver.name} — 12s death protection active!`,
+              ? 'নিজেকে ইনজেকশন দিয়েছ! ১২ সেকেন্ড বাটপারের আঘাত থেকে নিরাপদ!'
+              : `${receiver.name}-কে ইনজেকশন দিয়েছ — ১২ সেকেন্ড মৃত্যুর হাত থেকে সুরক্ষা চালু!`,
         });
         broadcastRoom(room);
         return;
@@ -1752,8 +1752,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'New Supari Contract!',
-          detail: `Target: ${nextTarget.name} — 50% kill cooldown bonus!`,
+          title: 'নতুন সুপারি কন্ট্রাক্ট!',
+          detail: `টার্গেট: ${nextTarget.name} — ৫০% কিল কুলডাউন কমবে!`,
         });
         broadcastRoom(room);
         return;
@@ -1766,8 +1766,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room, { type: 'sfx:event', kind: 'door' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Broker Jam Activated!',
-          detail: `Comms jammed 10s! ${res.newlyLockedZone ? `Slammed ${res.newlyLockedZone}!` : 'Extended shutters +8s!'}`,
+          title: 'দালালের জ্যাম চালু!',
+          detail: `যোগাযোগ ১০ সেকেন্ড জ্যাম! ${res.newlyLockedZone ? `${res.newlyLockedZone} শাটার বন্ধ করা হয়েছে!` : 'শাটার +৮ সেকেন্ড বাড়ানো হয়েছে!'}`,
         });
         broadcastRoom(room);
         return;
@@ -1778,8 +1778,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!patron) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Chamcha Sidekick',
-            detail: 'Move close to someone to pledge loyalty as your Patron!',
+            title: 'চামচা সাগরেদ',
+            detail: 'বস ঠিক করতে কারো একদম কাছে যাও!',
           });
           return;
         }
@@ -1788,8 +1788,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'clue' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Patron Locked!',
-          detail: `${patron.name} is now your Patron!`,
+          title: 'বস ঠিক হয়েছে!',
+          detail: `${patron.name} এখন তোমার বস!`,
         });
         broadcastRoom(room);
         return;
@@ -1800,8 +1800,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!target) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'Chandabaz',
-            detail: 'Move near a new neighbor to collect Chanda!',
+            title: 'চাঁদাবাজ',
+            detail: 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর কাছে যাও!',
           });
           return;
         }
@@ -1811,8 +1811,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'task' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: `Chanda Vasool (${res.count}/${CHANDABAZ_GOAL})!`,
-          detail: `Collected Chanda from ${target.name}!`,
+          title: `চাঁদা উসুল (${res.count}/${CHANDABAZ_GOAL})!`,
+          detail: `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে!`,
         });
         if (!checkAndApplyWinCondition(room)) {
           broadcastRoom(room);
@@ -1826,11 +1826,11 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         if (!res.ok) {
           sendToSocket(ws, {
             type: 'clue:result',
-            title: 'TikTok Star',
+            title: 'টিকটক স্টার',
             detail:
               res.reason === 'already_filmed'
-                ? 'Ei zone e already reel banano hoye gese! Onno zone e jao!'
-                : 'Walk inside a named Moholla building/zone to film a Viral Reel!',
+                ? 'এই এলাকায় আগেই রিল বানানো হয়ে গেছে! অন্য এলাকায় যাও!'
+                : 'ভাইরাল রিল বানাতে মহল্লার কোনো পরিচিত এলাকা বা দোকানের ভেতর যাও!',
           });
           return;
         }
@@ -1838,8 +1838,8 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         sendToSocket(ws, { type: 'sfx:event', kind: 'disguise' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: `Viral Reel (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
-          detail: `Filmed in ${getZoneNameAt(player.x, player.z)}! Survive to final 4 to win!`,
+          title: `ভাইরাল রিল (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
+          detail: `${getBanglaZoneNameAt(player.x, player.z)} এলাকায় শুটিং শেষ! জিততে শেষ ৪ জনে টিকে থাকো!`,
         });
         if (!checkAndApplyWinCondition(room)) {
           broadcastRoom(room);
@@ -1861,15 +1861,15 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room, { type: 'sfx:event', kind: 'shield' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: 'Protection Shattered!',
-          detail: `${target.name} was protected by Tabiz/Jhajhro Injection!`,
+          title: 'সুরক্ষা ভেঙে গেছে!',
+          detail: `${target.name} তাবিজ বা ঝাঁঝালো ইনজেকশনে সুরক্ষিত ছিল!`,
         });
         const targetWs = room.clients.get(target.id);
         if (targetWs) {
           sendToSocket(targetWs, {
             type: 'clue:result',
-            title: 'Protection Saved You!',
-            detail: 'Ekjon Batpar attack korsilo, kintu tomar Tabiz/Injection bachay dise!',
+            title: 'সুরক্ষা তোমাকে বাঁচিয়েছে!',
+            detail: 'একজন বাটপার হামলা করেছিল, কিন্তু তোমার তাবিজ বা ইনজেকশন বাঁচিয়ে দিয়েছে!',
           });
         }
         broadcastRoom(room);
@@ -1901,7 +1901,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         reported: false,
         killedAt: nowMs,
         killerColorHint: getColorShadeHint(player.color),
-        killerZoneHint: getZoneNameAt(target.x, target.z),
+        killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
       });
       broadcastRoom(room, { type: 'sfx:event', kind: 'kill' });
       handleRoomDeathSideEffects(room, target);
@@ -2041,7 +2041,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       const chatMsg: ChatMessage = {
         id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
         senderId: player.id,
-        senderName: player.alive ? player.name : `${player.name} (Ghost)`,
+        senderName: player.alive ? player.name : `${player.name} (ভূত)`,
         senderColor: player.color,
         text,
         timestamp: Date.now(),

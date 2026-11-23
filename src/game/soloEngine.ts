@@ -18,8 +18,8 @@ import {
   VENTS,
   WALLS,
   distance2D,
+  getBanglaZoneNameAt,
   getZoneIdAt,
-  getZoneNameAt,
   hasLineOfSight,
   resolveCircleWallCollision,
   resolvePlayerMoveWithElevation,
@@ -126,15 +126,15 @@ const BOT_ROSTER: Array<{ name: string; color: PlayerColorId }> = [
   { name: 'Tuktuki Apa', color: 'beguni' },
   { name: 'Pintu Da', color: 'shobuj' },
   { name: 'Komola Kaku', color: 'komola' },
-  { name: 'Kalo Ustad', color: 'kalo' },
+  { name: 'Kallu Ustad', color: 'kalo' },
   { name: 'Sada Dada', color: 'sada' },
   { name: 'Golapi Rani', color: 'golapi' },
   { name: 'Akashi Tara', color: 'akashi' },
   { name: 'Badami Mama', color: 'badami' },
-  { name: 'Tute Chacha', color: 'tute' },
+  { name: 'Tutu Chacha', color: 'tute' },
   { name: 'Jam Kaka', color: 'jam' },
   { name: 'Pata Bhai', color: 'olive' },
-  { name: 'Shona Babu', color: 'tan' },
+  { name: 'Sona Babu', color: 'tan' },
   { name: 'Lal Mia', color: 'lal' },
 ];
 
@@ -238,7 +238,7 @@ export class SoloMatchEngine {
   private startMatchInternal(skipRoleReveal = false): void {
     const check = canStartLobbyMatch(this.snapshot.players);
     if (!check.ok) {
-      this.onClueNotice?.('Lobby', check.reason ?? 'Aro players lagbe!');
+      this.onClueNotice?.('লবি', check.reason ?? 'আরও খেলোয়াড় লাগবে!');
       return;
     }
 
@@ -367,11 +367,11 @@ export class SoloMatchEngine {
       {
         id: 'sys_start',
         senderId: 'system',
-        senderName: 'Moholla Announcement',
+        senderName: 'মহল্লা ঘোষণা',
         senderColor: 'holud',
         text: sanitized.settings.enableSpecialRoles
-          ? 'Khela shuru! Special Moholla roles active — Batpar theke shabdhan!'
-          : 'Khela shuru! Classic Moholla match — finish Para tasks or expose the Batpar in Shalish!',
+          ? 'খেলা শুরু! বিশেষ মহল্লা রোল চালু আছে — বাটপারদের থেকে সাবধান!'
+          : 'খেলা শুরু! পাড়ার সব কাজ শেষ করো অথবা সালিশে আসল বাটপারকে খুঁজে বের করো!',
         timestamp: Date.now(),
         system: true,
       },
@@ -479,7 +479,7 @@ export class SoloMatchEngine {
     if (this.snapshot.phase !== 'lobby') return false;
     const check = canStartLobbyMatch(this.snapshot.players);
     if (!check.ok) {
-      this.onClueNotice?.('Start Blocked', check.reason ?? 'Aro players lagbe!');
+      this.onClueNotice?.('শুরু করা যাচ্ছে না', check.reason ?? 'আরও খেলোয়াড় লাগবে!');
       return false;
     }
     this.lobbyCountdownTimer = 5.0;
@@ -683,13 +683,13 @@ export class SoloMatchEngine {
 
     if (!lp.alive) {
       if ((lp.pranksLeft ?? 0) <= 0) {
-        this.onClueNotice?.('Lamp Prank Used', 'Ei round e lamp prank shesh — next Shalish er por abar parbe!');
+        this.onClueNotice?.('ল্যাম্প প্র্যাঙ্ক শেষ', 'এই রাউন্ডে ল্যাম্প প্র্যাঙ্ক শেষ — পরের সালিশের পর আবার পারবে!');
         return;
       }
       lp.pranksLeft = 0;
       this.snapshot.prankedLampUntil = Date.now() + 3500;
       soundEngine.playDisguise();
-      this.onClueNotice?.('Moholla Lamp Flicker!', 'Harmless ghost prank — streetlamps 3.5s flicker korche!');
+      this.onClueNotice?.('মহল্লার বাতি ঝিকমিক!', 'ভূতের মজার প্র্যাঙ্ক — রাস্তার বাতি ৩.৫ সেকেন্ড ঝিকমিক করছে!');
       return;
     }
 
@@ -699,10 +699,10 @@ export class SoloMatchEngine {
       const scan = executeGoyendaScan(lp, this.snapshot.bodies, Date.now());
       if (!scan.ok) {
         this.onClueNotice?.(
-          'Goyenda Scanner',
+          'গোয়েন্দা স্ক্যানার',
           scan.reason === 'no_scans_left'
-            ? 'Shob forensic scan (2/2) shesh hoye gese!'
-            : 'Move near a fallen neighbor body to scan forensic clues.',
+            ? 'সব ফরেনসিক স্ক্যান (২/২) শেষ হয়ে গেছে!'
+            : 'ফরেনসিক সূত্র স্ক্যান করতে পড়ে থাকা প্রতিবেশীর লাশের কাছে যাও।',
         );
         return;
       }
@@ -711,7 +711,7 @@ export class SoloMatchEngine {
       this.snapshot.chat.push({
         id: `clue_${Date.now()}`,
         senderId: 'system',
-        senderName: 'Goyenda Notebook',
+        senderName: 'গোয়েন্দা নোটবুক',
         senderColor: 'neel',
         text: `[${scan.clue!.title}] ${scan.clue!.detail}`,
         timestamp: Date.now(),
@@ -731,10 +731,10 @@ export class SoloMatchEngine {
       lp.abilityCooldown = KOBIRAJ_COOLDOWN_SEC;
       soundEngine.playShieldBlock();
       this.onClueNotice?.(
-        'Tabiz Shield Active',
+        'তাবিজের সুরক্ষা চালু',
         receiver.id === lp.id
-          ? 'You placed a protective Tabiz shield on yourself!'
-          : `Protected ${receiver.name} with a Kobiraj Tabiz shield!`,
+          ? 'নিজের গায়ে সুরক্ষার তাবিজ পরে নিয়েছ!'
+          : `${receiver.name}-কে কবিরাজের তাবিজ দিয়ে সুরক্ষা দিয়েছ!`,
       );
       return;
     }
@@ -760,15 +760,15 @@ export class SoloMatchEngine {
       lp.abilityCooldown = BOHURUPI_COOLDOWN_SEC;
       soundEngine.playDisguise();
       this.onClueNotice?.(
-        'Bohurupi Shapeshift',
-        `Disguised as ${chosen.name} for ${BOHURUPI_DISGUISE_DURATION_SEC}s!`,
+        'বহুরূপী ছদ্মবেশ',
+        `${BOHURUPI_DISGUISE_DURATION_SEC} সেকেন্ডের জন্য ${chosen.name}-এর বেশ ধরেছ!`,
       );
       return;
     }
 
     if (lp.specialRole === 'daroga') {
       if ((lp.shotsLeft ?? 1) <= 0) {
-        this.onClueNotice?.('Para Daroga', 'Tomar 1 ta Sheriff shot already use hoye gese!');
+        this.onClueNotice?.('পাড়ার দারোগা', 'তোমার ১টি দারোগার গুলি আগেই ব্যবহার হয়ে গেছে!');
         return;
       }
       if (lp.abilityCooldown > 0.05) return;
@@ -776,7 +776,7 @@ export class SoloMatchEngine {
         ? this.snapshot.players.find((p) => p.id === targetId)
         : findNearestDarogaTarget(lp, this.snapshot.players);
       if (!target) {
-        this.onClueNotice?.('Para Daroga', 'Move close to a suspect to make an Arrest Shot!');
+        this.onClueNotice?.('পাড়ার দারোগা', 'গুলি চালাতে সন্দেহভাজনের একদম কাছে যাও!');
         return;
       }
       const res = resolveDarogaShot(lp, target);
@@ -797,11 +797,11 @@ export class SoloMatchEngine {
           reported: false,
           killedAt: Date.now(),
           killerColorHint: getColorShadeHint(lp.color),
-          killerZoneHint: getZoneNameAt(target.x, target.z),
+          killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
         });
         this.onClueNotice?.(
-          'Daroga Bullseye!',
-          `${target.name} CHILO ASLI BATPAR! Size kore diso!`,
+          'দারোগার নিখুঁত নিশানা!',
+          `${target.name} ছিল আসল বাটপার! একেবারে সাইজ করে দিয়েছ!`,
         );
       } else {
         lp.alive = false;
@@ -816,11 +816,11 @@ export class SoloMatchEngine {
           reported: false,
           killedAt: Date.now(),
           killerColorHint: getColorShadeHint(lp.color),
-          killerZoneHint: getZoneNameAt(lp.x, lp.z),
+          killerZoneHint: getBanglaZoneNameAt(lp.x, lp.z),
         });
         this.onClueNotice?.(
-          'Daroga Misfire!',
-          `${target.name} niraparadh Para-basi chilo! Ulto tomar job gelo!`,
+          'দারোগার ভুল গুলি!',
+          `${target.name} নিরপরাধ পাড়াবাসী ছিল! উল্টো তোমার চাকরি চলে গেল!`,
         );
       }
       this.handleDeathSideEffects(res.hitVondo ? target : lp);
@@ -832,7 +832,7 @@ export class SoloMatchEngine {
       if ((lp.revivesLeft ?? 0) <= 0) return;
       const body = findNearestRevivableBody(lp, this.snapshot.bodies);
       if (!body) {
-        this.onClueNotice?.('Para Daktar', 'Move near an unreported fallen body to apply Saline!');
+        this.onClueNotice?.('পাড়ার ডাক্তার', 'স্যালাইন দিতে রিপোর্ট না হওয়া লাশের কাছে যাও!');
         return;
       }
       const victim = this.snapshot.players.find((p) => p.id === body.victimId);
@@ -845,28 +845,28 @@ export class SoloMatchEngine {
       lp.abilityCooldown = 10;
       soundEngine.playRevive();
       this.onClueNotice?.(
-        'Saline Revive Success!',
-        `${victim.name} ke Para Daktar bachaye tulsen!`,
+        'স্যালাইনে জীবন বাঁচলো!',
+        `পাড়ার ডাক্তার ${victim.name}-কে বাঁচিয়ে তুলেছেন!`,
       );
       return;
     }
 
       if (lp.specialRole === 'jharudar') {
       if ((lp.cleansLeft ?? JHARUDAR_CLEAN_USES) <= 0) {
-        this.onClueNotice?.('Safai Batpar', 'Shob clean (3/3) use hoye gese!');
+        this.onClueNotice?.('সাফাই বাটপার', 'সব সাফাই (৩/৩) ব্যবহার হয়ে গেছে!');
         return;
       }
       if (lp.abilityCooldown > 0.05) return;
       const body = findNearestCleanableBody(lp, this.snapshot.bodies);
       if (!body) {
-        this.onClueNotice?.('Safai Batpar', 'Move near an unreported fallen body to clean it!');
+        this.onClueNotice?.('সাফাই বাটপার', 'সাফ করতে রিপোর্ট না হওয়া লাশের কাছে যাও!');
         return;
       }
       lp.jharuTargetBodyId = body.id;
       lp.jharuTimer = JHARUDAR_CLEAN_CHANNEL_SEC;
       this.onClueNotice?.(
-        'Jharu Dichhe...',
-        `Hold steady near ${body.victimName} for 2s to sweep the body!`,
+        'ঝাড়ু দেওয়া হচ্ছে...',
+        `লাশ সরাতে ${body.victimName}-এর পাশে ২ সেকেন্ড স্থির হয়ে দাঁড়াও!`,
       );
       return;
     }
@@ -874,14 +874,14 @@ export class SoloMatchEngine {
     if (lp.specialRole === 'ghotok_khala') {
       if (this.snapshot.ghotokLinkedIds) {
         const [aId, bId] = this.snapshot.ghotokLinkedIds;
-        const aName = this.snapshot.players.find((p) => p.id === aId)?.name ?? 'Player A';
-        const bName = this.snapshot.players.find((p) => p.id === bId)?.name ?? 'Player B';
-        this.onClueNotice?.('Ghotok Bond Active', `${aName} & ${bName} already bonded!`);
+        const aName = this.snapshot.players.find((p) => p.id === aId)?.name ?? 'প্রথম জন';
+        const bName = this.snapshot.players.find((p) => p.id === bId)?.name ?? 'দ্বিতীয় জন';
+        this.onClueNotice?.('ঘটকের জুটি চালু', `${aName} ও ${bName} আগে থেকেই জুটি বাঁধা!`);
         return;
       }
       const pair = findGhotokPairCandidates(lp, this.snapshot.players);
       if (!pair) {
-        this.onClueNotice?.('Ghotok Khala', 'Move close to 2 neighbors to form a Ghotok Bond!');
+        this.onClueNotice?.('ঘটক খালা', 'জুটি বাঁধতে ২ জন প্রতিবেশীর কাছে যাও!');
         return;
       }
       this.snapshot.ghotokLinkedIds = [pair[0].id, pair[1].id];
@@ -889,8 +889,8 @@ export class SoloMatchEngine {
       pair[1].ghotokPartnerId = pair[0].id;
       soundEngine.playClueScan();
       this.onClueNotice?.(
-        'Moholla Bond Formed!',
-        `Linked ${pair[0].name} & ${pair[1].name} — ekjon morle arekjon alert pabe!`,
+        'মহল্লা জুটি বাঁধা হয়েছে!',
+        `${pair[0].name} ও ${pair[1].name} জুটি হয়েছে — একজন মরলে আরেকজন খবর পাবে!`,
       );
       return;
     }
@@ -899,7 +899,7 @@ export class SoloMatchEngine {
       if (lp.abilityCooldown > 0.05) return;
       const target = findNearestMasterTarget(lp, this.snapshot.players);
       if (!target) {
-        this.onClueNotice?.('Master Moshai', 'Move near a neighbor to check their Moholla Khata!');
+        this.onClueNotice?.('মাস্টার মশাই', 'খাতা পরীক্ষা করতে প্রতিবেশীর কাছে যাও!');
         return;
       }
       const res = inspectPlayerTaskAuthenticity(target);
@@ -914,7 +914,7 @@ export class SoloMatchEngine {
       lp.watchingCams = true;
       lp.abilityCooldown = CCTV_KAKU_COOLDOWN_SEC;
       soundEngine.playClueScan();
-      this.onClueNotice?.('Remote CCTV Feed', 'Pocket Security Monitor activated!');
+      this.onClueNotice?.('দূরবর্তী সিসিটিভি', 'পকেট সিকিউরিটি মনিটর চালু হয়েছে!');
       return;
     }
 
@@ -924,17 +924,17 @@ export class SoloMatchEngine {
       const target = findNearestHaturTarget(lp, this.snapshot.players, nowMs);
       const receiver = target ?? ((lp.haturProtectedUntil ?? 0) <= nowMs ? lp : null);
       if (!receiver) {
-        this.onClueNotice?.('Hatur Daktar', 'Target already protected by Jhajhro Injection!');
+        this.onClueNotice?.('হাতুড়ে ডাক্তার', 'ইনি আগেই ঝাঁঝালো ইনজেকশনে সুরক্ষিত আছেন!');
         return;
       }
       receiver.haturProtectedUntil = nowMs + HATUR_DURATION_MS;
       lp.abilityCooldown = HATUR_COOLDOWN_SEC;
       soundEngine.playShieldBlock();
       this.onClueNotice?.(
-        'Jhajhro Injection Active!',
+        'ঝাঁঝালো ইনজেকশন চালু!',
         receiver.id === lp.id
-          ? 'Self-injected! You survive any Batpar attack for the next 12s!'
-          : `Injected ${receiver.name} — 12s death protection active!`,
+          ? 'নিজেকে ইনজেকশন দিয়েছ! আগামী ১২ সেকেন্ড কোনো বাটপার মারতে পারবে না!'
+          : `${receiver.name}-কে ইনজেকশন দিয়েছ — ১২ সেকেন্ড মৃত্যুর হাত থেকে সুরক্ষা চালু!`,
       );
       return;
     }
@@ -943,15 +943,15 @@ export class SoloMatchEngine {
       if (lp.abilityCooldown > 0.05) return;
       const nextTarget = pickSupariContractTarget(lp, this.snapshot.players, lp.supariTargetId);
       if (!nextTarget) {
-        this.onClueNotice?.('Supari Contract', 'No valid live contract target remaining!');
+        this.onClueNotice?.('সুপারি কন্ট্রাক্ট', 'কোনো জীবিত টার্গেট বাকি নেই!');
         return;
       }
       lp.supariTargetId = nextTarget.id;
       lp.abilityCooldown = SUPARI_COOLDOWN_SEC;
       soundEngine.playClueScan();
       this.onClueNotice?.(
-        'New Supari Contract!',
-        `Target: ${nextTarget.name} — take them out for 50% kill cooldown!`,
+        'নতুন সুপারি কন্ট্রাক্ট!',
+        `টার্গেট: ${nextTarget.name} — তাকে সরালে ৫০% কিল কুলডাউন কমবে!`,
       );
       return;
     }
@@ -963,8 +963,8 @@ export class SoloMatchEngine {
       lp.abilityCooldown = DALAL_COOLDOWN_SEC;
       soundEngine.playDoorSlam();
       this.onClueNotice?.(
-        'Broker Jam Activated!',
-        `Comms jammed for 10s! ${res.newlyLockedZone ? `Slammed ${res.newlyLockedZone} shutter!` : 'Extended active shutters +8s!'}`,
+        'দালালের জ্যাম চালু!',
+        `যোগাযোগ ১০ সেকেন্ড জ্যাম হয়েছে! ${res.newlyLockedZone ? `${res.newlyLockedZone} শাটার বন্ধ করা হয়েছে!` : 'শাটারের তালা আরও ৮ সেকেন্ড বাড়ানো হয়েছে!'}`,
       );
       return;
     }
@@ -973,15 +973,15 @@ export class SoloMatchEngine {
       if (lp.abilityCooldown > 0.05) return;
       const patron = findNearestChamchaPatron(lp, this.snapshot.players);
       if (!patron) {
-        this.onClueNotice?.('Chamcha Sidekick', 'Move close to someone to pledge loyalty as your Patron!');
+        this.onClueNotice?.('চামচা সাগরেদ', 'বস ঠিক করতে কারো একদম কাছে যাও!');
         return;
       }
       lp.chamchaPatronId = patron.id;
       lp.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
       soundEngine.playClueScan();
       this.onClueNotice?.(
-        'Patron Locked!',
-        `${patron.name} is now your Patron — survive to win whenever ${patron.name}'s team wins!`,
+        'বস ঠিক হয়েছে!',
+        `${patron.name} এখন তোমার বস — বেঁচে থাকলে ${patron.name}-এর দল জিতলেই তুমিও জিতবে!`,
       );
       return;
     }
@@ -990,7 +990,7 @@ export class SoloMatchEngine {
       if (lp.abilityCooldown > 0.05) return;
       const target = findNearestChandabazTarget(lp, this.snapshot.players);
       if (!target) {
-        this.onClueNotice?.('Chandabaz', 'Move near a new neighbor to collect Chanda!');
+        this.onClueNotice?.('চাঁদাবাজ', 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর কাছে যাও!');
         return;
       }
       const res = collectChandaFromTarget(lp, target);
@@ -998,8 +998,8 @@ export class SoloMatchEngine {
       lp.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
       soundEngine.playTaskComplete();
       this.onClueNotice?.(
-        `Chanda Vasool (${res.count}/${CHANDABAZ_GOAL})!`,
-        `Collected Chanda from ${target.name}!`,
+        `চাঁদা উসুল (${res.count}/${CHANDABAZ_GOAL})!`,
+        `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে!`,
       );
       this.checkWin();
       return;
@@ -1011,18 +1011,18 @@ export class SoloMatchEngine {
       const res = recordTiktokReelInZone(lp, zoneId);
       if (!res.ok) {
         this.onClueNotice?.(
-          'TikTok Star',
+          'টিকটক স্টার',
           res.reason === 'already_filmed'
-            ? 'Ei zone e already reel banano hoye gese! Onno zone e jao!'
-            : 'Walk inside a named Moholla building/zone to film a Viral Reel!',
+            ? 'এই এলাকায় আগেই রিল বানানো হয়ে গেছে! অন্য এলাকায় যাও!'
+            : 'ভাইরাল রিল বানাতে মহল্লার কোনো পরিচিত এলাকা বা দোকানের ভেতর যাও!',
         );
         return;
       }
       lp.abilityCooldown = TIKTOK_COOLDOWN_SEC;
       soundEngine.playDisguise();
       this.onClueNotice?.(
-        `Viral Reel Filmed (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
-        `Filmed in ${getZoneNameAt(lp.x, lp.z)}! Survive to final 4 to win!`,
+        `ভাইরাল রিল তৈরি (${res.zoneCount}/${TIKTOK_ZONE_GOAL})!`,
+        `${getBanglaZoneNameAt(lp.x, lp.z)} এলাকায় শুটিং শেষ! জিততে শেষ ৪ জনে টিকে থাকো!`,
       );
       this.checkWin();
     }
@@ -1042,8 +1042,8 @@ export class SoloMatchEngine {
       lp.killCooldownRemaining = 6;
       soundEngine.playShieldBlock();
       this.onClueNotice?.(
-        'Protection Shattered!',
-        `${target.name} was protected by Tabiz/Jhajhro Injection! Strike blocked!`,
+        'সুরক্ষা ভেঙে গেছে!',
+        `${target.name} তাবিজ বা ঝাঁঝালো ইনজেকশনে সুরক্ষিত ছিল! আঘাত আটকে গেছে!`,
       );
       return false;
     }
@@ -1070,7 +1070,7 @@ export class SoloMatchEngine {
       reported: false,
       killedAt: nowMs,
       killerColorHint: getColorShadeHint(lp.color),
-      killerZoneHint: getZoneNameAt(target.x, target.z),
+      killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
     });
     soundEngine.playKill();
     const ghotokInfo = findGhotokPartnerOnDeath(
@@ -1082,7 +1082,7 @@ export class SoloMatchEngine {
       ghotokInfo.partner?.id === this.localPlayerId ||
       ghotokInfo.ghotok?.id === this.localPlayerId
     ) {
-      this.onClueNotice?.('Ghotok Bond Alert!', `Bonded neighbor ${target.name} just fell in Moholla!`);
+      this.onClueNotice?.('ঘটকের জুটি সতর্কবার্তা!', `জুটি বাঁধা প্রতিবেশী ${target.name} এইমাত্র মারা গেছে!`);
     }
     recordKillWitnesses(
       this.brains,
@@ -1232,7 +1232,7 @@ export class SoloMatchEngine {
     const msg = {
       id: `chat_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
       senderId: lp.id,
-      senderName: lp.alive ? lp.name : `${lp.name} (Ghost)`,
+      senderName: lp.alive ? lp.name : `${lp.name} (ভূত)`,
       senderColor: lp.color,
       text: clean,
       timestamp: Date.now(),
@@ -1305,9 +1305,9 @@ export class SoloMatchEngine {
         this.snapshot.chat.push({
           id: `neta_${Date.now()}`,
           senderId: 'system',
-          senderName: 'Moholla Shalish',
+          senderName: 'মহল্লা সালিশ',
           senderColor: 'holud',
-          text: `${aliveNeta.name} mohollar Neta (Mayor) — tar Shalish vote 2x hisebe count hobe!`,
+          text: `${aliveNeta.name} মহল্লার নেতা — তার সালিশের ভোট ২ গুণ হিসেবে গণনা হবে!`,
           timestamp: Date.now(),
           system: true,
         });
@@ -1319,12 +1319,12 @@ export class SoloMatchEngine {
     this.snapshot.chat.push({
       id: `sys_${Date.now()}`,
       senderId: 'system',
-      senderName: 'Moholla Shalish',
+      senderName: 'মহল্লা সালিশ',
       senderColor: 'holud',
       text:
         reason === 'body'
-          ? `Haire! ${caller.name} dekhlo ${victimName ?? 'ekjon'} size hoye gese! Urgent Shalish!`
-          : `${caller.name} Shalish er ghonta bajay dise!`,
+          ? `হায়রে! ${caller.name} দেখলো ${victimName ?? 'একজন'} মারা গেছে! জরুরি সালিশ ডাকা হয়েছে!`
+          : `${caller.name} সালিশের ঘণ্টা বাজিয়ে দিয়েছে!`,
       timestamp: Date.now(),
       system: true,
     });
@@ -1430,7 +1430,7 @@ export class SoloMatchEngine {
       ghotokInfo.partner?.id === this.localPlayerId ||
       ghotokInfo.ghotok?.id === this.localPlayerId
     ) {
-      this.onClueNotice?.('Ghotok Bond Alert!', `Bonded neighbor ${victim.name} just fell in Moholla!`);
+      this.onClueNotice?.('ঘটকের জুটি সতর্কবার্তা!', `জুটি বাঁধা প্রতিবেশী ${victim.name} এইমাত্র মারা গেছে!`);
     }
     for (const pl of this.snapshot.players) {
       if (pl.alive && pl.specialRole === 'supari_killer' && pl.supariTargetId === victim.id) {
@@ -1487,12 +1487,12 @@ export class SoloMatchEngine {
             if (p.id === this.localPlayerId) {
               soundEngine.playCleanBody();
               this.onClueNotice?.(
-                'Lash Gayeb!',
-                `Cleaned ${jRes.completedBody.victimName}'s body (${p.cleansLeft ?? 0} left)!`,
+                'লাশ গায়েব!',
+                `${jRes.completedBody.victimName}-এর লাশ সরানো হয়েছে (বাকি ${p.cleansLeft ?? 0}টি)!`,
               );
             }
           } else if (jRes.cancelled && p.id === this.localPlayerId) {
-            this.onClueNotice?.('Clean Cancelled', 'Body theke shore geso — Jharu deowa cancel!');
+            this.onClueNotice?.('সাফাই বাতিল', 'লাশ থেকে সরে গেছো — ঝাড়ু দেওয়া বাতিল!');
           }
         }
       }
@@ -1532,8 +1532,8 @@ export class SoloMatchEngine {
             soundEngine.playShieldBlock();
             if (victim.id === this.localPlayerId) {
               this.onClueNotice?.(
-                'Protection Saved You!',
-                'Ekjon Batpar tomake gap e nite chaisilo, kintu Tabiz/Injection bachay dise!',
+                'সুরক্ষা তোমাকে বাঁচিয়েছে!',
+                'একজন বাটপার তোমাকে আঘাত করতে চেয়েছিল, কিন্তু তাবিজ বা ইনজেকশন বাঁচিয়ে দিয়েছে!',
               );
             }
           } else {
@@ -1570,12 +1570,12 @@ export class SoloMatchEngine {
         this.snapshot.chat.push({
           id: `sys_sab_${Date.now()}`,
           senderId: 'system',
-          senderName: 'Moholla Announcement',
+          senderName: 'মহল্লা ঘোষণা',
           senderColor: 'holud',
           text:
             sabStep.expiredNonCriticalType === 'loadshedding'
-              ? 'Current ashche! DESCO line nijei thik hoye gese!'
-              : 'Wi-Fi ashche! Dish line abar chaloo hoye gese!',
+              ? 'কারেন্ট এসেছে! বিদ্যুৎ সংযোগ নিজেই ঠিক হয়ে গেছে!'
+              : 'ওয়াই-ফাই এসেছে! ডিশ সংযোগ আবার চালু হয়েছে!',
           timestamp: Date.now(),
           system: true,
         });

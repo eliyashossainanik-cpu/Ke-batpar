@@ -34,25 +34,37 @@ import {
 import { BOHURUPI_GLITCH_RANGE, VISUAL_TASK_VISIBLE_RANGE } from '../shared/gameRules';
 import { createProceduralTextures } from './proceduralTextures';
 import {
+  createAirdropCrateModel,
   createBanglaTrainModel,
+  createBanyanTree,
+  createBillboardHoarding,
   createBodyMarkerMesh,
+  createBoulevardWelcomeArch,
+  createBusStopShelterModel,
   createCharacterRig,
   createClotheslineProp,
   createCngModel,
   createAlleyProps,
   createDrainVent,
   createInstancedGrassTufts,
+  createJhalmuriCartModel,
   createKrishnachuraTree,
   createMoricbattiGarlands,
   createOverheadWires,
   createPalmTree,
+  createParkedCarModel,
+  createPickupTruckModel,
   createPlanterPot,
   createRailCrossingGate,
   createRickshawModel,
+  createRoadDividerCluster,
+  createRooftopChhilekotha,
   createRooftopMachanProp,
   createSandbagBarricade,
   createSecurityCamMesh,
+  createShippingContainerModel,
   createShutterDoor,
+  createStreetBenchModel,
   createStreetLamp,
   createSupplyCluster,
   createTerrainSkirt,
@@ -72,10 +84,13 @@ import {
   createDishHub,
   createEidgahGate,
   createFuchkaCartModel,
+  createJheelParDetails,
+  createOuterShopProps,
   createPharmacyProps,
   createPukurDetails,
   createRickshawGarageProps,
   createSaloonProps,
+  createShishuParkProps,
   createWaterTowerModel,
 } from './shopInteriors';
 import { soundEngine } from '../audio/soundEngine';
@@ -197,14 +212,14 @@ export function WorldScene({
     const scene = new THREE.Scene();
     const skyColor = new THREE.Color(0x0c1324);
     scene.background = skyColor;
-    scene.fog = new THREE.FogExp2(0x0c1324, 0.0038);
+    scene.fog = new THREE.FogExp2(0x0c1324, 0.0024);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
     scene.environmentIntensity = 0.26;
     pmremGenerator.dispose();
 
-    const camera = new THREE.PerspectiveCamera(54, width / height, 0.2, 420);
+    const camera = new THREE.PerspectiveCamera(54, width / height, 0.2, 640);
     camera.position.set(0, 18, 34);
 
     // Desktop-GPU HDR Post-Processing (high threshold 1.45 so only true emissives bloom, never characters/roads)
@@ -256,13 +271,13 @@ export function WorldScene({
     const skyline = createTwilightSkyline();
     scene.add(skyline.group);
 
-    // Sculpted Rolling Hills Terrain Skirt beyond the 208m compound
+    // Sculpted Rolling Hills Terrain Skirt beyond the 320m compound
     const terrainSkirt = createTerrainSkirt();
     scene.add(terrainSkirt);
 
-    textures.asphaltMap.repeat.set(16, 16);
-    textures.asphaltNormal.repeat.set(16, 16);
-    textures.asphaltRoughness.repeat.set(16, 16);
+    textures.asphaltMap.repeat.set(24, 24);
+    textures.asphaltNormal.repeat.set(24, 24);
+    textures.asphaltRoughness.repeat.set(24, 24);
 
     // Compound Asphalt with Tangent Normal Map + Rain Puddle Specular Roughness Map
     const compoundFloor = new THREE.Mesh(
@@ -281,19 +296,19 @@ export function WorldScene({
     compoundFloor.receiveShadow = true;
     scene.add(compoundFloor);
 
-    // Moholla Main Avenues + Inner Ring + Outer Para & Rail Boulevards (208m × 208m Map)
+    // Moholla Main Avenues + Inner Ring + Outer Para & Rail Boulevards (320m × 320m Map)
     const roadNormNS = textures.asphaltNormal.clone();
-    roadNormNS.repeat.set(1, 16);
+    roadNormNS.repeat.set(1, 24);
     roadNormNS.needsUpdate = true;
     const roadRoughNS = textures.asphaltRoughness.clone();
-    roadRoughNS.repeat.set(1, 16);
+    roadRoughNS.repeat.set(1, 24);
     roadRoughNS.needsUpdate = true;
 
     const roadNormEW = textures.asphaltNormal.clone();
-    roadNormEW.repeat.set(16, 1);
+    roadNormEW.repeat.set(24, 1);
     roadNormEW.needsUpdate = true;
     const roadRoughEW = textures.asphaltRoughness.clone();
-    roadRoughEW.repeat.set(16, 1);
+    roadRoughEW.repeat.set(24, 1);
     roadRoughEW.needsUpdate = true;
 
     const roadSurfaceMatNS = new THREE.MeshStandardMaterial({
@@ -312,46 +327,54 @@ export function WorldScene({
       roughness: 1.0,
       metalness: 0.08,
     });
-    const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 202.0), roadSurfaceMatNS);
+    const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 316.0), roadSurfaceMatNS);
     roadNS.rotation.x = -Math.PI / 2;
     roadNS.position.y = 0.008;
     roadNS.receiveShadow = true;
-    const roadEW = new THREE.Mesh(new THREE.PlaneGeometry(202.0, 11.5), roadSurfaceMatEW);
+    const roadEW = new THREE.Mesh(new THREE.PlaneGeometry(316.0, 11.5), roadSurfaceMatEW);
     roadEW.rotation.x = -Math.PI / 2;
     roadEW.position.y = 0.009;
     roadEW.receiveShadow = true;
     scene.add(roadNS, roadEW);
 
-    // Inner Ring Boulevard (x = ±52, z = ±52) extending to North Para & South Rail Crossings
+    // Inner Ring Boulevard (x = ±52, z = ±52) extending to North Para & South Opar Para
     for (const rx of [-52, 52]) {
-      const ringNS = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 196.0), roadSurfaceMatNS);
+      const ringNS = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 310.0), roadSurfaceMatNS);
       ringNS.rotation.x = -Math.PI / 2;
       ringNS.position.set(rx, 0.006, 0);
       ringNS.receiveShadow = true;
       scene.add(ringNS);
     }
     for (const rz of [-52, 52]) {
-      const ringEW = new THREE.Mesh(new THREE.PlaneGeometry(176.0, 8.5), roadSurfaceMatEW);
+      const ringEW = new THREE.Mesh(new THREE.PlaneGeometry(310.0, 8.5), roadSurfaceMatEW);
       ringEW.rotation.x = -Math.PI / 2;
       ringEW.position.set(0, 0.007, rz);
       ringEW.receiveShadow = true;
       scene.add(ringEW);
     }
 
-    // Outer Para Avenues (North Houses z=-72, Rail Station z=72, South Bypass z=96, Outer W/E x=±86)
+    // Outer Para Avenues (North Colony z=-114, North Houses z=-72, Rail Station z=72, South Bypass z=96, Opar Main z=112, Opar Ring z=144, Outer W/E x=±86,±118)
     for (const [rz, wid] of [
+      [-114, 8.0],
       [-72, 8.0],
       [72, 8.0],
       [96, 6.8],
+      [112, 8.0],
+      [144, 8.0],
     ] as const) {
-      const aveEW = new THREE.Mesh(new THREE.PlaneGeometry(184.0, wid), roadSurfaceMatEW);
+      const aveEW = new THREE.Mesh(new THREE.PlaneGeometry(308.0, wid), roadSurfaceMatEW);
       aveEW.rotation.x = -Math.PI / 2;
       aveEW.position.set(0, 0.007, rz);
       aveEW.receiveShadow = true;
       scene.add(aveEW);
     }
-    for (const rx of [-86, 86]) {
-      const aveNS = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 192.0), roadSurfaceMatNS);
+    for (const [rx, wid] of [
+      [-118, 8.0],
+      [-86, 7.5],
+      [86, 7.5],
+      [118, 8.0],
+    ] as const) {
+      const aveNS = new THREE.Mesh(new THREE.PlaneGeometry(wid, 310.0), roadSurfaceMatNS);
       aveNS.rotation.x = -Math.PI / 2;
       aveNS.position.set(rx, 0.006, 0);
       aveNS.receiveShadow = true;
@@ -367,7 +390,7 @@ export function WorldScene({
       polygonOffsetUnits: -1,
     });
     const dashPlacements: Array<{ x: number; y: number; z: number; sx: number; sz: number }> = [];
-    for (let d = -96.0; d <= 96.0; d += 4.5) {
+    for (let d = -152.0; d <= 152.0; d += 4.5) {
       if (Math.abs(d) >= 11.5 && Math.abs(d - RAILWAY_TRACK_Z) > 3.6) {
         dashPlacements.push({ x: 0, y: 0.015, z: d, sx: 0.24, sz: 1.8 });
       }
@@ -375,34 +398,34 @@ export function WorldScene({
         dashPlacements.push({ x: d, y: 0.015, z: 0, sx: 1.8, sz: 0.24 });
       }
     }
-    for (let d = -92.0; d <= 92.0; d += 5.0) {
+    for (let d = -148.0; d <= 148.0; d += 5.0) {
       if (Math.abs(d) >= 6.0 && Math.abs(d - RAILWAY_TRACK_Z) > 3.6) {
-        for (const rx of [-52, 52]) {
+        for (const rx of [-118, -52, 52, 118]) {
           dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.24, sz: 1.8 });
         }
       }
-      if (Math.abs(d) >= 6.0 && Math.abs(d) <= 80.0) {
-        for (const rz of [-52, 52]) {
-          dashPlacements.push({ x: d, y: 0.014, z: rz, sx: 1.8, sz: 0.24 });
+      if (
+        Math.abs(d) >= 6.0 &&
+        Math.abs(Math.abs(d) - 52) > 4.2 &&
+        Math.abs(Math.abs(d) - 118) > 4.2
+      ) {
+        for (const rz of [-114, -72, -52, 52, 96, 112, 144]) {
+          dashPlacements.push({ x: d, y: 0.014, z: rz, sx: 1.8, sz: 0.22 });
         }
       }
-      if (Math.abs(d) > 8.0) {
-        dashPlacements.push({ x: d, y: 0.014, z: -72, sx: 1.8, sz: 0.22 });
-        dashPlacements.push({ x: d, y: 0.014, z: 96, sx: 1.8, sz: 0.22 });
-      }
     }
-    for (let d = -84.0; d <= 68.0; d += 5.2) {
-      if (Math.abs(d) < 6.0) continue;
+    for (let d = -142.0; d <= 142.0; d += 5.2) {
+      if (Math.abs(d) < 6.0 || Math.abs(d - RAILWAY_TRACK_Z) <= 3.6) continue;
       for (const rx of [-86, 86]) {
         dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.22, sz: 1.8 });
       }
     }
-    // Zebra Crossings approaching Adda Chowk from all 4 avenues
+    // Zebra Crossings approaching Adda Chowk + Outer Ring Boulevard intersections
     for (let s = -4; s <= 4; s += 1.3) {
-      for (const zPos of [-10.8, 10.8]) {
+      for (const zPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2]) {
         dashPlacements.push({ x: s, y: 0.018, z: zPos, sx: 0.55, sz: 2.2 });
       }
-      for (const xPos of [-10.8, 10.8]) {
+      for (const xPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2]) {
         dashPlacements.push({ x: xPos, y: 0.018, z: s, sx: 2.2, sz: 0.55 });
       }
     }
@@ -434,10 +457,11 @@ export function WorldScene({
     };
     const borderCurbPlacements: Array<{ x: number; y: number; z: number; sx: number; sz: number }> = [];
     for (const zDef of ZONES) {
-      if (zDef.id === 'pukur_ghat' || zDef.id === 'rail_station') continue;
+      if (zDef.id === 'pukur_ghat' || zDef.id === 'rail_station' || zDef.id === 'jheel_par') continue;
       const isCentral = zDef.id === 'adda_chowk';
       const isEidgah = zDef.id === 'eidgah_north';
       const isCricket = zDef.id === 'cricket_math';
+      const isPark = zDef.id === 'shishu_park';
       const isSaloon = zDef.id === 'saloon_goli';
       const isPharmacy = zDef.id === 'pharmacy_mor';
       const isGarage = zDef.id === 'rickshaw_garage';
@@ -457,7 +481,7 @@ export function WorldScene({
               roughness: 0.88,
               metalness: 0.0,
             })
-          : isEidgah
+          : isEidgah || isPark
             ? new THREE.MeshStandardMaterial({
                 color: '#ffffff',
                 map: textures.grassMap,
@@ -496,7 +520,15 @@ export function WorldScene({
       pad.receiveShadow = true;
       scene.add(pad);
 
-      if (isCentral || isEidgah || isCricket || zDef.id === 'fuchka_corner' || zDef.id === 'biyer_pandal') {
+      if (
+        isCentral ||
+        isEidgah ||
+        isCricket ||
+        isPark ||
+        zDef.id === 'fuchka_corner' ||
+        zDef.id === 'biyer_pandal' ||
+        zDef.id === 'mach_bazar'
+      ) {
         borderCurbPlacements.push(
           { x: zDef.x, y: 0.06, z: zDef.z - zDef.depth / 2, sx: zDef.width + 0.4, sz: 0.28 },
           { x: zDef.x, y: 0.06, z: zDef.z + zDef.depth / 2, sx: zDef.width + 0.4, sz: 0.28 },
@@ -656,6 +688,23 @@ export function WorldScene({
     pukurEdgeS.position.z = 8.22;
     scene.add(pukurEdgeW, pukurEdgeN, pukurEdgeS);
 
+    // Jheel Par Lake Water (-146.5..-130.5, -91.5..-72.5) + Borders + Boat & Lotuses
+    const jheelWater = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 19.0, 22, 32), waterMat);
+    jheelWater.rotation.x = -Math.PI / 2;
+    jheelWater.position.set(-138.5, 0.05, -82.0);
+    scene.add(jheelWater);
+
+    const jheelDetails = createJheelParDetails();
+    scene.add(jheelDetails.group);
+
+    const jheelEdgeW = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.24, 19.8), pukurBorderMat);
+    jheelEdgeW.position.set(-146.85, 0.12, -82.0);
+    const jheelEdgeN = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.24, 0.55), pukurBorderMat);
+    jheelEdgeN.position.set(-138.5, 0.12, -91.78);
+    const jheelEdgeS = jheelEdgeN.clone();
+    jheelEdgeS.position.z = -72.22;
+    scene.add(jheelEdgeW, jheelEdgeN, jheelEdgeS);
+
     // Distinct Architectural Wall Materials & Coping Caps per Moholla District
     const wallMeshes: THREE.Object3D[] = [];
     const brickWallMat = new THREE.MeshStandardMaterial({
@@ -681,6 +730,17 @@ export function WorldScene({
       master_bari: new THREE.MeshStandardMaterial({ map: textures.masterWallMap, roughness: 0.72, metalness: 0.04 }),
       chacha_bari: new THREE.MeshStandardMaterial({ map: textures.chachaWallMap, roughness: 0.72, metalness: 0.05 }),
       khalar_bari: new THREE.MeshStandardMaterial({ map: textures.khalaWallMap, roughness: 0.72, metalness: 0.04 }),
+      nanar_bari: new THREE.MeshStandardMaterial({ map: textures.nanaWallMap, roughness: 0.74, metalness: 0.04 }),
+      cinema_hall: new THREE.MeshStandardMaterial({ map: textures.cinemaWallMap, roughness: 0.45, metalness: 0.12 }),
+      bhai_duplex: new THREE.MeshStandardMaterial({ map: textures.bhaiWallMap, roughness: 0.62, metalness: 0.08 }),
+      coaching_center: new THREE.MeshStandardMaterial({ map: textures.coachingWallMap, roughness: 0.68, metalness: 0.04 }),
+      khalur_bari: new THREE.MeshStandardMaterial({ map: textures.khaluWallMap, roughness: 0.72, metalness: 0.04 }),
+      kacchi_house: new THREE.MeshStandardMaterial({ map: textures.kacchiWallMap, roughness: 0.72, metalness: 0.06 }),
+      cyber_cafe: new THREE.MeshStandardMaterial({ map: textures.cyberWallMap, roughness: 0.4, metalness: 0.22 }),
+      dorji_bari: new THREE.MeshStandardMaterial({ map: textures.dorjiWallMap, roughness: 0.68, metalness: 0.06 }),
+      tiger_gym: new THREE.MeshStandardMaterial({ map: textures.gymWallMap, roughness: 0.5, metalness: 0.28 }),
+      rail_colony: new THREE.MeshStandardMaterial({ map: textures.colonyWallMap, roughness: 0.76, metalness: 0.06 }),
+      fufu_bari: new THREE.MeshStandardMaterial({ map: textures.fufuWallMap, roughness: 0.72, metalness: 0.05 }),
     };
     const zoneCopingMatMap: Record<string, THREE.MeshStandardMaterial> = {
       cha_dokan: new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.68 }),
@@ -694,6 +754,17 @@ export function WorldScene({
       chacha_bari: new THREE.MeshStandardMaterial({ color: '#be123c', roughness: 0.58 }),
       khalar_bari: new THREE.MeshStandardMaterial({ color: '#0f766e', roughness: 0.58 }),
       rail_station: new THREE.MeshStandardMaterial({ color: '#0369a1', roughness: 0.45, metalness: 0.3 }),
+      nanar_bari: new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.62 }),
+      cinema_hall: new THREE.MeshStandardMaterial({ color: '#7e22ce', roughness: 0.42, metalness: 0.25 }),
+      bhai_duplex: new THREE.MeshStandardMaterial({ color: '#1d4ed8', roughness: 0.48, metalness: 0.15 }),
+      coaching_center: new THREE.MeshStandardMaterial({ color: '#047857', roughness: 0.56 }),
+      khalur_bari: new THREE.MeshStandardMaterial({ color: '#0f766e', roughness: 0.58 }),
+      kacchi_house: new THREE.MeshStandardMaterial({ color: '#b91c1c', roughness: 0.54 }),
+      cyber_cafe: new THREE.MeshStandardMaterial({ color: '#4338ca', roughness: 0.4, metalness: 0.25 }),
+      dorji_bari: new THREE.MeshStandardMaterial({ color: '#a21caf', roughness: 0.54 }),
+      tiger_gym: new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.45, metalness: 0.3 }),
+      rail_colony: new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.65 }),
+      fufu_bari: new THREE.MeshStandardMaterial({ color: '#be185d', roughness: 0.56 }),
     };
     const copingMat = new THREE.MeshStandardMaterial({
       color: '#94a3b8',
@@ -739,8 +810,50 @@ export function WorldScene({
       'rail_cabin_e',
       'rail_cabin_center_w',
       'rail_cabin_center_e',
+      'rail_cabin_far_w',
+      'rail_cabin_far_e',
+      'nana_table',
+      'cinema_seats',
+      'bhai_sofa',
+      'coach_desk',
+      'khalu_table',
+      'jheel_water',
+      'park_ferris_base',
+      'kacchi_deg_counter',
+      'cyber_pc_row',
+      'dorji_table',
+      'gym_rack',
+      'mach_table_n',
+      'mach_table_s',
+      'colony_sofa',
+      'signal_tower_base',
+      'fufu_table',
+      'cont_nw_1',
+      'cont_nw_2',
+      'cont_ne_1',
+      'cont_ne_2',
+      'cont_sw_1',
+      'cont_se_1',
+      'cont_west_yard',
+      'cont_east_yard',
+      'car_garage_nw',
+      'car_cinema_lot',
+      'car_bhai_lot',
+      'car_kacchi_lot',
+      'pickup_bazar_e',
+      'pickup_mach_s',
+      'pickup_rail_s',
+      'car_gym_east',
+      'airdrop_nw_park',
+      'airdrop_ne_park',
+      'airdrop_south_plaza',
     ]);
 
+    const alleyCopingMat = new THREE.MeshStandardMaterial({
+      color: '#7c2d12',
+      roughness: 0.68,
+      metalness: 0.05,
+    });
     const capsGroup = new THREE.Group();
     for (const w of WALLS) {
       if (skipWallIds.has(w.id)) {
@@ -785,7 +898,7 @@ export function WorldScene({
         wallMeshes.push(wallMesh);
       }
 
-      const capMat = (w.zone && zoneCopingMatMap[w.zone]) || copingMat;
+      const capMat = (w.zone && zoneCopingMatMap[w.zone]) || (isAlleyDivider ? alleyCopingMat : copingMat);
       const cap = new THREE.Mesh(new THREE.BoxGeometry(wWidth + 0.16, 0.14, wDepth + 0.16), capMat);
       cap.position.set(cx, w.height + 0.07, cz);
       cap.receiveShadow = true;
@@ -793,15 +906,15 @@ export function WorldScene({
     }
     scene.add(optimizeStaticGroup(capsGroup));
 
-    // Periodic Concrete Pilasters along the 208m Compound Perimeter Walls (1 InstancedMesh draw call)
+    // Periodic Concrete Pilasters along the 320m Compound Perimeter Walls (1 InstancedMesh draw call)
     const pilasterTransforms: BoxTransform[] = [];
-    for (let p = -96; p <= 96; p += 16) {
-      for (const pz of [-102.8, 102.8]) {
-        pilasterTransforms.push({ x: p, y: 1.925, z: pz, sx: 1.1, sy: 3.85, sz: 2.1 });
+    for (let p = -152; p <= 152; p += 16) {
+      for (const pz of [-158.8, 158.8]) {
+        pilasterTransforms.push({ x: p, y: 2.425, z: pz, sx: 1.1, sy: 4.85, sz: 2.1 });
       }
       if (Math.abs(p - RAILWAY_TRACK_Z) > 5.5) {
-        for (const px of [-102.8, 102.8]) {
-          pilasterTransforms.push({ x: px, y: 1.925, z: p, sx: 2.1, sy: 3.85, sz: 1.1 });
+        for (const px of [-158.8, 158.8]) {
+          pilasterTransforms.push({ x: px, y: 2.425, z: p, sx: 2.1, sy: 4.85, sz: 1.1 });
         }
       }
     }
@@ -822,6 +935,7 @@ export function WorldScene({
     const cornerBuildings: Array<{
       id: string;
       bounds: [number, number, number, number];
+      height: number;
       tint: string;
       eaveHex: string;
       pillarHex: string;
@@ -832,102 +946,233 @@ export function WorldScene({
       {
         id: 'cha_dokan',
         bounds: [-45.0, -25.0, -41.0, -22.5],
+        height: 3.8,
         tint: '#fde68a',
         eaveHex: '#b45309',
         pillarHex: '#78350f',
         signMap: textures.chaSignMap,
-        signPos: [-31.2, 3.72, -22.2],
+        signPos: [-31.2, 4.42, -22.2],
         signRotY: 0,
       },
       {
         id: 'rickshaw_garage',
         bounds: [25.0, 45.0, -41.0, -22.5],
+        height: 3.8,
         tint: '#e0f2fe',
         eaveHex: '#047857',
         pillarHex: '#064e3b',
         signMap: textures.rickshawSignMap,
-        signPos: [31.2, 3.72, -22.2],
+        signPos: [31.2, 4.42, -22.2],
         signRotY: 0,
       },
       {
         id: 'desco_power',
         bounds: [-45.0, -25.0, 22.5, 41.0],
+        height: 5.0,
         tint: '#fef08a',
         eaveHex: '#334155',
         pillarHex: '#991b1b',
         signMap: textures.descoSignMap,
-        signPos: [-31.2, 3.72, 22.2],
+        signPos: [-31.2, 5.62, 22.2],
         signRotY: 0,
       },
       {
         id: 'dish_roof',
         bounds: [25.0, 45.0, 22.5, 41.0],
+        height: 5.0,
         tint: '#bae6fd',
         eaveHex: '#1d4ed8',
         pillarHex: '#1e3a8a',
         signMap: textures.dishSignMap,
-        signPos: [31.2, 3.72, 22.2],
+        signPos: [31.2, 5.62, 22.2],
         signRotY: 0,
       },
       {
         id: 'saloon_goli',
         bounds: [-75.0, -57.0, -35.0, -17.0],
+        height: 3.8,
         tint: '#fef3c7',
         eaveHex: '#be185d',
         pillarHex: '#831843',
         signMap: textures.saloonSignMap,
-        signPos: [-56.7, 3.75, -26.0],
+        signPos: [-56.7, 4.42, -26.0],
         signRotY: Math.PI / 2,
       },
       {
         id: 'pharmacy_mor',
         bounds: [-75.0, -57.0, 17.0, 35.0],
+        height: 3.8,
         tint: '#e0f2fe',
         eaveHex: '#0284c7',
         pillarHex: '#e0f2fe',
         signMap: textures.pharmacySignMap,
-        signPos: [-56.7, 3.75, 26.0],
+        signPos: [-56.7, 4.42, 26.0],
         signRotY: Math.PI / 2,
       },
       {
         id: 'kakar_bari',
         bounds: [-82.0, -66.0, -96.0, -80.0],
+        height: 4.4,
         tint: '#fef3c7',
         eaveHex: '#b45309',
         pillarHex: '#78350f',
         signMap: textures.kakaSignMap,
-        signPos: [-74.0, 3.75, -79.7],
+        signPos: [-74.0, 5.02, -79.7],
         signRotY: 0,
       },
       {
         id: 'master_bari',
         bounds: [-40.0, -24.0, -96.0, -80.0],
+        height: 4.4,
         tint: '#fef9c3',
         eaveHex: '#78350f',
         pillarHex: '#451a03',
         signMap: textures.masterSignMap,
-        signPos: [-32.0, 3.75, -79.7],
+        signPos: [-32.0, 5.02, -79.7],
         signRotY: 0,
       },
       {
         id: 'chacha_bari',
         bounds: [24.0, 40.0, -96.0, -80.0],
+        height: 4.4,
         tint: '#ffe4e6',
         eaveHex: '#be123c',
         pillarHex: '#881337',
         signMap: textures.chachaSignMap,
-        signPos: [32.0, 3.75, -79.7],
+        signPos: [32.0, 5.02, -79.7],
         signRotY: 0,
       },
       {
         id: 'khalar_bari',
         bounds: [66.0, 82.0, -96.0, -80.0],
+        height: 4.4,
         tint: '#ccfbf1',
         eaveHex: '#0f766e',
         pillarHex: '#115e59',
         signMap: textures.khalaSignMap,
-        signPos: [74.0, 3.75, -79.7],
+        signPos: [74.0, 5.02, -79.7],
         signRotY: 0,
+      },
+      {
+        id: 'nanar_bari',
+        bounds: [-147.0, -129.0, -144.0, -126.0],
+        height: 4.4,
+        tint: '#fef3c7',
+        eaveHex: '#b45309',
+        pillarHex: '#78350f',
+        signMap: textures.nanaSignMap,
+        signPos: [-138.0, 5.02, -125.7],
+        signRotY: 0,
+      },
+      {
+        id: 'cinema_hall',
+        bounds: [-78.0, -60.0, -144.0, -126.0],
+        height: 5.4,
+        tint: '#f3e8ff',
+        eaveHex: '#7e22ce',
+        pillarHex: '#581c87',
+        signMap: textures.cinemaSignMap,
+        signPos: [-69.0, 6.02, -125.7],
+        signRotY: 0,
+      },
+      {
+        id: 'bhai_duplex',
+        bounds: [-38.0, -18.0, -144.0, -126.0],
+        height: 5.4,
+        tint: '#dbeafe',
+        eaveHex: '#1d4ed8',
+        pillarHex: '#1e3a8a',
+        signMap: textures.bhaiSignMap,
+        signPos: [-28.0, 6.02, -125.7],
+        signRotY: 0,
+      },
+      {
+        id: 'coaching_center',
+        bounds: [18.0, 38.0, -144.0, -126.0],
+        height: 5.0,
+        tint: '#d1fae5',
+        eaveHex: '#047857',
+        pillarHex: '#064e3b',
+        signMap: textures.coachingSignMap,
+        signPos: [28.0, 5.62, -125.7],
+        signRotY: 0,
+      },
+      {
+        id: 'khalur_bari',
+        bounds: [60.0, 78.0, -144.0, -126.0],
+        height: 4.4,
+        tint: '#ccfbf1',
+        eaveHex: '#0f766e',
+        pillarHex: '#134e4a',
+        signMap: textures.khaluSignMap,
+        signPos: [69.0, 5.02, -125.7],
+        signRotY: 0,
+      },
+      {
+        id: 'kacchi_house',
+        bounds: [-147.0, -129.0, -38.0, -18.0],
+        height: 4.4,
+        tint: '#fee2e2',
+        eaveHex: '#b91c1c',
+        pillarHex: '#7f1d1d',
+        signMap: textures.kacchiSignMap,
+        signPos: [-128.7, 5.02, -28.0],
+        signRotY: Math.PI / 2,
+      },
+      {
+        id: 'cyber_cafe',
+        bounds: [-147.0, -129.0, 18.0, 38.0],
+        height: 5.0,
+        tint: '#e0e7ff',
+        eaveHex: '#4338ca',
+        pillarHex: '#312e81',
+        signMap: textures.cyberSignMap,
+        signPos: [-128.7, 5.62, 28.0],
+        signRotY: Math.PI / 2,
+      },
+      {
+        id: 'dorji_bari',
+        bounds: [129.0, 147.0, -38.0, -18.0],
+        height: 4.4,
+        tint: '#fae8ff',
+        eaveHex: '#a21caf',
+        pillarHex: '#701a75',
+        signMap: textures.dorjiSignMap,
+        signPos: [128.7, 5.02, -28.0],
+        signRotY: -Math.PI / 2,
+      },
+      {
+        id: 'tiger_gym',
+        bounds: [129.0, 147.0, 18.0, 38.0],
+        height: 5.4,
+        tint: '#fee2e2',
+        eaveHex: '#dc2626',
+        pillarHex: '#7f1d1d',
+        signMap: textures.gymSignMap,
+        signPos: [128.7, 6.02, 28.0],
+        signRotY: -Math.PI / 2,
+      },
+      {
+        id: 'rail_colony',
+        bounds: [-38.0, -18.0, 119.0, 137.0],
+        height: 5.0,
+        tint: '#e2e8f0',
+        eaveHex: '#475569',
+        pillarHex: '#334155',
+        signMap: textures.colonySignMap,
+        signPos: [-28.0, 5.62, 118.7],
+        signRotY: Math.PI,
+      },
+      {
+        id: 'fufu_bari',
+        bounds: [60.0, 78.0, 119.0, 137.0],
+        height: 4.4,
+        tint: '#fce7f3',
+        eaveHex: '#be185d',
+        pillarHex: '#831843',
+        signMap: textures.fufuSignMap,
+        signPos: [69.0, 5.02, 118.7],
+        signRotY: Math.PI,
       },
     ];
     const shopTubeMats: THREE.MeshStandardMaterial[] = [];
@@ -947,19 +1192,19 @@ export function WorldScene({
       const grp = new THREE.Group();
       grp.position.set(pos[0], pos[1], pos[2]);
       grp.rotation.y = rotY;
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.18, h + 0.18, 0.16), signFrameMat);
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, h + 0.2, 0.18), signFrameMat);
       const faceMat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: 0.35,
+        roughness: 0.34,
         emissive: '#ffffff',
         emissiveMap: tex,
-        emissiveIntensity: 0.22,
+        emissiveIntensity: 0.24,
       });
       const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), faceMat);
-      front.position.z = 0.09;
+      front.position.z = 0.11;
       const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), faceMat);
       back.rotation.y = Math.PI;
-      back.position.z = -0.09;
+      back.position.z = -0.11;
       grp.add(frame, front, back);
       if (withPosts) {
         const pMat = new THREE.MeshStandardMaterial({ color: postHex, roughness: 0.5, metalness: 0.4 });
@@ -988,50 +1233,51 @@ export function WorldScene({
 
       for (const cx of [bx1 + 0.45, bx2 - 0.45]) {
         for (const cz of [bz1 + 0.45, bz2 - 0.45]) {
-          const col = new THREE.Mesh(new THREE.BoxGeometry(1.15, 3.35, 1.15), colMat);
-          col.position.set(cx, 1.675, cz);
+          const col = new THREE.Mesh(new THREE.BoxGeometry(1.15, b.height + 0.16, 1.15), colMat);
+          col.position.set(cx, (b.height + 0.16) / 2, cz);
           col.castShadow = !isSoftwareGl;
           scene.add(col);
         }
       }
-      // Overhanging perimeter eave canopies (never blocking interior view)
+      // Overhanging perimeter eave canopies (scaled dynamically to building height)
+      const eaveY = b.height - 0.18;
       const eaveN = new THREE.Mesh(new THREE.BoxGeometry(bx2 - bx1 + 1.4, 0.14, 2.2), eaveMat);
-      eaveN.position.set(midX, 3.15, bz1 + 0.4);
+      eaveN.position.set(midX, eaveY, bz1 + 0.4);
       eaveN.rotation.x = -0.18;
       const eaveS = new THREE.Mesh(new THREE.BoxGeometry(bx2 - bx1 + 1.4, 0.14, 2.2), eaveMat);
-      eaveS.position.set(midX, 3.15, bz2 - 0.4);
+      eaveS.position.set(midX, eaveY, bz2 - 0.4);
       eaveS.rotation.x = 0.18;
       const eaveW = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, bz2 - bz1 + 1.0), eaveMat);
-      eaveW.position.set(bx1 + 0.4, 3.15, midZ);
+      eaveW.position.set(bx1 + 0.4, eaveY, midZ);
       eaveW.rotation.z = 0.18;
       const eaveE = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, bz2 - bz1 + 1.0), eaveMat);
-      eaveE.position.set(bx2 - 0.4, 3.15, midZ);
+      eaveE.position.set(bx2 - 0.4, eaveY, midZ);
       eaveE.rotation.z = -0.18;
       scene.add(eaveN, eaveS, eaveW, eaveE);
 
       // Unique Location Facade Nameplate above Building Entrance
       addDoubleSidedBillboard(b.signMap, b.signPos, b.signRotY, 4.9, 1.35);
 
-      // Location-specific architectural exterior flourishes
+      // Location-specific architectural exterior flourishes (relative to b.height)
       if (b.id === 'desco_power') {
         // Rooftop steel exhaust pods + glowing amber/red warning beacons
         const podMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.4, metalness: 0.72 });
         const beaconMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
         for (const px of [bx1 + 3.5, bx2 - 3.5]) {
           const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.78, 0.7, 16), podMat);
-          pod.position.set(px, 3.55, bz2 - 0.8);
+          pod.position.set(px, b.height + 0.35, bz2 - 0.8);
           const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), beaconMat);
-          dome.position.set(px, 3.98, bz2 - 0.8);
+          dome.position.set(px, b.height + 0.78, bz2 - 0.8);
           scene.add(pod, dome);
         }
       } else if (b.id === 'dish_roof') {
         // Rooftop 5G & Dish Signal Mast on East eave
         const mastMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.28, metalness: 0.85 });
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.4, 12), mastMat);
-        mast.position.set(bx2 - 2.0, 4.3, bz1 + 2.0);
+        mast.position.set(bx2 - 2.0, b.height + 1.15, bz1 + 2.0);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 20), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
         ring.rotation.x = Math.PI / 2;
-        ring.position.set(bx2 - 2.0, 5.2, bz1 + 2.0);
+        ring.position.set(bx2 - 2.0, b.height + 2.05, bz1 + 2.0);
         scene.add(mast, ring);
       } else if (b.id === 'saloon_goli') {
         // Twin glowing rose-gold wall sconces flanking East doorway
@@ -1049,9 +1295,9 @@ export function WorldScene({
           emissiveIntensity: 1.4,
         });
         const cv = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.05, 0.34), crossMat);
-        cv.position.set(-56.7, 4.95, 26.0);
+        cv.position.set(-56.7, b.height + 1.55, 26.0);
         const ch = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 1.05), crossMat);
-        ch.position.set(-56.7, 4.95, 26.0);
+        ch.position.set(-56.7, b.height + 1.55, 26.0);
         scene.add(cv, ch);
       }
 
@@ -1065,10 +1311,10 @@ export function WorldScene({
       shopTubeMats.push(tubeMat);
       for (const tz of [bz1 + 1.15, bz2 - 1.15]) {
         const casing = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.08, 0.14), tubeFrameMat);
-        casing.position.set(midX, 2.96, tz);
+        casing.position.set(midX, b.height - 0.32, tz);
         const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 3.2, 10), tubeMat);
         bulb.rotation.z = Math.PI / 2;
-        bulb.position.set(midX, 2.91, tz);
+        bulb.position.set(midX, b.height - 0.37, tz);
         scene.add(casing, bulb);
       }
       const poolMat = new THREE.MeshBasicMaterial({
@@ -1148,49 +1394,108 @@ export function WorldScene({
       const midZ = (bz1 + bz2) / 2;
       const wSpan = bx2 - bx1;
       const dSpan = bz2 - bz1;
-      const isParaHouse =
+      const isCenteredSouthHouse =
         b.id === 'kakar_bari' ||
         b.id === 'master_bari' ||
         b.id === 'chacha_bari' ||
-        b.id === 'khalar_bari';
-      const hasSouthDoor = b.id === 'cha_dokan' || b.id === 'rickshaw_garage' || isParaHouse;
-      const hasNorthDoor = b.id === 'desco_power' || b.id === 'dish_roof';
-      const hasEastDoor = b.id === 'saloon_goli' || b.id === 'pharmacy_mor';
+        b.id === 'khalar_bari' ||
+        b.id === 'nanar_bari' ||
+        b.id === 'cinema_hall' ||
+        b.id === 'bhai_duplex' ||
+        b.id === 'coaching_center' ||
+        b.id === 'khalur_bari';
+      const isCenteredNorthHouse = b.id === 'rail_colony' || b.id === 'fufu_bari';
+      const hasSouthDoor = b.id === 'cha_dokan' || b.id === 'rickshaw_garage' || isCenteredSouthHouse;
+      const hasNorthDoor = b.id === 'desco_power' || b.id === 'dish_roof' || isCenteredNorthHouse;
+      const hasEastDoor =
+        b.id === 'saloon_goli' || b.id === 'pharmacy_mor' || b.id === 'kacchi_house' || b.id === 'cyber_cafe';
+      const hasWestDoor = b.id === 'dorji_bari' || b.id === 'tiger_gym';
 
-      // Ground plinth foundation skirts
+      // Ground plinth foundation skirts + Upper Story Grilled Windows & Doorway Transom Lintels
+      const upperWinY = b.height >= 4.4 ? b.height - 1.05 : -1;
+      const wallFaceMat = zoneWallMatMap[b.id] ?? brickWallMat;
+      const lintelH = Math.max(0.55, b.height - 3.05);
+      const lintelY = 3.05 + lintelH / 2;
+
       if (!hasNorthDoor) {
         const pn = new THREE.Mesh(new THREE.BoxGeometry(wSpan + 0.3, 0.38, 1.18), plinthMat);
         pn.position.set(midX, 0.19, bz1 + 0.45);
         archGroup.add(pn);
         addFramedWindow(midX - 4.2, 1.78, bz1 + 0.45, 0);
         addFramedWindow(midX + 4.2, 1.78, bz1 + 0.45, 0);
+        if (upperWinY > 0) {
+          addFramedWindow(midX - 4.2, upperWinY, bz1 + 0.45, 0, 2.1, 0.92);
+          addFramedWindow(midX + 4.2, upperWinY, bz1 + 0.45, 0, 2.1, 0.92);
+        }
+      } else if (isCenteredNorthHouse) {
+        const stubW = (wSpan - 6.0) / 2;
+        for (const px of [bx1 + stubW / 2, bx2 - stubW / 2]) {
+          const pnStub = new THREE.Mesh(new THREE.BoxGeometry(stubW, 0.38, 1.18), plinthMat);
+          pnStub.position.set(px, 0.19, bz1 + 0.45);
+          archGroup.add(pnStub);
+        }
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(6.2, lintelH, 0.96), wallFaceMat);
+        transom.position.set(midX, lintelY, bz1 + 0.45);
+        archGroup.add(transom);
       } else {
         const pnStub = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.38, 1.18), plinthMat);
         pnStub.position.set(b.id === 'desco_power' ? bx1 + 4.4 : bx2 - 4.4, 0.19, bz1 + 0.45);
         archGroup.add(pnStub);
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(10.8, lintelH, 0.96), wallFaceMat);
+        transom.position.set(b.id === 'desco_power' ? -31.2 : 31.2, lintelY, bz1 + 0.45);
+        archGroup.add(transom);
       }
+
       if (!hasSouthDoor) {
         const ps = new THREE.Mesh(new THREE.BoxGeometry(wSpan + 0.3, 0.38, 1.18), plinthMat);
         ps.position.set(midX, 0.19, bz2 - 0.45);
         archGroup.add(ps);
         addFramedWindow(midX - 4.2, 1.78, bz2 - 0.45, 0);
         addFramedWindow(midX + 4.2, 1.78, bz2 - 0.45, 0);
-      } else if (isParaHouse) {
-        for (const px of [bx1 + 2.6, bx2 - 2.6]) {
-          const psStub = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.38, 1.18), plinthMat);
+        if (upperWinY > 0) {
+          addFramedWindow(midX - 4.2, upperWinY, bz2 - 0.45, 0, 2.1, 0.92);
+          addFramedWindow(midX + 4.2, upperWinY, bz2 - 0.45, 0, 2.1, 0.92);
+        }
+      } else if (isCenteredSouthHouse) {
+        const stubW = (wSpan - 6.0) / 2;
+        for (const px of [bx1 + stubW / 2, bx2 - stubW / 2]) {
+          const psStub = new THREE.Mesh(new THREE.BoxGeometry(stubW, 0.38, 1.18), plinthMat);
           psStub.position.set(px, 0.19, bz2 - 0.45);
           archGroup.add(psStub);
         }
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(6.2, lintelH, 0.96), wallFaceMat);
+        transom.position.set(midX, lintelY, bz2 - 0.45);
+        archGroup.add(transom);
       } else {
         const psStub = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.38, 1.18), plinthMat);
         psStub.position.set(b.id === 'cha_dokan' ? bx1 + 4.4 : bx2 - 4.4, 0.19, bz2 - 0.45);
         archGroup.add(psStub);
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(10.8, lintelH, 0.96), wallFaceMat);
+        transom.position.set(b.id === 'cha_dokan' ? -31.2 : 31.2, lintelY, bz2 - 0.45);
+        archGroup.add(transom);
       }
-      const pw = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, dSpan + 0.3), plinthMat);
-      pw.position.set(bx1 + 0.45, 0.19, midZ);
-      archGroup.add(pw);
-      addFramedWindow(bx1 + 0.45, 1.78, midZ - 4.0, Math.PI / 2);
-      addFramedWindow(bx1 + 0.45, 1.78, midZ + 4.0, Math.PI / 2);
+
+      if (!hasWestDoor) {
+        const pw = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, dSpan + 0.3), plinthMat);
+        pw.position.set(bx1 + 0.45, 0.19, midZ);
+        archGroup.add(pw);
+        addFramedWindow(bx1 + 0.45, 1.78, midZ - 4.0, Math.PI / 2);
+        addFramedWindow(bx1 + 0.45, 1.78, midZ + 4.0, Math.PI / 2);
+        if (upperWinY > 0) {
+          addFramedWindow(bx1 + 0.45, upperWinY, midZ - 4.0, Math.PI / 2, 2.1, 0.92);
+          addFramedWindow(bx1 + 0.45, upperWinY, midZ + 4.0, Math.PI / 2, 2.1, 0.92);
+        }
+      } else {
+        const stubD = (dSpan - 7.0) / 2;
+        for (const pz of [bz1 + stubD / 2, bz2 - stubD / 2]) {
+          const pwStub = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, stubD), plinthMat);
+          pwStub.position.set(bx1 + 0.45, 0.19, pz);
+          archGroup.add(pwStub);
+        }
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(0.96, lintelH, 7.2), wallFaceMat);
+        transom.position.set(bx1 + 0.45, lintelY, midZ);
+        archGroup.add(transom);
+      }
 
       if (!hasEastDoor) {
         const pe = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, dSpan + 0.3), plinthMat);
@@ -1198,28 +1503,49 @@ export function WorldScene({
         archGroup.add(pe);
         addFramedWindow(bx2 - 0.45, 1.78, midZ - 4.0, Math.PI / 2);
         addFramedWindow(bx2 - 0.45, 1.78, midZ + 4.0, Math.PI / 2);
+        if (upperWinY > 0) {
+          addFramedWindow(bx2 - 0.45, upperWinY, midZ - 4.0, Math.PI / 2, 2.1, 0.92);
+          addFramedWindow(bx2 - 0.45, upperWinY, midZ + 4.0, Math.PI / 2, 2.1, 0.92);
+        }
+      } else {
+        const stubD = (dSpan - 7.0) / 2;
+        for (const pz of [bz1 + stubD / 2, bz2 - stubD / 2]) {
+          const peStub = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.38, stubD), plinthMat);
+          peStub.position.set(bx2 - 0.45, 0.19, pz);
+          archGroup.add(peStub);
+        }
+        const transom = new THREE.Mesh(new THREE.BoxGeometry(0.96, lintelH, 7.2), wallFaceMat);
+        transom.position.set(bx2 - 0.45, lintelY, midZ);
+        archGroup.add(transom);
       }
 
       // Cozy Para House Interior Furniture (Sofas / Study Desk / Dining Tables matching WALLS AABBs)
-      if (isParaHouse) {
+      const residentialBounds: Record<string, { fx: number; fz: number; fw: number; fd: number; color: string; swap: boolean }> = {
+        kakar_bari: { fx: -78.15, fz: -92.65, fw: 3.3, fd: 2.1, color: '#b45309', swap: false },
+        master_bari: { fx: -35.5, fz: -92.5, fw: 4.0, fd: 2.1, color: '#0f766e', swap: true },
+        chacha_bari: { fx: 35.1, fz: -92.35, fw: 4.0, fd: 2.1, color: '#be123c', swap: true },
+        khalar_bari: { fx: 77.5, fz: -92.45, fw: 3.8, fd: 2.1, color: '#0f766e', swap: true },
+        nanar_bari: { fx: -142.5, fz: -140.25, fw: 3.8, fd: 2.3, color: '#d97706', swap: true },
+        bhai_duplex: { fx: -32.75, fz: -140.35, fw: 4.2, fd: 2.1, color: '#2563eb', swap: false },
+        khalur_bari: { fx: 72.75, fz: -140.35, fw: 4.2, fd: 2.1, color: '#0d9488', swap: true },
+        rail_colony: { fx: -32.75, fz: 133.0, fw: 4.2, fd: 2.6, color: '#475569', swap: false },
+        fufu_bari: { fx: 73.0, fz: 133.0, fw: 3.8, fd: 2.6, color: '#db2777', swap: true },
+      };
+      const furn = residentialBounds[b.id];
+      if (furn) {
         const woodFurnitureMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.65 });
-        const sofaCushionMat = new THREE.MeshStandardMaterial({
-          color: b.id === 'kakar_bari' ? '#b45309' : b.id === 'chacha_bari' ? '#be123c' : '#0f766e',
-          roughness: 0.8,
-        });
-        const fx = b.id === 'kakar_bari' ? -78.15 : b.id === 'master_bari' ? -35.5 : b.id === 'chacha_bari' ? 35.1 : 77.5;
-        const fz = -92.55;
+        const sofaCushionMat = new THREE.MeshStandardMaterial({ color: furn.color, roughness: 0.8 });
         const body = new THREE.Mesh(
-          new THREE.BoxGeometry(b.id === 'master_bari' ? 4.0 : 3.6, 0.72, 2.1),
-          b.id === 'kakar_bari' ? sofaCushionMat : woodFurnitureMat,
+          new THREE.BoxGeometry(furn.fw, 0.72, furn.fd),
+          furn.swap ? woodFurnitureMat : sofaCushionMat,
         );
-        body.position.set(fx, 0.36, fz);
+        body.position.set(furn.fx, 0.36, furn.fz);
         body.castShadow = !isSoftwareGl;
         const top = new THREE.Mesh(
-          new THREE.BoxGeometry(3.8, 0.14, 2.2),
-          b.id === 'kakar_bari' ? woodFurnitureMat : sofaCushionMat,
+          new THREE.BoxGeometry(furn.fw + 0.15, 0.14, furn.fd + 0.12),
+          furn.swap ? sofaCushionMat : woodFurnitureMat,
         );
-        top.position.set(fx, 0.82, fz);
+        top.position.set(furn.fx, 0.82, furn.fz);
         archGroup.add(body, top);
       }
     }
@@ -1333,7 +1659,12 @@ export function WorldScene({
         deck.id === 'saloon_roof' ||
         deck.id === 'pharm_roof' ||
         deck.id === 'kaka_roof' ||
-        deck.id === 'khala_roof'
+        deck.id === 'khala_roof' ||
+        deck.id === 'nana_roof' ||
+        deck.id === 'bhai_roof' ||
+        deck.id === 'khalu_roof' ||
+        deck.id === 'colony_roof' ||
+        deck.id === 'fufu_roof'
       ) {
         const tx = deck.minX + 1.85;
         const tz = deck.minZ + 1.85;
@@ -1354,7 +1685,11 @@ export function WorldScene({
         deck.id === 'cha_roof' ||
         deck.id === 'saloon_roof' ||
         deck.id === 'kaka_roof' ||
-        deck.id === 'chacha_roof'
+        deck.id === 'chacha_roof' ||
+        deck.id === 'nana_roof' ||
+        deck.id === 'dorji_roof' ||
+        deck.id === 'colony_roof' ||
+        deck.id === 'fufu_roof'
       ) {
         const clothes = createClotheslineProp();
         clothes.position.set(rcx - 1.4, topY, rcz + 2.6);
@@ -1362,14 +1697,31 @@ export function WorldScene({
       }
 
       // Rooftop Props: Bamboo Machan Pergola + Woven Chatai & Moras
-      if (deck.id === 'rick_roof' || deck.id === 'master_roof' || deck.id === 'khala_roof') {
+      if (
+        deck.id === 'rick_roof' ||
+        deck.id === 'master_roof' ||
+        deck.id === 'khala_roof' ||
+        deck.id === 'bhai_roof' ||
+        deck.id === 'coaching_roof' ||
+        deck.id === 'khalu_roof'
+      ) {
         const machan = createRooftopMachanProp(isSoftwareGl);
         machan.position.set(rcx - 1.2, topY, rcz - 0.8);
         targetRoofGroup.add(machan);
       }
 
       // Rooftop Props: Adda Tea Benches + Warm Rooftop Lanterns
-      if (deck.id === 'cha_roof' || deck.id === 'rick_roof' || deck.id === 'kaka_roof' || deck.id === 'chacha_roof') {
+      if (
+        deck.id === 'cha_roof' ||
+        deck.id === 'rick_roof' ||
+        deck.id === 'kaka_roof' ||
+        deck.id === 'chacha_roof' ||
+        deck.id === 'cinema_roof' ||
+        deck.id === 'kacchi_roof' ||
+        deck.id === 'cyber_roof' ||
+        deck.id === 'gym_roof' ||
+        deck.id === 'fufu_roof'
+      ) {
         const bx = rcx + 2.4;
         const bz = rcz - 1.6;
         const benchMat = new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.72 });
@@ -1387,8 +1739,15 @@ export function WorldScene({
         targetRoofGroup.add(bench, post, bulb);
       }
 
-      // Rooftop Props: Spinning Outdoor AC Condenser Units on DESCO, Dish & Master Roofs
-      if (deck.id === 'desco_roof' || deck.id === 'dish_deck' || deck.id === 'master_roof') {
+      // Rooftop Props: Spinning Outdoor AC Condenser Units
+      if (
+        deck.id === 'desco_roof' ||
+        deck.id === 'dish_deck' ||
+        deck.id === 'master_roof' ||
+        deck.id === 'cinema_roof' ||
+        deck.id === 'cyber_roof' ||
+        deck.id === 'gym_roof'
+      ) {
         const acX = deck.id === 'desco_roof' ? deck.maxX - 2.2 : deck.minX + 1.6;
         const acZ = deck.id === 'desco_roof' ? deck.maxZ - 1.4 : deck.minZ + 2.2;
         const acBox = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.85, 0.65), roofAcBodyMat);
@@ -1428,7 +1787,13 @@ export function WorldScene({
         deck.id === 'kaka_roof' ||
         deck.id === 'master_roof' ||
         deck.id === 'chacha_roof' ||
-        deck.id === 'khala_roof'
+        deck.id === 'khala_roof' ||
+        deck.id === 'nana_roof' ||
+        deck.id === 'bhai_roof' ||
+        deck.id === 'khalu_roof' ||
+        deck.id === 'dorji_roof' ||
+        deck.id === 'colony_roof' ||
+        deck.id === 'fufu_roof'
       ) {
         const potSpots: Array<[number, number]> = [
           [deck.maxX - 1.6, deck.minZ + 1.6],
@@ -1439,6 +1804,31 @@ export function WorldScene({
           pot.position.set(px, topY, pz);
           targetRoofGroup.add(pot);
         }
+      }
+
+      // Rooftop Props: Chhilekotha Stairhead Cabins on Multi-Story Landmarks
+      const chhilekothaConfigs: Record<string, { x: number; z: number; hex: string }> = {
+        bhai_roof: { x: deck.maxX - 2.6, z: deck.minZ + 2.8, hex: '#1d4ed8' },
+        cinema_roof: { x: deck.maxX - 2.6, z: deck.minZ + 2.8, hex: '#7e22ce' },
+        coaching_roof: { x: deck.maxX - 2.6, z: deck.minZ + 2.8, hex: '#047857' },
+        desco_roof: { x: deck.maxX - 2.6, z: deck.maxZ - 2.8, hex: '#991b1b' },
+        dish_deck: { x: deck.minX + 2.6, z: deck.maxZ - 2.8, hex: '#1d4ed8' },
+        colony_roof: { x: deck.maxX - 2.6, z: deck.maxZ - 2.8, hex: '#475569' },
+        gym_roof: { x: deck.maxX - 2.6, z: deck.minZ + 2.8, hex: '#dc2626' },
+      };
+      const chhileCfg = chhilekothaConfigs[deck.id];
+      if (chhileCfg) {
+        const cabin = createRooftopChhilekotha(chhileCfg.hex, isSoftwareGl);
+        cabin.position.set(chhileCfg.x, topY, chhileCfg.z);
+        targetRoofGroup.add(cabin);
+      }
+
+      // Rooftop PUBG/Free Fire Loot Crates on Tall Landmark Roofs
+      if (deck.id === 'bhai_roof' || deck.id === 'cinema_roof') {
+        const roofCrate = createAirdropCrateModel(isSoftwareGl);
+        roofCrate.position.set(deck.minX + 4.4, topY, deck.maxZ - 4.4);
+        dynamicChildren.push(roofCrate);
+        targetRoofGroup.add(roofCrate);
       }
 
       scene.add(optimizeStaticGroup(targetRoofGroup, dynamicChildren));
@@ -1532,12 +1922,15 @@ export function WorldScene({
 
     scene.add(optimizeStaticGroup(archGroup));
 
-    // Overhead District Arch Signboards for Open-Air Plazas (Adda Chowk, Pukur Ghat, Bazar, Eidgah, WASA)
+    // Overhead District Arch Signboards for Open-Air Plazas
     addDoubleSidedBillboard(textures.addaSignMap, [0, 5.75, -9.5], 0, 5.2, 1.45, true, '#b45309');
     addDoubleSidedBillboard(textures.pukurSignMap, [-37.8, 4.15, -8.2], 0, 4.6, 1.3, true, '#0e7490');
     addDoubleSidedBillboard(textures.bazarSignMap, [39.2, 4.45, -6.4], Math.PI / 2, 5.0, 1.4, true, '#b45309');
     addDoubleSidedBillboard(textures.eidgahSignMap, [0, 5.25, -45.2], 0, 5.0, 1.35, false);
     addDoubleSidedBillboard(textures.wasaSignMap, [0, 4.35, 35.8], 0, 4.8, 1.35, true, '#1e40af');
+    addDoubleSidedBillboard(textures.jheelSignMap, [-128.5, 4.2, -82.0], Math.PI / 2, 4.6, 1.3, true, '#0e7490');
+    addDoubleSidedBillboard(textures.machSignMap, [-69.0, 4.3, 119.5], 0, 4.8, 1.35, true, '#0284c7');
+    addDoubleSidedBillboard(textures.signalSignMap, [26.0, 4.3, 118.5], 0, 4.8, 1.35, true, '#ca8a04');
 
     // Rolling Door Shutters
     const shutterMeshes = new Map<DoorZoneId, { mesh: THREE.Group; targetY: number; openY: number }>();
@@ -1590,7 +1983,7 @@ export function WorldScene({
     // Banglish Posters & Dustbins along the Tactical Alley Sightline Walls
     scene.add(createAlleyProps(textures, isSoftwareGl));
 
-    // PUBG-Style Slatted Supply Crates, Ribbed Oil/Water Drums & Sandbag Jersey Barricades
+    // PUBG-Style Slatted Supply Crates, Ribbed Oil/Water Drums & Sandbag Jersey Barricades (Dense Outer Coverage)
     const supplySpots: Array<[number, number, number]> = [
       [40.8, -37.2, 0.15],
       [-41.8, 37.6, -0.25],
@@ -1598,6 +1991,18 @@ export function WorldScene({
       [42.8, 8.2, -0.18],
       [9.1, -70.2, 0.22],
       [62.0, 34.2, -0.3],
+      [-103.5, -90.2, 0.12],
+      [103.5, -90.2, -0.14],
+      [-109.5, -18.5, 0.4],
+      [109.5, 18.5, -0.4],
+      [-94.5, -135.5, 0.2],
+      [94.5, -135.5, -0.2],
+      [-136.0, -58.5, 0.1],
+      [136.0, -58.5, -0.1],
+      [-44.0, 127.0, 0.35],
+      [44.0, 127.0, -0.35],
+      [-108.5, 103.5, 0.18],
+      [108.5, 103.5, -0.18],
     ];
     instantiateGroupAtTransforms(
       createSupplyCluster(textures, isSoftwareGl),
@@ -1610,6 +2015,16 @@ export function WorldScene({
       [13.5, -45.2, -0.08],
       [-11.5, 45.2, -0.06],
       [11.5, 45.2, 0.06],
+      [-15.0, -104.5, 0.05],
+      [15.0, -104.5, -0.05],
+      [-94.0, -64.5, 0.22],
+      [94.0, -64.5, -0.22],
+      [-94.0, 64.5, -0.22],
+      [94.0, 64.5, 0.22],
+      [-126.0, -6.5, Math.PI / 2],
+      [126.0, 6.5, Math.PI / 2],
+      [-15.0, 124.5, 0.08],
+      [15.0, 124.5, -0.08],
     ];
     instantiateGroupAtTransforms(
       createSandbagBarricade(isSoftwareGl),
@@ -1617,11 +2032,195 @@ export function WorldScene({
       scene,
     );
 
+    // 8 Corrugated Freight Containers (Matching WALLS AABBs 1:1!)
+    const containerBatches: Array<{ color: string; coords: Array<[number, number, number]> }> = [
+      {
+        color: '#b91c1c',
+        coords: [
+          [-103.75, -93.7, 0],
+          [101.75, 127.3, 0],
+        ],
+      },
+      {
+        color: '#1d4ed8',
+        coords: [
+          [-101.75, -83.7, 0],
+          [-104.75, 127.3, 0],
+        ],
+      },
+      {
+        color: '#ca8a04',
+        coords: [
+          [101.25, -94.7, 0],
+          [-140.75, -63.2, 0],
+        ],
+      },
+      {
+        color: '#047857',
+        coords: [
+          [103.75, -82.7, 0],
+          [140.75, -63.2, 0],
+        ],
+      },
+    ];
+    for (const batch of containerBatches) {
+      instantiateGroupAtTransforms(
+        createShippingContainerModel(batch.color, textures, isSoftwareGl),
+        batch.coords.map(([x, z, rotY]) => ({ x, z, rotY })),
+        scene,
+      );
+    }
+
+    // 5 Parked Dhaka Sedans/Taxis & 3 Pickup Trucks (Matching WALLS AABBs 1:1!)
+    const parkedVehicles: Array<{
+      kind: 'car' | 'taxi' | 'pickup';
+      color: string;
+      x: number;
+      z: number;
+      rotY: number;
+    }> = [
+      { kind: 'taxi', color: '#eab308', x: 21.3, z: -44.9, rotY: 0 },
+      { kind: 'car', color: '#dc2626', x: -77.5, z: -122.4, rotY: 0 },
+      { kind: 'car', color: '#cbd5e1', x: -13.2, z: -131.9, rotY: 0 },
+      { kind: 'car', color: '#1e3a8a', x: -132.3, z: -44.7, rotY: 0 },
+      { kind: 'car', color: '#e11d48', x: 133.3, z: 44.1, rotY: Math.PI },
+      { kind: 'pickup', color: '#0f766e', x: 61.9, z: 61.7, rotY: 0 },
+      { kind: 'pickup', color: '#0284c7', x: -79.8, z: 128.4, rotY: Math.PI / 2 },
+      { kind: 'pickup', color: '#d97706', x: -43.6, z: 103.0, rotY: 0 },
+    ];
+    for (const v of parkedVehicles) {
+      const mesh =
+        v.kind === 'pickup'
+          ? createPickupTruckModel(v.color, isSoftwareGl)
+          : createParkedCarModel(v.color, isSoftwareGl, v.kind === 'taxi');
+      mesh.position.set(v.x, 0, v.z);
+      mesh.rotation.y = v.rotY;
+      scene.add(mesh);
+    }
+
+    // 3 Ground PUBG/FF Airdrop Supply Crates with Red Flare Smoke Beams (Matching WALLS AABBs 1:1!)
+    for (const [ax, az] of [
+      [-100.3, -17.9],
+      [100.3, 17.9],
+      [-3.3, 125.9],
+    ]) {
+      const crate = createAirdropCrateModel(isSoftwareGl);
+      crate.position.set(ax, 0, az);
+      scene.add(crate);
+    }
+
+    // 4 Wide Boulevard Overhead Welcome Gantry Arches (North, South, West, East Avenues)
+    const gantrySpecs: Array<[THREE.CanvasTexture, number, number, number]> = [
+      [textures.gantryNorthMap, 0, -58.5, 0],
+      [textures.gantrySouthMap, 0, 58.5, 0],
+      [textures.gantryNorthMap, -58.5, 0, Math.PI / 2],
+      [textures.gantrySouthMap, 58.5, 0, Math.PI / 2],
+    ];
+    for (const [tex, gx, gz, rotY] of gantrySpecs) {
+      const arch = createBoulevardWelcomeArch(tex, 12.6, isSoftwareGl);
+      arch.position.set(gx, 0, gz);
+      arch.rotation.y = rotY;
+      scene.add(arch);
+    }
+
+    // 8 Giant Roadside Billboard Hoardings facing Major Intersections (zero overlap with trees/poles/roads)
+    const hoardingSpecs: Array<[THREE.CanvasTexture, number, number, number]> = [
+      [textures.hoardingAdMap, -23.0, -60.5, 0.24],
+      [textures.hoardingKacchiMap, 23.0, -60.5, -0.24],
+      [textures.hoardingGgMap, -77.5, -61.5, 0.34],
+      [textures.hoardingAdMap, 77.5, -61.5, -0.34],
+      [textures.hoardingRailMap, -77.5, 61.5, -0.34],
+      [textures.hoardingRailMap, 77.5, 61.5, 0.34],
+      [textures.hoardingGgMap, -68.0, 103.5, 0.24],
+      [textures.hoardingKacchiMap, 68.0, 103.5, -0.24],
+    ];
+    for (const [tex, bx, bz, rotY] of hoardingSpecs) {
+      const board = createBillboardHoarding(tex, 7.2, 3.6, 3.9, isSoftwareGl);
+      board.position.set(bx, 0, bz);
+      board.rotation.y = rotY;
+      scene.add(board);
+    }
+
+    // 4 'Jatri Chhauni' Bus Stop Shelters on Avenue Sidewalks
+    instantiateGroupAtTransforms(
+      createBusStopShelterModel(isSoftwareGl),
+      [
+        { x: -10.0, z: -58.5, rotY: 0 },
+        { x: 10.0, z: 58.5, rotY: Math.PI },
+        { x: -59.5, z: 11.5, rotY: Math.PI / 2 },
+        { x: 59.5, z: -11.5, rotY: -Math.PI / 2 },
+      ],
+      scene,
+    );
+
+    // Highway Jersey Median Dividers & Traffic Cones along Outer Boulevards
+    instantiateGroupAtTransforms(
+      createRoadDividerCluster(),
+      [
+        { x: -45.5, z: -58.2, rotY: 0 },
+        { x: 45.5, z: -58.2, rotY: 0 },
+        { x: -45.5, z: 58.2, rotY: 0 },
+        { x: 45.5, z: 58.2, rotY: 0 },
+        { x: -80.2, z: -58.2, rotY: 0 },
+        { x: 80.2, z: -58.2, rotY: 0 },
+        { x: -80.2, z: 58.2, rotY: 0 },
+        { x: 80.2, z: 58.2, rotY: 0 },
+        { x: -111.5, z: -58.2, rotY: 0 },
+        { x: 111.5, z: -58.2, rotY: 0 },
+        { x: -111.5, z: 58.2, rotY: 0 },
+        { x: 111.5, z: 58.2, rotY: 0 },
+        { x: -45.5, z: 102.5, rotY: 0 },
+        { x: 45.5, z: 102.5, rotY: 0 },
+        { x: -102.0, z: -107.0, rotY: 0 },
+        { x: 102.0, z: -107.0, rotY: 0 },
+        { x: -102.0, z: 105.0, rotY: 0 },
+        { x: 102.0, z: 105.0, rotY: 0 },
+      ],
+      scene,
+    );
+
+    // 16 Sidewalk Benches & 6 Evening Jhalmuri Street Food Carts across Moholla Districts
+    instantiateGroupAtTransforms(
+      createStreetBenchModel(isSoftwareGl),
+      [
+        { x: -13.0, z: -63.0, rotY: 0 },
+        { x: 13.0, z: -63.0, rotY: 0 },
+        { x: -13.0, z: 63.0, rotY: Math.PI },
+        { x: 13.0, z: 63.0, rotY: Math.PI },
+        { x: -94.0, z: -26.0, rotY: Math.PI / 2 },
+        { x: -94.0, z: 26.0, rotY: Math.PI / 2 },
+        { x: 94.0, z: -26.0, rotY: -Math.PI / 2 },
+        { x: 94.0, z: 26.0, rotY: -Math.PI / 2 },
+        { x: -69.0, z: -120.5, rotY: 0 },
+        { x: -28.0, z: -120.5, rotY: 0 },
+        { x: 28.0, z: -120.5, rotY: 0 },
+        { x: 69.0, z: -120.5, rotY: 0 },
+        { x: -28.0, z: 105.0, rotY: Math.PI },
+        { x: 69.0, z: 105.0, rotY: Math.PI },
+        { x: -125.0, z: -96.0, rotY: Math.PI / 2 },
+        { x: 125.0, z: 105.0, rotY: -Math.PI / 2 },
+      ],
+      scene,
+    );
+
+    instantiateGroupAtTransforms(
+      createJhalmuriCartModel(isSoftwareGl),
+      [
+        { x: -15.5, z: -18.5, rotY: 0.4 },
+        { x: 15.5, z: 18.5, rotY: -2.6 },
+        { x: -60.5, z: -60.5, rotY: 0.8 },
+        { x: 60.5, z: 60.5, rotY: -2.2 },
+        { x: -24.5, z: 71.2, rotY: 0 },
+        { x: -124.5, z: -12.0, rotY: Math.PI / 2 },
+      ],
+      scene,
+    );
+
     // Wind-Swaying Instanced Grass Tufts across Eidgah, Pukur Bank & Outer Verges
     const instancedGrass = createInstancedGrassTufts();
     scene.add(instancedGrass.mesh);
 
-    // Terracotta Planter Pots flanking plazas & entrances (InstancedMesh)
+    // Terracotta Planter Pots flanking plazas, avenues & para entrances (InstancedMesh)
     const planterSpots: Array<[number, number]> = [
       [-8.4, -8.4],
       [8.4, -8.4],
@@ -1643,6 +2242,40 @@ export function WorldScene({
       [-55.8, 32.5],
       [-8.5, -59.5],
       [8.5, -59.5],
+      [-79.0, -78.8],
+      [-69.0, -78.8],
+      [-37.0, -78.8],
+      [-27.0, -78.8],
+      [27.0, -78.8],
+      [37.0, -78.8],
+      [69.0, -78.8],
+      [79.0, -78.8],
+      [-143.0, -124.8],
+      [-133.0, -124.8],
+      [-74.0, -124.8],
+      [-64.0, -124.8],
+      [-33.0, -124.8],
+      [-23.0, -124.8],
+      [23.0, -124.8],
+      [33.0, -124.8],
+      [64.0, -124.8],
+      [74.0, -124.8],
+      [-127.8, -33.0],
+      [-127.8, -23.0],
+      [-127.8, 23.0],
+      [-127.8, 33.0],
+      [127.8, -33.0],
+      [127.8, -23.0],
+      [127.8, 23.0],
+      [127.8, 33.0],
+      [-33.0, 117.8],
+      [-23.0, 117.8],
+      [64.0, 117.8],
+      [74.0, 117.8],
+      [-58.0, -106.0],
+      [58.0, -106.0],
+      [-58.0, 104.0],
+      [58.0, 104.0],
     ];
     instantiateGroupAtTransforms(
       createPlanterPot(),
@@ -1662,7 +2295,7 @@ export function WorldScene({
     scene.add(createEidgahGate(isSoftwareGl));
     scene.add(createWaterTowerModel(isSoftwareGl));
 
-    // 5 Hi-Poly Outer Moholla Landmarks + South Dhaka Rail Crossing
+    // 5 Hi-Poly Outer Moholla Landmarks + South Dhaka Rail Crossing + 15 New 320m Outer Locations
     scene.add(createFuchkaCartModel(textures, isSoftwareGl));
     const saloonProps = createSaloonProps(textures, isSoftwareGl);
     scene.add(saloonProps.group);
@@ -1670,10 +2303,13 @@ export function WorldScene({
     scene.add(createPharmacyProps(textures, isSoftwareGl));
     const biyerPandal = createBiyerPandalProps(textures, isSoftwareGl);
     scene.add(biyerPandal.group);
+    const shishuPark = createShishuParkProps(textures, isSoftwareGl);
+    scene.add(shishuPark.group);
+    scene.add(createOuterShopProps(textures, isSoftwareGl));
     const railGate = createRailCrossingGate(textures, isSoftwareGl);
     scene.add(railGate.group);
     const banglaTrain = createBanglaTrainModel(isSoftwareGl);
-    banglaTrain.group.position.set(-140, 0.16, RAILWAY_TRACK_Z);
+    banglaTrain.group.position.set(-195, 0.16, RAILWAY_TRACK_Z);
     banglaTrain.group.visible = false;
     scene.add(banglaTrain.group);
     let lastHornCycle = -1;
@@ -1683,15 +2319,26 @@ export function WorldScene({
       [
         { x: 36.5, z: -33.5, rotY: -0.55 },
         { x: 27.8, z: -32.2, rotY: 0.12 },
+        { x: -10.5, z: -61.5, rotY: 1.45 },
+        { x: -60.5, z: -57.5, rotY: 0.25 },
+        { x: 60.5, z: -57.5, rotY: -0.35 },
+        { x: -10.5, z: 61.5, rotY: -1.52 },
+        { x: 45.0, z: 77.5, rotY: 0.1 },
       ],
       scene,
     );
 
-    // Iconic Dhaka Green CNG Auto-Rickshaw parked along the Moholla avenue
-    const cng = createCngModel(isSoftwareGl);
-    cng.position.set(11.0, 0, 23.0);
-    cng.rotation.y = -0.38;
-    scene.add(cng);
+    // Iconic Dhaka Green CNG Auto-Rickshaws parked along Moholla avenues
+    instantiateGroupAtTransforms(
+      createCngModel(isSoftwareGl),
+      [
+        { x: 11.0, z: 23.0, rotY: -0.38 },
+        { x: -60.2, z: -44.2, rotY: 1.55 },
+        { x: 60.2, z: -44.2, rotY: -1.55 },
+        { x: -110.5, z: -44.5, rotY: 0.15 },
+      ],
+      scene,
+    );
 
     const desco = createDescoTransformer(textures, isSoftwareGl);
     desco.group.position.set(-38.25, 0, 32.65);
@@ -1718,7 +2365,7 @@ export function WorldScene({
       securityCams.push({ head: camObj.head, ledMat: camObj.ledMat, baseRotY });
     }
 
-    // Concrete Utility Poles + Sagging Overhead Moholla Electric Wires
+    // Concrete Utility Poles + Sagging Overhead Moholla Electric Wires (Inner + Outer Boulevards)
     const poleCoords: Array<[number, number, number]> = [
       [-14.5, -21.5, 0],
       [14.5, -21.5, 0],
@@ -1726,6 +2373,18 @@ export function WorldScene({
       [14.5, 21.5, 0],
       [-24.0, 21.5, 0.4],
       [24.0, 21.5, -0.4],
+      [-58.0, -58.0, 0],
+      [58.0, -58.0, 0],
+      [-58.0, 58.0, 0],
+      [58.0, 58.0, 0],
+      [-94.0, -58.0, 0],
+      [94.0, -58.0, 0],
+      [-94.0, 58.0, 0],
+      [94.0, 58.0, 0],
+      [-125.5, -58.0, 0],
+      [125.5, -58.0, 0],
+      [-125.5, 58.0, 0],
+      [125.5, 58.0, 0],
     ];
     instantiateGroupAtTransforms(
       createUtilityPole(),
@@ -1740,10 +2399,20 @@ export function WorldScene({
         [14.5, -21.5, 14.5, 21.5],
         [-14.5, 21.5, -24.0, 21.5],
         [14.5, 21.5, 24.0, 21.5],
+        [-58.0, -58.0, -94.0, -58.0],
+        [-94.0, -58.0, -125.5, -58.0],
+        [58.0, -58.0, 94.0, -58.0],
+        [94.0, -58.0, 125.5, -58.0],
+        [-58.0, 58.0, -94.0, 58.0],
+        [-94.0, 58.0, -125.5, 58.0],
+        [58.0, 58.0, 94.0, 58.0],
+        [94.0, 58.0, 125.5, 58.0],
+        [-58.0, -58.0, -58.0, 58.0],
+        [58.0, -58.0, 58.0, 58.0],
       ]),
     );
 
-    // Palm Trees & Crimson Krishnachura Trees (Instanced across 208m Compound & Outer Groves)
+    // Palm Trees, Crimson Krishnachura Trees & Broad Banyan Shade Trees (Dense 320m Landscape)
     const palmCoords: Array<[number, number, number]> = [
       [-94.0, -94.0, 1.22],
       [94.0, -94.0, 1.18],
@@ -1759,6 +2428,34 @@ export function WorldScene({
       [96.0, 40.0, 1.26],
       [-10.0, -95.0, 1.28],
       [10.0, -95.0, 1.24],
+      [-150.0, -150.0, 1.3],
+      [150.0, -150.0, 1.3],
+      [-150.0, 150.0, 1.28],
+      [150.0, 150.0, 1.28],
+      [-149.0, -64.0, 1.2],
+      [149.0, -64.0, 1.2],
+      [-104.0, -135.0, 1.22],
+      [104.0, -135.0, 1.22],
+      [-104.0, 128.0, 1.2],
+      [104.0, 128.0, 1.2],
+      [-150.0, -104.0, 1.24],
+      [150.0, -104.0, 1.24],
+      [-150.0, 44.0, 1.25],
+      [150.0, 44.0, 1.25],
+      [-150.0, 118.0, 1.22],
+      [150.0, 118.0, 1.22],
+      [-94.0, -151.0, 1.2],
+      [94.0, -151.0, 1.2],
+      [-94.0, 151.0, 1.2],
+      [94.0, 151.0, 1.2],
+      [-12.0, -151.0, 1.26],
+      [12.0, -151.0, 1.26],
+      [-45.0, 151.0, 1.22],
+      [45.0, 151.0, 1.22],
+      [-126.0, 62.0, 1.18],
+      [126.0, 62.0, 1.18],
+      [-126.0, -96.0, 1.18],
+      [126.0, -96.0, 1.18],
     ];
     instantiateGroupAtTransforms(
       createPalmTree(isSoftwareGl),
@@ -1777,6 +2474,26 @@ export function WorldScene({
       [96.0, 8.0, 1.25],
       [-72.0, 62.0, 1.16],
       [72.0, 62.0, 1.16],
+      [-136.0, -98.0, 1.26],
+      [136.0, -98.0, 1.24],
+      [-138.0, 62.0, 1.22],
+      [138.0, 62.0, 1.22],
+      [-45.0, 128.0, 1.2],
+      [45.0, 128.0, 1.2],
+      [-12.0, -134.0, 1.22],
+      [12.0, -134.0, 1.22],
+      [-104.0, -104.0, 1.22],
+      [104.0, -104.0, 1.22],
+      [-104.0, 102.0, 1.2],
+      [104.0, 102.0, 1.2],
+      [-150.0, 0, 1.24],
+      [150.0, 0, 1.24],
+      [-45.0, -104.0, 1.16],
+      [45.0, -104.0, 1.16],
+      [-112.0, -34.0, 1.18],
+      [112.0, -34.0, 1.18],
+      [-112.0, 34.0, 1.18],
+      [112.0, 34.0, 1.18],
     ];
     instantiateGroupAtTransforms(
       createKrishnachuraTree(isSoftwareGl),
@@ -1784,7 +2501,29 @@ export function WorldScene({
       scene,
     );
 
-    // 28 Instanced Street Lamps (0 static PointLights on Mobile GPU, 4 Adda Chowk PointLights on Desktop)
+    const banyanCoords: Array<[number, number, number]> = [
+      [-106.0, -148.0, 1.05],
+      [106.0, -148.0, 1.05],
+      [-148.0, -110.0, 1.0],
+      [148.0, -110.0, 1.0],
+      [-148.0, 104.0, 1.02],
+      [148.0, 104.0, 1.02],
+      [-106.0, 150.0, 1.05],
+      [106.0, 150.0, 1.05],
+      [-10.0, -104.0, 0.94],
+      [10.0, -104.0, 0.94],
+      [-64.0, 150.0, 1.0],
+      [96.0, -102.0, 0.95],
+      [-96.0, 44.0, 0.95],
+      [96.0, -44.0, 0.95],
+    ];
+    instantiateGroupAtTransforms(
+      createBanyanTree(isSoftwareGl),
+      banyanCoords.map(([x, z, scale]) => ({ x, z, rotY: (x + z) * 0.25, scale })),
+      scene,
+    );
+
+    // 64 Instanced Street Lamps across Inner & Outer 320m Moholla Avenues
     const lampCoords: Array<[number, number, number]> = [
       [-9.2, -9.2, Math.PI / 4],
       [9.2, -9.2, (Math.PI * 3) / 4],
@@ -1814,6 +2553,42 @@ export function WorldScene({
       [85.5, 0, -Math.PI / 2],
       [-24.0, 71.0, 0],
       [24.0, 71.0, 0],
+      [-113.5, -110.0, Math.PI / 4],
+      [113.5, -110.0, (Math.PI * 3) / 4],
+      [-69.0, -118.0, 0],
+      [-28.0, -118.0, 0],
+      [28.0, -118.0, 0],
+      [69.0, -118.0, 0],
+      [-122.0, -28.0, Math.PI / 2],
+      [-122.0, 28.0, Math.PI / 2],
+      [122.0, -28.0, -Math.PI / 2],
+      [122.0, 28.0, -Math.PI / 2],
+      [-69.0, 115.5, Math.PI],
+      [28.0, 115.5, Math.PI],
+      [-138.0, -118.0, 0],
+      [138.0, -118.0, 0],
+      [-138.0, -68.0, 0],
+      [138.0, -68.0, 0],
+      [-138.0, 68.0, Math.PI],
+      [138.0, 68.0, Math.PI],
+      [-138.0, 115.5, Math.PI],
+      [138.0, 115.5, Math.PI],
+      [-92.0, -100.0, Math.PI / 2],
+      [92.0, -100.0, -Math.PI / 2],
+      [-92.0, 100.0, Math.PI / 2],
+      [92.0, 100.0, -Math.PI / 2],
+      [-52.0, -102.0, Math.PI / 2],
+      [52.0, -102.0, -Math.PI / 2],
+      [-52.0, 102.0, Math.PI / 2],
+      [52.0, 102.0, -Math.PI / 2],
+      [-102.0, -46.0, 0],
+      [102.0, -46.0, 0],
+      [-102.0, 46.0, Math.PI],
+      [102.0, 46.0, Math.PI],
+      [-6.5, 100.0, 0],
+      [6.5, 100.0, Math.PI],
+      [-6.5, -100.0, 0],
+      [6.5, -100.0, Math.PI],
     ];
     const lampBulbs: THREE.PointLight[] = [];
     const lampNormalPoolOpacity = isMobileGpu ? 0.095 : 0.06;
@@ -1855,20 +2630,20 @@ export function WorldScene({
     lampGlowInst.computeBoundingSphere();
     scene.add(lampGlowInst);
 
-    // 15 Instanced Drains / Vents across Inner & Outer Districts
+    // Instanced Drains / Vents across Inner & Outer Districts
     instantiateGroupAtTransforms(
       createDrainVent(),
       VENTS.map((v) => ({ x: v.x, y: 0.02, z: v.z })),
       scene,
     );
 
-    // 180 GPU-Animated Twilight Fireflies across the 208x208m Moholla (zero CPU update loop)
-    const fireflyCount = 180;
+    // 340 GPU-Animated Twilight Fireflies across the 320x320m Moholla (zero CPU update loop)
+    const fireflyCount = 340;
     const fireflyPositions = new Float32Array(fireflyCount * 3);
     const fireflyPhases = new Float32Array(fireflyCount);
     for (let i = 0; i < fireflyCount; i++) {
-      const fx = ((i * 67) % 192) - 96;
-      const fz = ((i * 89) % 192) - 96;
+      const fx = ((i * 73) % 300) - 150;
+      const fz = ((i * 107) % 300) - 150;
       const fy = 0.8 + (i % 5) * 0.48;
       fireflyPositions[i * 3] = fx;
       fireflyPositions[i * 3 + 1] = fy;
@@ -2530,12 +3305,18 @@ export function WorldScene({
       instancedGrass.grassUniforms.uTime.value = elapsed;
       fireflyUniforms.uTime.value = elapsed;
 
-      // Gentle bobbing on Pukur wooden boat & Shapla lotuses + Shop & Landmark Animations
+      // Gentle bobbing on Pukur & Jheel Par boats & Shapla lotuses + Shop & Park Animations
       pukurDetails.boat.position.y = 0.07 + Math.sin(elapsed * 1.8) * 0.025;
       pukurDetails.boat.rotation.z = Math.sin(elapsed * 1.4) * 0.035;
       pukurDetails.flowers.forEach((fl, idx) => {
         fl.position.y = 0.06 + Math.sin(elapsed * 2.1 + idx) * 0.015;
       });
+      jheelDetails.boat.position.y = 0.08 + Math.sin(elapsed * 1.6 + 1.2) * 0.028;
+      jheelDetails.boat.rotation.z = Math.sin(elapsed * 1.25 + 0.7) * 0.032;
+      jheelDetails.flowers.forEach((fl, idx) => {
+        fl.position.y = 0.06 + Math.sin(elapsed * 1.9 + idx * 0.9) * 0.015;
+      });
+      shishuPark.wheelGroup.rotation.z = elapsed * 0.45;
       saloonProps.barberPole.rotation.y = elapsed * 2.4;
       chaStall.ceilingFan.rotation.y = elapsed * 7.5;
       saloonProps.ceilingFan.rotation.y = elapsed * 6.8;
@@ -2551,22 +3332,22 @@ export function WorldScene({
         cone.scale.set(wooferPulse, 1, wooferPulse);
       }
       // Animated Bangla Express Train along RAILWAY_TRACK_Z (86.5) + Dynamic Crossing Gates
-      const TRAIN_CYCLE = 30.0;
-      const TRAIN_PASS_SEC = 13.5;
+      const TRAIN_CYCLE = 34.0;
+      const TRAIN_PASS_SEC = 18.0;
       const cycleIdx = Math.floor(elapsed / TRAIN_CYCLE);
       const cycleT = elapsed - cycleIdx * TRAIN_CYCLE;
       const trainDir = cycleIdx % 2 === 0 ? 1 : -1;
       const isPassing = cycleT <= TRAIN_PASS_SEC;
       const isWarning = cycleT <= TRAIN_PASS_SEC + 1.8 || cycleT >= TRAIN_CYCLE - 4.2;
       const trainX = isPassing
-        ? trainDir * (-132.0 + (cycleT / TRAIN_PASS_SEC) * 264.0)
-        : trainDir * 140.0;
+        ? trainDir * (-195.0 + (cycleT / TRAIN_PASS_SEC) * 390.0)
+        : trainDir * 205.0;
 
       banglaTrain.group.visible = isPassing;
       if (isPassing) {
         banglaTrain.group.position.set(trainX, 0.16, RAILWAY_TRACK_Z);
         banglaTrain.group.rotation.y = trainDir === 1 ? 0 : Math.PI;
-        const wheelSpin = (elapsed * 19.5) / 0.36;
+        const wheelSpin = (elapsed * 21.5) / 0.36;
         for (const w of banglaTrain.wheels) {
           w.rotation.z = -wheelSpin;
         }
@@ -2582,12 +3363,12 @@ export function WorldScene({
       railGate.beaconMats[1].emissiveIntensity = isWarning ? (railPhase ? 0.12 : 2.4) : 0.12;
 
       const curPhase = phaseRef.current;
-      if (isPassing && Math.abs(trainX) < 92 && lastHornCycle !== cycleIdx) {
+      if (isPassing && Math.abs(trainX) < 148 && lastHornCycle !== cycleIdx) {
         lastHornCycle = cycleIdx;
         if (curPhase === 'playing' || curPhase === 'lobby') {
           const distToTrain = Math.hypot(localPosX - trainX, localPosZ - RAILWAY_TRACK_Z);
-          if (distToTrain < 95) {
-            soundEngine.playTrainHorn(Math.max(0.25, 1 - distToTrain / 110));
+          if (distToTrain < 130) {
+            soundEngine.playTrainHorn(Math.max(0.25, 1 - distToTrain / 140));
           }
         }
       }
@@ -2924,7 +3705,7 @@ export function WorldScene({
         const targetKey = isLoadshedding ? (crewBlinded ? 0.1 : 0.72) : 1.18;
         const targetLamp = isLoadshedding ? 0.08 : 1.15;
         const targetLantern = isLoadshedding ? (crewBlinded ? 1.45 : 2.15) : 0.0;
-        const targetFogDensity = isLoadshedding ? (crewBlinded ? 0.068 : 0.0075) : 0.0038;
+        const targetFogDensity = isLoadshedding ? (crewBlinded ? 0.068 : 0.0075) : 0.0024;
 
         hemiLight.intensity = THREE.MathUtils.damp(hemiLight.intensity, targetHemi, 5, dt);
         keyLight.intensity = THREE.MathUtils.damp(keyLight.intensity, targetKey, 5, dt);

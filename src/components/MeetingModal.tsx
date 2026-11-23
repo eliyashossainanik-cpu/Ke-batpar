@@ -69,7 +69,7 @@ function ChibiSuspectAvatar({
       </svg>
       {isCaller && alive && (
         <span
-          title="Called this Shalish"
+          title="এই সালিশ ডেকেছে"
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow"
         >
           <Megaphone className="w-2.5 h-2.5" />
@@ -227,7 +227,7 @@ export function MeetingModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Emergency Adda Voting"
+      aria-label="জরুরি সালিশ ও ভোট"
       className="fixed inset-0 z-30 flex items-center justify-center p-1.5 sm:p-3 lg:p-5"
       style={{ backgroundColor: 'rgba(5, 9, 17, 0.88)' }}
     >
@@ -241,38 +241,38 @@ export function MeetingModal({
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 truncate">
               <span>
                 {snapshot.meetingReason === 'body'
-                  ? 'Ekjon Size Hoye Gese!'
-                  : 'Emergency Shalish Bell'}
+                  ? 'লাশ পাওয়া গেছে!'
+                  : 'জরুরি সালিশ ঘণ্টা'}
               </span>
               {caller && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="truncate">Dakse {caller.name}</span>
+                  <span className="truncate">ডেকেছে {caller.name}</span>
                 </>
               )}
               <span aria-hidden="true" className="hidden sm:inline">·</span>
               <span className="hidden sm:inline font-mono-tabular text-slate-300">
-                {votedCount}/{alivePlayers.length} Voted
+                {votedCount}/{alivePlayers.length} ভোট দিয়েছে
               </span>
             </div>
             <h2 className="font-display text-base sm:text-xl [@media(max-height:540px)]:text-base font-extrabold text-white truncate">
               {isVoteResults
-                ? 'ভোটের ফলাফল · Pukur e Ke Jabe?'
+                ? 'ভোটের ফলাফল · পুকুরে কে যাবে?'
                 : snapshot.meetingReason === 'body'
                   ? 'লাশ পাওয়া গেছে! কে বাটপার বলো?'
-                  : 'জরুরি শালিশ · কে বাটপার ধরো!'}
+                  : 'জরুরি সালিশ · কে বাটপার ধরো!'}
             </h2>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {localPlayer?.specialRole === 'neta' && localPlayer.alive && (
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-400/15 border border-amber-400/35 text-[11px] font-bold text-amber-300">
-                <Crown className="w-3 h-3" /> 2x Vote
+                <Crown className="w-3 h-3" /> ২ গুণ ভোট
               </span>
             )}
             <div className="px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-right">
               <span className="block text-[10px] text-slate-400 leading-none">
-                {isVoteResults ? 'Verdict' : inDiscussion ? 'Discussion' : 'Vote Time'}
+                {isVoteResults ? 'রায়' : inDiscussion ? 'আলোচনা' : 'ভোটের সময়'}
               </span>
               <span
                 className={`font-mono-tabular text-base sm:text-xl [@media(max-height:540px)]:text-sm font-extrabold leading-tight ${
@@ -280,10 +280,10 @@ export function MeetingModal({
                 }`}
               >
                 {isVoteResults
-                  ? 'LOCKED'
+                  ? 'লকড'
                   : inDiscussion
-                    ? `${discussionSec}s`
-                    : `${Math.max(0, Math.ceil(snapshot.meetingTimer))}s`}
+                    ? `${discussionSec} সে.`
+                    : `${Math.max(0, Math.ceil(snapshot.meetingTimer))} সে.`}
               </span>
             </div>
           </div>
@@ -302,7 +302,7 @@ export function MeetingModal({
               }`}
             >
               <Vote className="w-4 h-4 shrink-0" />
-              <span>Shalish Vote</span>
+              <span>সালিশ ভোট</span>
               {canVote && (
                 <span className="font-mono-tabular text-[10px] opacity-80">
                   ({votedCount}/{alivePlayers.length})
@@ -319,7 +319,7 @@ export function MeetingModal({
               }`}
             >
               <MessageCircle className="w-4 h-4 shrink-0" />
-              <span>Adda Chat</span>
+              <span>আড্ডা চ্যাট</span>
               {unreadCount > 0 && (
                 <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-mono-tabular text-[10px]">
                   {unreadCount}
@@ -333,7 +333,7 @@ export function MeetingModal({
         <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-12 overflow-hidden">
           {/* LEFT: Suspect Voting Roster */}
           <section
-            aria-label="Suspect voting list"
+            aria-label="সন্দেহভাজন ভোটের তালিকা"
             className={`${
               mobileTab === 'vote' ? 'flex' : 'hidden sm:flex'
             } sm:col-span-7 flex-col min-h-0 sm:border-r border-slate-800`}
@@ -342,10 +342,10 @@ export function MeetingModal({
               {inDiscussion && (
                 <div className="mb-2.5 px-3 py-2 rounded-xl bg-sky-950/75 border border-sky-400/40 text-sky-100 text-xs flex items-center justify-between gap-2">
                   <span className="font-semibold">
-                    Alochona Cholche — shobar kotha shono, erpor Vote Open hobe!
+                    আলোচনা চলছে — সবার কথা শোনো, এরপর ভোট চালু হবে!
                   </span>
                   <span className="font-mono-tabular font-extrabold text-sky-300 shrink-0">
-                    {discussionSec}s
+                    {discussionSec} সে.
                   </span>
                 </div>
               )}
@@ -388,7 +388,7 @@ export function MeetingModal({
                           if (!canSelectSuspect || !p.alive) return;
                           setSelectedTargetId((prev) => (prev === p.id ? null : p.id));
                         }}
-                        aria-label={`Select suspect ${p.name}`}
+                        aria-label={`সন্দেহভাজন বাছাই ${p.name}`}
                         className="w-full min-h-[54px] [@media(max-height:540px)]:min-h-[46px] p-2 sm:p-2.5 [@media(max-height:540px)]:p-1.5 flex items-center justify-between gap-2 text-left disabled:cursor-default active:scale-[0.99] transition-transform"
                       >
                         <div className="flex items-center gap-2 min-w-0">
@@ -404,28 +404,28 @@ export function MeetingModal({
                               </span>
                               {isSelf && (
                                 <span className="text-[10px] font-bold text-amber-300 shrink-0">
-                                  (You)
+                                  (তুমি)
                                 </span>
                               )}
                               {(snapshot.netaRevealedId === p.id ||
                                 (isSelf && localPlayer?.specialRole === 'neta')) && (
                                 <span className="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/45 text-amber-300 text-[9px] font-extrabold tracking-wide shrink-0">
-                                  NETA · 2x
+                                  নেতা · ২ গুণ
                                 </span>
                               )}
                             </div>
                             <span className="block text-[11px] text-slate-400 truncate">
                               {!p.alive
-                                ? 'Pukur e Chubani Khaise'
+                                ? 'পুকুরে চুবানি খেয়েছে'
                                 : isVotedByMe
-                                  ? 'Tomar Vote Locked'
+                                  ? 'তোমার ভোট লকড'
                                   : isQueuedByMe
-                                    ? `Pre-Marked (${discussionSec}s)`
+                                    ? `প্রি-মার্ক (${discussionSec} সে.)`
                                     : p.hasVoted
-                                      ? 'Vote Dise'
+                                      ? 'ভোট দিয়েছে'
                                       : snapshot.meetingCallerId === p.id
-                                        ? 'Shalish Dakse!'
-                                        : 'Katha boltese...'}
+                                        ? 'সালিশ ডেকেছে!'
+                                        : 'কথা বলছে...'}
                             </span>
                           </div>
                         </div>
@@ -434,17 +434,17 @@ export function MeetingModal({
                         <div className="shrink-0 flex items-center gap-1">
                           {isVotedByMe && (
                             <span className="px-2 py-1 rounded-lg bg-amber-400 text-slate-950 text-[10px] font-extrabold flex items-center gap-0.5">
-                              <Check className="w-3 h-3" /> VOTED
+                              <Check className="w-3 h-3" /> ভোট লক
                             </span>
                           )}
                           {isQueuedByMe && !isVotedByMe && (
                             <span className="px-2 py-1 rounded-lg bg-sky-400 text-slate-950 text-[10px] font-extrabold flex items-center gap-0.5">
-                              <Check className="w-3 h-3" /> PRE-MARK
+                              <Check className="w-3 h-3" /> প্রি-ভোট
                             </span>
                           )}
                           {!isVotedByMe && !isQueuedByMe && p.alive && p.hasVoted && !isVoteResults && (
                             <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-[10px] font-bold">
-                              Ready
+                              ভোট ডান ✓
                             </span>
                           )}
                           {isVoteResults && totalVoteWeight > 0 && (
@@ -461,7 +461,7 @@ export function MeetingModal({
                           <button
                             type="button"
                             onClick={() => confirmVote(p.id)}
-                            aria-label={`Confirm vote for ${p.name}`}
+                            aria-label={`${p.name} এর বিরুদ্ধে ভোট নিশ্চিত করো`}
                             className={`flex-1 min-h-[38px] px-2.5 py-1.5 rounded-lg ${
                               inDiscussion
                                 ? 'bg-sky-500 hover:bg-sky-400 text-slate-950'
@@ -469,12 +469,12 @@ export function MeetingModal({
                             } active:scale-95 font-display font-bold text-xs flex items-center justify-center gap-1 transition-transform whitespace-nowrap`}
                           >
                             <Check className="w-3.5 h-3.5 shrink-0" />
-                            <span>{inDiscussion ? `Lock Vote (${discussionSec}s)` : 'Pukur e Felo!'}</span>
+                            <span>{inDiscussion ? `ভোট লক (${discussionSec} সে.)` : 'পুকুরে ফেলো!'}</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => setSelectedTargetId(null)}
-                            aria-label="Cancel selection"
+                            aria-label="বাছাই বাতিল করো"
                             className="min-h-[38px] min-w-[38px] px-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 flex items-center justify-center"
                           >
                             <X className="w-4 h-4" />
@@ -492,7 +492,7 @@ export function MeetingModal({
                             return Array.from({ length: weight }, (_, pipIdx) => (
                               <span
                                 key={`${voter.id}_${pipIdx}`}
-                                title={snapshot.settings.anonymousVotes ? 'Anonymous Vote' : voter.name}
+                                title={snapshot.settings.anonymousVotes ? 'গোপন ভোট' : voter.name}
                                 className="w-4 h-4 rounded-full border border-white/35 inline-block"
                                 style={{
                                   backgroundColor: snapshot.settings.anonymousVotes
@@ -515,9 +515,9 @@ export function MeetingModal({
               {isVoteResults ? (
                 <div className="w-full flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-1.5 text-slate-300">
-                    <span className="font-semibold">Skipped:</span>
+                    <span className="font-semibold">স্কিপ:</span>
                     {skipVoters.length === 0 ? (
-                      <span className="text-slate-500">Keu skip kore nai</span>
+                      <span className="text-slate-500">কেউ স্কিপ করেনি</span>
                     ) : (
                       <div className="flex items-center gap-1">
                         {skipVoters.map((voter) => {
@@ -526,7 +526,7 @@ export function MeetingModal({
                           return (
                             <span
                               key={voter.id}
-                              title={snapshot.settings.anonymousVotes ? 'Anonymous Skip' : voter.name}
+                              title={snapshot.settings.anonymousVotes ? 'গোপন স্কিপ' : voter.name}
                               className="w-4 h-4 rounded-full border border-white/30 inline-block"
                               style={{
                                 backgroundColor: snapshot.settings.anonymousVotes
@@ -541,24 +541,24 @@ export function MeetingModal({
                   </div>
                   <span className="font-bold text-amber-300">
                     {snapshot.ejection?.ejectedName
-                      ? `${snapshot.ejection.ejectedName} ke Pukur e Chubani!`
+                      ? `${snapshot.ejection.ejectedName}-কে পুকুরে চুবানি!`
                       : snapshot.ejection?.reason === 'tie'
-                        ? 'Vote Tai — Keu Pukur e Jabe Na!'
-                        : 'Shobai Skip Marlo — Batpar Bachlo!'}
+                        ? 'ভোট সমান — কেউ পুকুরে যাবে না!'
+                        : 'সবাই স্কিপ করেছে — বাটপার বাঁচলো!'}
                   </span>
                 </div>
               ) : (
                 <>
                   <span className="text-[11px] sm:text-xs text-slate-300 truncate">
                     {!localPlayer?.alive
-                      ? 'Ghost mode: vote off, chat only.'
+                      ? 'ভূত মোড: ভোট বন্ধ, শুধু চ্যাট চালু।'
                       : inDiscussion
                         ? queuedVoteTarget
-                          ? `Pre-Vote Locked! Auto-submits in ${discussionSec}s`
-                          : `Discussion (${discussionSec}s) — Tap suspect to pre-mark!`
+                          ? `প্রি-ভোট লকড! ${discussionSec} সে. পর জমা হবে`
+                          : `আলোচনা (${discussionSec} সে.) — প্রি-মার্ক করতে ট্যাপ করো!`
                         : localPlayer.hasVoted
-                          ? 'Vote locked! Baki Shobar jonno wait...'
-                          : 'Suspect tap kore Pukur e Felo, ba Skip maro!'}
+                          ? 'ভোট লক হয়েছে! বাকি সবার জন্য অপেক্ষা...'
+                          : 'সন্দেহভাজন বেছে পুকুরে ফেলো, বা স্কিপ করো!'}
                   </span>
 
                   {selectedTargetId === 'skip' && canSelectSuspect ? (
@@ -573,12 +573,12 @@ export function MeetingModal({
                         }`}
                       >
                         <Check className="w-3.5 h-3.5" />{' '}
-                        {inDiscussion ? `Lock Skip (${discussionSec}s)` : 'Confirm Skip'}
+                        {inDiscussion ? `স্কিপ লক (${discussionSec} সে.)` : 'স্কিপ নিশ্চিত'}
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedTargetId(null)}
-                        aria-label="Cancel skip"
+                        aria-label="স্কিপ বাতিল"
                         className="min-h-[42px] min-w-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center"
                       >
                         <X className="w-4 h-4" />
@@ -598,8 +598,8 @@ export function MeetingModal({
                       <SkipForward className="w-3.5 h-3.5 shrink-0" />
                       <span>
                         {inDiscussion && queuedVoteTarget === 'skip'
-                          ? `Skip Locked (${discussionSec}s)`
-                          : 'Kichu Bolbo Na (Skip)'}
+                          ? `স্কিপ লকড (${discussionSec} সে.)`
+                          : 'স্কিপ করো'}
                       </span>
                     </button>
                   )}
@@ -610,17 +610,17 @@ export function MeetingModal({
 
           {/* RIGHT: Live Adda Chat + Quick Roasts + Meme SFX */}
           <section
-            aria-label="Moholla Adda Chat"
+            aria-label="মহল্লা আড্ডা চ্যাট"
             className={`${
               mobileTab === 'chat' ? 'flex' : 'hidden sm:flex'
             } sm:col-span-5 flex-col min-h-0 bg-slate-950/35`}
           >
             <div className="px-3 py-2 [@media(max-height:540px)]:py-1.5 border-b border-slate-800 text-xs font-semibold text-slate-300 flex items-center justify-between shrink-0">
-              <span>Moholla Adda Chat</span>
+              <span>মহল্লা আড্ডা চ্যাট</span>
               {!localPlayer?.alive ? (
-                <span className="text-sky-300">Ghost Adda Active</span>
+                <span className="text-sky-300">ভূত চ্যাট</span>
               ) : (
-                <span className="text-[11px] text-slate-400">Shobai dekhtese</span>
+                <span className="text-[11px] text-slate-400">সবাই দেখছে</span>
               )}
             </div>
 
@@ -665,17 +665,17 @@ export function MeetingModal({
                   </span>
                   <span className="truncate">
                     {activeTypers.length === 1
-                      ? `${activeTypers[0].name} likhtese...`
-                      : `${activeTypers.slice(0, 2).map((t) => t.name.split(' ')[0]).join(', ')} likhtese...`}
+                      ? `${activeTypers[0].name} লিখছে...`
+                      : `${activeTypers.slice(0, 2).map((t) => t.name).join(', ')} লিখছে...`}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Quick Banglish Roasts */}
+            {/* Quick Bangla Roasts */}
             <div
               role="region"
-              aria-label="Quick Banglish Messages"
+              aria-label="দ্রুত বাংলা বার্তা"
               className="px-2.5 py-1.5 border-t border-slate-800 bg-slate-900/80 flex items-center gap-1.5 overflow-x-auto shrink-0"
             >
               <MessageSquareText className="w-3.5 h-3.5 text-sky-300 shrink-0" />
@@ -722,19 +722,19 @@ export function MeetingModal({
                 }}
                 placeholder={
                   !localPlayer?.alive
-                    ? 'Ghost chat (hidden from living)...'
-                    : 'Banglish e jhogra koro...'
+                    ? 'ভূত চ্যাট (জীবিতরা দেখবে না)...'
+                    : 'বাংলায় আলোচনা করো...'
                 }
-                aria-label="Chat message"
+                aria-label="চ্যাট বার্তা"
                 className="flex-1 min-w-0 min-h-[42px] [@media(max-height:540px)]:min-h-[38px] px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-400"
               />
               <button
                 type="submit"
-                aria-label="Send message"
+                aria-label="বার্তা পাঠাও"
                 className="min-h-[42px] [@media(max-height:540px)]:min-h-[38px] px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Send</span>
+                <span>পাঠাও</span>
               </button>
             </form>
           </section>

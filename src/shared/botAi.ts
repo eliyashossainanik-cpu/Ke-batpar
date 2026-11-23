@@ -82,8 +82,8 @@ import type {
 export const BOT_AI_CONFIG = {
   voteRandomness: 0.2,
   chatDelayRange: [2.0, 9.8] as readonly [number, number],
-  memoryErrorChance: 0.16,
-  riskyKillChance: 0.18,
+  memoryErrorChance: 0.14,
+  riskyKillChance: 0.15,
   bandwagonStrength: 0.52,
   selfReportChance: 0.14,
   busPartnerChance: 0.34,
@@ -262,22 +262,22 @@ export interface BatchedGeminiChatReply {
 }
 
 export const BOT_BANTER_LINES = [
-  'ami cha er dokane chilam bro, ekdom clean',
-  'bhai keu kisu dekho nai? onek sus lagtesilo',
-  'current jawar shomoy ke pashe chila bolo toh',
-  'ami desco te line check kortesilam bhai',
-  'rickshaw garage er dike keu gelo naki?',
-  'amar upor kono proof nai, bekar fashayona',
-  'fuchka corner e chilam ami, task kortesilam',
-  'saloon er pashe ekjon douraisilo mone holo',
-  'cricket math e chilam, ekdom clear ami',
-  'pandal er dike jaisilam kintu keu chilo na',
+  'আমি তো চায়ের দোকানেই ছিলাম ভাই, একদম ক্লিয়ার',
+  'ভাই কেউ কিছু দেখো নাই? অনেক সন্দেহ লাগতেছে কিন্তু',
+  'কারেন্ট যাওয়ার সময় কে পাশে ছিল বলো তো?',
+  'আমি ডেসকো তে লাইন চেক করতেছিলাম ভাই',
+  'রিকশা গ্যারেজের দিকে কাউকে দৌড়াতে দেখলা নাকি?',
+  'আমার ওপর কোনো প্রমাণ নাই, খামাখা ফাঁসাইয়ো না',
+  'ফুচকা কর্নারে ছিলাম আমি, টাস্ক করতেছিলাম',
+  'সেলুনের পাশে একজন সন্দেহজনক ঘুরতেছিল মনে হলো',
+  'ক্রিকেট মাঠে ছিলাম ভাই, একদম ক্লিয়ার আমি',
+  'প্যান্ডেলের দিকে গেছিলাম কিন্তু কাউকে দেখি নাই',
 ];
 
 export const PAGOL_BANTER_LINES = [
-  'hehe ami kichu kori nai re mama, pukur e chubani dio na pls',
-  'ami toh khali pukur ghat e daray chilam bhai!',
-  'amake marle kintu pore shobai afsos korba hehe',
+  'হেহে আমি তো কিছু করি নাই রে মামা, পুকুরে চুবানি দিও না প্লিজ',
+  'আমি তো খালি পুকুর ঘাটে চুপচাপ দাঁড়ায় ছিলাম ভাই!',
+  'আমাকে ভোট দিলে কিন্তু পরে সবাই পস্তাবা হেহে',
 ];
 
 const EXTRA_NAV_NODES: Array<{ x: number; z: number }> = [
@@ -360,6 +360,28 @@ const EXTRA_NAV_NODES: Array<{ x: number; z: number }> = [
   { x: -52.0, z: 96.0 },
   { x: 0.0, z: 96.0 },
   { x: 52.0, z: 96.0 },
+  // Intermediate connectors bridging North Para (-72), North Colony (-114), Jheel/Park (-82), and Opar Para (112/144)
+  { x: 0.0, z: -92.0 },
+  { x: -52.0, z: -92.0 },
+  { x: 52.0, z: -92.0 },
+  { x: -86.0, z: -92.0 },
+  { x: 86.0, z: -92.0 },
+  { x: -118.0, z: -98.0 },
+  { x: 118.0, z: -98.0 },
+  { x: -118.0, z: -72.0 },
+  { x: 118.0, z: -72.0 },
+  { x: -118.0, z: 128.0 },
+  { x: 118.0, z: 128.0 },
+  { x: -118.0, z: 144.0 },
+  { x: -86.0, z: 144.0 },
+  { x: 86.0, z: 144.0 },
+  { x: 118.0, z: 144.0 },
+  { x: 133.0, z: -64.0 },
+  { x: -127.5, z: -64.0 },
+  { x: -74.0, z: -114.0 },
+  { x: -32.0, z: -114.0 },
+  { x: 32.0, z: -114.0 },
+  { x: 74.0, z: -114.0 },
 ];
 
 export const NAV_NODES: Array<{ x: number; z: number }> = (() => {
@@ -389,26 +411,43 @@ function segmentHitsExpandedAABB(
   let t1 = 1;
   const dx = bx - ax;
   const dz = bz - az;
-  const checks: Array<[number, number]> = [
-    [-dx, ax - (minX - pad)],
-    [dx, maxX + pad - ax],
-    [-dz, az - (minZ - pad)],
-    [dz, maxZ + pad - az],
-  ];
-  for (const [p, q] of checks) {
-    if (Math.abs(p) < 1e-8) {
-      if (q < 0) return false;
-    } else {
-      const r = q / p;
-      if (p < 0) {
-        if (r > t1) return false;
-        if (r > t0) t0 = r;
-      } else {
-        if (r < t0) return false;
-        if (r < t1) t1 = r;
-      }
+  const eMinX = minX - pad;
+  const eMaxX = maxX + pad;
+  const eMinZ = minZ - pad;
+  const eMaxZ = maxZ + pad;
+
+  if (Math.abs(dx) < 1e-8) {
+    if (ax < eMinX || ax > eMaxX) return false;
+  } else {
+    const invDx = 1 / dx;
+    let r = (eMinX - ax) * invDx;
+    let r2 = (eMaxX - ax) * invDx;
+    if (r > r2) {
+      const tmp = r;
+      r = r2;
+      r2 = tmp;
     }
+    if (r > t0) t0 = r;
+    if (r2 < t1) t1 = r2;
+    if (t0 > t1) return false;
   }
+
+  if (Math.abs(dz) < 1e-8) {
+    if (az < eMinZ || az > eMaxZ) return false;
+  } else {
+    const invDz = 1 / dz;
+    let r = (eMinZ - az) * invDz;
+    let r2 = (eMaxZ - az) * invDz;
+    if (r > r2) {
+      const tmp = r;
+      r = r2;
+      r2 = tmp;
+    }
+    if (r > t0) t0 = r;
+    if (r2 < t1) t1 = r2;
+    if (t0 > t1) return false;
+  }
+
   return t0 <= t1;
 }
 
@@ -420,8 +459,13 @@ export function isPathSegmentWalkable(
   doorLocks?: DoorLockState,
   pad = PLAYER_RADIUS + 0.15,
 ): boolean {
+  const segMinX = (ax < bx ? ax : bx) - pad;
+  const segMaxX = (ax > bx ? ax : bx) + pad;
+  const segMinZ = (az < bz ? az : bz) - pad;
+  const segMaxZ = (az > bz ? az : bz) + pad;
   for (let i = 0; i < WALLS.length; i++) {
     const w = WALLS[i];
+    if (w.maxX < segMinX || w.minX > segMaxX || w.maxZ < segMinZ || w.minZ > segMaxZ) continue;
     if (segmentHitsExpandedAABB(ax, az, bx, bz, w.minX, w.maxX, w.minZ, w.maxZ, pad)) {
       return false;
     }
@@ -430,6 +474,7 @@ export function isPathSegmentWalkable(
     for (let i = 0; i < DOORS.length; i++) {
       const d = DOORS[i];
       if (doorLocks[d.zoneId] <= 0) continue;
+      if (d.maxX < segMinX || d.minX > segMaxX || d.maxZ < segMinZ || d.minZ > segMaxZ) continue;
       if (segmentHitsExpandedAABB(ax, az, bx, bz, d.minX, d.maxX, d.minZ, d.maxZ, pad)) {
         return false;
       }
@@ -535,12 +580,13 @@ function findNearestWalkableNodes(
 
   const clearIds: number[] = [];
   const fallbackIds: number[] = [];
-  const limit = Math.min(dists.length, 18);
+  const limit = Math.min(dists.length, 16);
   for (let i = 0; i < limit; i++) {
     const item = dists[i];
     const node = NAV_NODES[item.idx];
     if (isPathSegmentWalkable(x, z, node.x, node.z, doorLocks, PLAYER_RADIUS + 0.05)) {
       clearIds.push(item.idx);
+      if (clearIds.length >= 6) break;
     } else if (fallbackIds.length < 2) {
       fallbackIds.push(item.idx);
     }
@@ -593,11 +639,16 @@ export function computeNextMoveTarget(
     if (bestFirst >= 0 && bestGoal >= 0) {
       let hopIdx = bestFirst;
       if (
-        distance2D(fromX, fromZ, NAV_NODES[bestFirst].x, NAV_NODES[bestFirst].z) < 1.3 &&
+        distance2D(fromX, fromZ, NAV_NODES[bestFirst].x, NAV_NODES[bestFirst].z) < 2.2 &&
         bestFirst !== bestGoal
       ) {
         const nextIdx = STATIC_ALL_PAIRS.nextHop[bestFirst][bestGoal];
-        if (nextIdx >= 0) hopIdx = nextIdx;
+        if (
+          nextIdx >= 0 &&
+          isPathSegmentWalkable(fromX, fromZ, NAV_NODES[nextIdx].x, NAV_NODES[nextIdx].z, doorLocks, PLAYER_RADIUS + 0.08)
+        ) {
+          hopIdx = nextIdx;
+        }
       }
       return NAV_NODES[hopIdx];
     }
@@ -607,6 +658,7 @@ export function computeNextMoveTarget(
   const n = NAV_NODES.length;
   const dist = new Float64Array(n).fill(Infinity);
   const firstHop = new Int32Array(n).fill(-1);
+  const parent = new Int32Array(n).fill(-1);
   const visited = new Uint8Array(n);
 
   for (const s of starts) {
@@ -617,6 +669,8 @@ export function computeNextMoveTarget(
 
   let bestGoalNode = -1;
   let bestTotalCost = Infinity;
+  let closestReachableNode = -1;
+  let closestReachableDist = Infinity;
 
   for (let iter = 0; iter < n; iter++) {
     let u = -1;
@@ -630,8 +684,14 @@ export function computeNextMoveTarget(
     if (u < 0) break;
     visited[u] = 1;
 
+    const dToGoal = distance2D(NAV_NODES[u].x, NAV_NODES[u].z, goalX, goalZ);
+    if (dToGoal < closestReachableDist) {
+      closestReachableDist = dToGoal;
+      closestReachableNode = u;
+    }
+
     if (goalSet.has(u)) {
-      const total = dist[u] + distance2D(NAV_NODES[u].x, NAV_NODES[u].z, goalX, goalZ);
+      const total = dist[u] + dToGoal;
       if (total < bestTotalCost) {
         bestTotalCost = total;
         bestGoalNode = u;
@@ -646,17 +706,30 @@ export function computeNextMoveTarget(
       if (nd < dist[e.to]) {
         dist[e.to] = nd;
         firstHop[e.to] = firstHop[u];
+        parent[e.to] = u;
       }
     }
   }
 
-  if (bestGoalNode >= 0 && firstHop[bestGoalNode] >= 0) {
-    const hopIdx = firstHop[bestGoalNode];
-    const hop = NAV_NODES[hopIdx];
-    if (distance2D(fromX, fromZ, hop.x, hop.z) < 1.1 && bestGoalNode !== hopIdx) {
-      return { x: goalX, z: goalZ };
+  const targetNode = bestGoalNode >= 0 ? bestGoalNode : closestReachableNode;
+  if (targetNode >= 0 && firstHop[targetNode] >= 0) {
+    let hopIdx = firstHop[targetNode];
+    if (
+      distance2D(fromX, fromZ, NAV_NODES[hopIdx].x, NAV_NODES[hopIdx].z) < 2.2 &&
+      targetNode !== hopIdx
+    ) {
+      let cur = targetNode;
+      while (parent[cur] >= 0 && parent[cur] !== hopIdx) {
+        cur = parent[cur];
+      }
+      if (
+        cur !== hopIdx &&
+        isPathSegmentWalkable(fromX, fromZ, NAV_NODES[cur].x, NAV_NODES[cur].z, doorLocks, PLAYER_RADIUS + 0.08)
+      ) {
+        hopIdx = cur;
+      }
     }
-    return hop;
+    return NAV_NODES[hopIdx];
   }
 
   return NAV_NODES[starts[0]];
@@ -680,8 +753,8 @@ export function createBotBrainState(rng: () => number = Math.random): BotBrainSt
     voteTimer: 2.2 + rng() * 5.2,
     hasChatted: false,
     huntTargetId: null,
-    sabotageDelayTimer: 22 + rng() * 22,
-    killWaitTimer: 15 + rng() * 9,
+    sabotageDelayTimer: 36 + rng() * 26,
+    killWaitTimer: 5 + rng() * 4,
     recentSightings: [],
     knownBodies: [],
     heardClaims: [],
@@ -768,7 +841,7 @@ export function resetBotBrainsForMeeting(
     brain.pauseTimer = 0.3 + rng() * 0.6;
     brain.detourNodeIdx = null;
     brain.detourTimer = 0;
-    brain.killWaitTimer = 48 + rng() * 18;
+    brain.killWaitTimer = 76 + rng() * 22;
     brain.processedMeetingClues = false;
     brain.ventTimer = 0;
     brain.ventTargetId = null;
@@ -1033,11 +1106,11 @@ function decideBotGoal(
       chosenValve = v1;
     } else if (v1OccupiedSeen && !v0OccupiedSeen) {
       chosenValve = v0;
-    } else if (d0 <= d1 && westRecent >= 2 && eastRecent === 0 && personalityBiasEast) {
+    } else if (d0 <= d1 && westRecent >= 1 && eastRecent === 0 && personalityBiasEast) {
       chosenValve = v1;
-    } else if (d1 < d0 && eastRecent >= 2 && westRecent === 0 && personalityBiasEast) {
+    } else if (d1 < d0 && eastRecent >= 1 && westRecent === 0 && personalityBiasEast) {
       chosenValve = v0;
-    } else if (Math.abs(d0 - d1) < 22 && brain.wanderSeed > Math.PI) {
+    } else if (Math.abs(d0 - d1) < 36 && brain.wanderSeed > Math.PI * 0.9) {
       chosenValve = v1;
     }
 
@@ -1112,7 +1185,8 @@ function decideBotGoal(
   if (p.role === 'vondo' && brain.postKillCoverTimer > 0) {
     const coverStation = p.tasks
       .map((t) => TASK_STATIONS.find((s) => s.id === t.taskId))
-      .filter((s): s is (typeof TASK_STATIONS)[number] => Boolean(s) && distance2D(p.x, p.z, s.x, s.z) > 10)
+      .filter((s): s is (typeof TASK_STATIONS)[number] => Boolean(s))
+      .filter((s) => distance2D(p.x, p.z, s.x, s.z) > 10)
       .sort((a, b) => distance2D(p.x, p.z, a.x, a.z) - distance2D(p.x, p.z, b.x, b.z))[0];
     if (coverStation) {
       return {
@@ -1240,14 +1314,27 @@ function decideBotGoal(
       ? TASK_STATIONS.find((s) => s.id === brain.activeTaskId) ?? null
       : null;
   if (!st && nextTasks.length > 0) {
-    const picked = nextTasks[Math.floor(rng() * nextTasks.length)];
-    st = TASK_STATIONS.find((s) => s.id === picked.taskId) ?? null;
-    if (st) brain.activeTaskId = st.id;
+    const candidates = nextTasks
+      .map((t) => ({ t, station: TASK_STATIONS.find((s) => s.id === t.taskId) }))
+      .filter((entry): entry is { t: (typeof nextTasks)[number]; station: (typeof TASK_STATIONS)[number] } => Boolean(entry.station))
+      .sort(
+        (a, b) =>
+          distance2D(p.x, p.z, a.station.x, a.station.z) -
+          distance2D(p.x, p.z, b.station.x, b.station.z),
+      );
+    if (candidates.length > 0) {
+      const idx = candidates.length > 1 && rng() > 0.72 ? 1 : 0;
+      st = candidates[idx].station;
+      brain.activeTaskId = st.id;
+    }
   }
   if (st) {
     activeStationTarget = st;
     goalX = st.x;
     goalZ = st.z;
+    if (p.role === 'parabasi' && distance2D(p.x, p.z, st.x, st.z) > 65) {
+      sprintBoost = true;
+    }
   }
 
   // Occasionally consider buddying up with a nearby trusted neighbor
@@ -1301,12 +1388,13 @@ function stepHumanizedMovement(
     brain.cachedGoalX !== undefined &&
     brain.cachedGoalZ !== undefined &&
     distance2D(goalX, goalZ, brain.cachedGoalX, brain.cachedGoalZ) < 1.5;
+  const hopRefreshDist = Math.max(1.25, settings.moveSpeed * dt * 1.15);
   const hopValid =
     goalSame &&
     brain.cachedHopX !== undefined &&
     brain.cachedHopZ !== undefined &&
     (brain.pathRefreshTimer ?? 0) > 0 &&
-    distance2D(p.x, p.z, brain.cachedHopX, brain.cachedHopZ) > 1.1 &&
+    distance2D(p.x, p.z, brain.cachedHopX, brain.cachedHopZ) > hopRefreshDist &&
     !hasAnyLockedDoor(doorLocks);
 
   if (hopValid) {
@@ -1343,8 +1431,9 @@ function stepHumanizedMovement(
   const steerZ = dirZ + perpZ * lateralAmt;
   const steerLen = Math.hypot(steerX, steerZ) || 1;
 
-  const baseRate = sprintBoost ? 1.06 : brain.personality === 'chill' ? 0.85 : 0.93;
-  const speed = settings.moveSpeed * baseRate;
+  const baseRate = sprintBoost ? 1.05 : brain.personality === 'chill' ? 0.83 : 0.9;
+  const maxStepSpeed = Math.min(settings.moveSpeed * baseRate, hopDist / Math.max(0.016, dt));
+  const speed = hopDist < settings.moveSpeed * baseRate * dt ? maxStepSpeed : settings.moveSpeed * baseRate;
   p.vx = (steerX / steerLen) * speed;
   p.vz = (steerZ / steerLen) * speed;
   p.yaw = Math.atan2(p.vx, p.vz);
@@ -1506,8 +1595,8 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       }
     }
 
-    // 2.6. Daroga Sheriff shot on confident suspect
-    if (p.specialRole === 'daroga' && (p.shotsLeft ?? 0) > 0 && p.abilityCooldown <= 0.05) {
+    // 2.6. Daroga Sheriff shot on confident suspect (prefers reporting & meeting in opening minute)
+    if (p.specialRole === 'daroga' && (p.shotsLeft ?? 0) > 0 && p.abilityCooldown <= 0.05 && nowMs >= 58000) {
       const darogaTarget = findNearestDarogaTarget(p, players);
       if (
         darogaTarget &&
@@ -1641,7 +1730,10 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     }
     if (p.specialRole === 'tiktok_star' && p.abilityCooldown <= 0.05) {
       const zid = getZoneIdAt(p.x, p.z);
-      if (zid && !(p.tiktokZones ?? []).includes(zid) && rng() < 0.25) {
+      const currentFilmed = p.tiktokZones?.length ?? 0;
+      const deadCount = players.filter((pl) => !pl.alive).length;
+      const canFinishTiktok = currentFilmed < TIKTOK_ZONE_GOAL - 1 || (nowMs >= 65000 && deadCount >= 1);
+      if (zid && !(p.tiktokZones ?? []).includes(zid) && canFinishTiktok && rng() < 0.25) {
         recordTiktokReelInZone(p, zid);
         p.abilityCooldown = TIKTOK_COOLDOWN_SEC;
         if ((p.tiktokZones?.length ?? 0) >= TIKTOK_ZONE_GOAL) {
@@ -1675,13 +1767,13 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       ) {
         const roll = rng();
         const sabType: SabotageType =
-          roll < 0.44 ? 'loadshedding' : roll < 0.78 ? 'wifi_down' : 'gas_leak';
+          roll < 0.50 ? 'loadshedding' : roll < 0.87 ? 'wifi_down' : 'gas_leak';
         const newSab = createSabotageState(sabType, SABOTAGE_COOLDOWN_SEC);
         Object.assign(sabotage, newSab);
         for (const other of players) {
           if (other.role === 'vondo') {
             const ob = brains.get(other.id);
-            if (ob) ob.sabotageDelayTimer = 26 + rng() * 28;
+            if (ob) ob.sabotageDelayTimer = 34 + rng() * 28;
           }
         }
         ctx.onSabotage?.(sabType);
@@ -1699,6 +1791,8 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         const nearV = findNearestGasValve(p.x, p.z, sabotage, range);
         if (nearV && (!nearV.holderId || nearV.holderId === p.id)) {
           holdingFixMap.set(p.id, { valveId: nearV.id });
+        } else {
+          holdingFixMap.delete(p.id);
         }
       } else if (distance2D(p.x, p.z, sabotage.fixStationX, sabotage.fixStationZ) <= range) {
         holdingFixMap.set(p.id, {});
@@ -1733,7 +1827,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             if (p.specialRole === 'supari_killer') {
               p.supariTargetId = pickSupariContractTarget(p, players, p.supariTargetId)?.id ?? null;
             }
-            brain.killWaitTimer = 50 + rng() * 20;
+            brain.killWaitTimer = 86 + rng() * 24;
             const killerColorForClue = p.disguiseColor ?? p.color;
             bodies.push({
               id: `body_${nowMs}_${victim.id}_${Math.floor(rng() * 1000)}`,
@@ -1845,13 +1939,13 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         brain.pauseTimer =
           p.role === 'vondo'
             ? Math.max(1.8, goal.activeStationTarget.holdDurationSec * (0.65 + rng() * 0.55))
-            : goal.activeStationTarget.holdDurationSec + 0.9 + rng() * 0.65;
+            : goal.activeStationTarget.holdDurationSec + 0.85 + rng() * 0.55;
         if (canCompleteTasks(p) && goal.activeStationTarget.isVisual && settings.visualTasks) {
           p.visualTaskTimer = 2.6;
         }
       } else {
         brain.activeTaskId = null;
-        brain.pauseTimer = 1.6 + rng() * 2.1;
+        brain.pauseTimer = p.role === 'vondo' && p.killCooldownRemaining <= 2.5 ? 0.35 + rng() * 0.45 : 1.6 + rng() * 2.1;
         brain.targetWaypointIdx = Math.floor(rng() * BOT_WAYPOINTS.length);
       }
       p.vx = 0;
@@ -1881,13 +1975,27 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
 // Private Meeting Deduction, Human-Sounding Fallback Chat & Gemini Integration
 // ============================================================================
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function findMentionedPlayer(text: string, players: PlayerState[], excludeId?: string): PlayerState | null {
   const low = text.toLowerCase();
   for (const pl of players) {
     if (pl.id === excludeId) continue;
-    const first = pl.name.toLowerCase().split(' ')[0];
-    if (low.includes(pl.name.toLowerCase()) || (first.length >= 3 && new RegExp(`\\b${first}\\b`, 'i').test(low))) {
+    const full = pl.name.toLowerCase();
+    const first = full.split(/\s+/)[0] ?? '';
+    if (low.includes(full)) {
       return pl;
+    }
+    if (first.length >= 2) {
+      const hasNonAscii = /[^\u0000-\u007f]/.test(first);
+      if (hasNonAscii) {
+        if (low.includes(first)) return pl;
+      } else {
+        const re = new RegExp(`(^|[^a-z0-9])${escapeRegex(first)}([^a-z0-9]|$)`, 'i');
+        if (re.test(low)) return pl;
+      }
     }
   }
   return null;
@@ -1896,11 +2004,24 @@ function findMentionedPlayer(text: string, players: PlayerState[], excludeId?: s
 function findMentionedZone(text: string): string | null {
   const low = text.toLowerCase();
   for (const z of ZONES) {
+    if (z.banglaName && text.includes(z.banglaName)) return z.banglaName;
     const first = z.name.toLowerCase().split(' ')[0];
     if (low.includes(z.name.toLowerCase()) || (first.length >= 4 && low.includes(first))) {
       return z.name;
     }
   }
+  if (/ডেসকো|কারেন্ট|লোডশেডিং|পাওয়ার/.test(text)) return 'ডেসকো পাওয়ার';
+  if (/চায়ের|চা এর|চা-এর/.test(text)) return 'চায়ের দোকান';
+  if (/ফুচকা/.test(text)) return 'ফুচকা কর্নার';
+  if (/সেলুন|হিরো/.test(text)) return 'হিরো সেলুন';
+  if (/পুকুর|ঘাট/.test(text)) return 'পুকুর ঘাট';
+  if (/রিকশা|গ্যারেজ/.test(text)) return 'রিকশা গ্যারেজ';
+  if (/রেল|স্টেশন/.test(text)) return 'মহল্লা রেল স্টেশন';
+  if (/প্যান্ডেল|বিয়ে/.test(text)) return 'বিয়ে বাড়ি';
+  if (/ক্রিকেট|মাঠ/.test(text)) return 'ক্রিকেট মাঠ';
+  if (/ফার্মেসি|দাদু/.test(text)) return 'দাদু ফার্মেসি';
+  if (/বাজার/.test(text)) return 'সবজি বাজার';
+  if (/আড্ডা|চক/.test(text)) return 'আড্ডা চক';
   if (low.includes('deso') || low.includes('desco') || low.includes('current')) return 'DESCO Power';
   if (low.includes('cha') || low.includes('dokan')) return 'Cha-er Dokan';
   if (low.includes('fuchka')) return 'Fuchka Corner';
@@ -1913,7 +2034,11 @@ function findMentionedZone(text: string): string | null {
 
 function isAccusationText(text: string): boolean {
   const low = text.toLowerCase();
-  return /sus|batpar|vondo|marse|size|felo|vote|chor|dekhsi|false|lie|mitha|fake|vent|dren|kill/i.test(low);
+  return (
+    /বাটপার|ভণ্ড|সন্দেহ|মেরেছে|মারছে|খুন|ভোট|চোর|দেখেছি|দেখছি|মিথ্যা|নকল|ভেন্ট|ড্রেন|ফাঁসা|চুবানি|পুকুরে ফ্যালো|ফেলো|পাকড়াও/.test(
+      text,
+    ) || /sus|batpar|vondo|marse|size|felo|vote|chor|dekhsi|false|lie|mitha|fake|vent|dren|kill/i.test(low)
+  );
 }
 
 /**
@@ -1961,19 +2086,19 @@ export function processChatMessageForBots(params: {
         // Directly accused -> queue a defensive reply if not already defended
         if (!brain.hasRespondedToDefense && brain.pendingChats.filter((c) => !c.sent).length < 2) {
           brain.hasRespondedToDefense = true;
-          const myZone = bot.role === 'vondo' ? brain.fakeStoryZone : brain.zoneHistory.at(-1) ?? 'Adda Chowk';
+          const myZone = bot.role === 'vondo' ? brain.fakeStoryZone : brain.zoneHistory.at(-1) ?? 'আড্ডা চক';
           const shortSpeaker = speaker.name.split(' ')[0];
           const defenseLines =
             bot.role === 'vondo'
               ? [
-                  `bhai ${shortSpeaker} faltu kotha bolo na ami ${myZone} e chilam`,
-                  `ki bolos ${shortSpeaker}?? ami ${myZone} e task kortesilam`,
-                  `amke ken dhorteso bhai ami toh ${myZone} theke ashlam`,
+                  `ভাই ${shortSpeaker} আজাইরা কথা বলো না, আমি ${myZone} এ ছিলাম`,
+                  `কী বলিস ${shortSpeaker}?? আমি তো ${myZone} এ টাস্ক করতেছিলাম`,
+                  `আমাকে কেন ধরতেছ ভাই আমি তো এইমাত্র ${myZone} থেকে আসলাম`,
                 ]
               : [
-                  `bhai ami na!! ${myZone} e chilam kasam`,
-                  `arey ${shortSpeaker} ulta palta bolteso, ami ${myZone} te`,
-                  `amake vote dile bhul korba bhai ami ${myZone} e`,
+                  `ভাই আমি না!! আমি কসম ${myZone} এ ছিলাম`,
+                  `আরেহ ${shortSpeaker} উল্টাপাল্টা বলতেছ, আমি ${myZone} দিকে ছিলাম`,
+                  `আমাকে ভোট দিলে ভুল করবা ভাই, আমি ${myZone} এ টাস্কে ছিলাম`,
                 ];
           const text = defenseLines[Math.floor(rng() * defenseLines.length)];
           const delay = 1.4 + rng() * 2.2;
@@ -1987,25 +2112,41 @@ export function processChatMessageForBots(params: {
           });
         }
       } else {
-        const trustSpeakerBonus = (brain.trust[speaker.id] ?? 0) > 1.5 ? 1.35 : 1.0;
-        const isHardWitnessClaim = /shamne|khata check|fake task|kill korte|batpar eta|vent/i.test(msg.text);
-        const claimWeight = isHardWitnessClaim ? 2.6 : 1.7;
+        const trustSpeakerBonus = (brain.trust[speaker.id] ?? 0) > 1.5 ? 1.25 : 1.0;
+        const isHardWitnessClaim =
+          /সামনে|চোখে দেখছি|খাতা চেক|নকল টাস্ক|মারতে দেখ|ভেন্ট|ড্রেন দিয়ে/i.test(msg.text) ||
+          /shamne|khata check|fake task|kill korte|batpar eta|vent/i.test(msg.text);
+        // Keep uncorroborated single-rumor suspicion restrained so bots don't blind-pile one name
+        const priorAccusers = new Set(
+          brain.heardClaims
+            .filter((c) => c.accusedId === mentioned.id && c.speakerId !== speaker.id)
+            .map((c) => c.speakerId),
+        ).size;
+        const corroborationBoost = priorAccusers >= 1 ? 1.15 : 0.72;
+        const claimWeight = isHardWitnessClaim ? 1.55 : 0.68;
         const persMult =
           brain.personality === 'follower'
-            ? 1.45
+            ? 1.25
             : brain.personality === 'paranoid'
-              ? 1.3
+              ? 1.15
               : brain.personality === 'skeptic'
-                ? 0.55
+                ? 0.42
                 : brain.personality === 'chill'
-                  ? 0.7
-                  : 1.0;
+                  ? 0.55
+                  : 0.9;
         const cleared = new Set(brain.clearedIds);
         if (!cleared.has(mentioned.id)) {
           brain.suspicion[mentioned.id] =
             (brain.suspicion[mentioned.id] ?? 0) +
-            claimWeight * BOT_AI_CONFIG.bandwagonStrength * trustSpeakerBonus * persMult;
+            claimWeight * BOT_AI_CONFIG.bandwagonStrength * trustSpeakerBonus * persMult * corroborationBoost;
         }
+      }
+    } else if (!accusesSomeone && mentionedZone) {
+      // Plausible self-defense slightly eases heat when consistent with bot's observations
+      const mySight = [...brain.recentSightings].reverse().find((s) => s.id === speaker.id);
+      if (mySight && mySight.zoneName === mentionedZone && (brain.suspicion[speaker.id] ?? 0) > 0) {
+        brain.suspicion[speaker.id] = Math.max(0, (brain.suspicion[speaker.id] ?? 0) - 0.35);
+        brain.trust[speaker.id] = (brain.trust[speaker.id] ?? 0) + 0.35;
       }
     }
 
@@ -2017,12 +2158,11 @@ export function processChatMessageForBots(params: {
       if (mySight && mySight.zoneName !== mentionedZone && !mySight.misremembered) {
         brain.suspicion[speaker.id] = (brain.suspicion[speaker.id] ?? 0) + 2.1;
         if (
-          !brain.hasRespondedToDefense &&
+          !brain.pendingChats.some((c) => c.id.startsWith('contra_')) &&
           brain.personality !== 'quiet' &&
           brain.pendingChats.filter((c) => !c.sent).length === 0 &&
           rng() < 0.55
         ) {
-          brain.hasRespondedToDefense = true;
           const shortName = speaker.name.split(' ')[0];
           const delay = 1.8 + rng() * 2.6;
           const sendAtSec = brain.meetingElapsedSec + delay;
@@ -2030,7 +2170,7 @@ export function processChatMessageForBots(params: {
             id: `contra_${msg.id}_${bot.id}`,
             typingStartSec: Math.max(brain.meetingElapsedSec + 0.3, sendAtSec - 1.4),
             sendAtSec,
-            text: `wait ${shortName} toh ${mySight.zoneName} dike chilo, ${mentionedZone} ken bolteche??`,
+            text: `দাঁড়াও! ${shortName} তো ${mySight.zoneName} দিকে ছিল, এখন ${mentionedZone} কেন বলতেছে??`,
             accusedId: speaker.id,
           });
         }
@@ -2083,7 +2223,7 @@ function processPrivateMeetingCluesForBot(
         if (clearedSet.has(sight.id)) continue;
         const d = distance2D(sight.x, sight.z, kb.x, kb.z);
         if (d <= 28 && Math.abs(sight.atMs - kb.killedAt) <= 36000) {
-          const proximityBoost = d <= 16 ? 2.8 : 2.15;
+          const proximityBoost = d <= 16 ? 3.0 : 2.25;
           brain.suspicion[sight.id] = (brain.suspicion[sight.id] ?? 0) + proximityBoost;
         }
       }
@@ -2114,7 +2254,7 @@ function getPrivateTopSuspect(
 }
 
 /**
- * Rule-based human-sounding Banglish fallback chat generator for each bot.
+ * Rule-based human-sounding Bangla fallback chat generator for each bot.
  * Called automatically when meeting begins, or seamlessly if Gemini API fails.
  */
 export function generateFallbackMeetingChats(params: {
@@ -2134,7 +2274,8 @@ export function generateFallbackMeetingChats(params: {
   const shuffledBots = [...aliveBots].sort(() => rng() - 0.5);
 
   const reportedBody = meetingReason === 'body' ? bodies.find((b) => b.reported) ?? bodies.at(-1) : undefined;
-  const bodyZone = reportedBody ? getZoneNameAt(reportedBody.x, reportedBody.z) : null;
+  const bodyZoneObj = reportedBody ? ZONES.find((z) => z.name === getZoneNameAt(reportedBody.x, reportedBody.z)) : undefined;
+  const bodyZone = bodyZoneObj?.banglaName ?? (reportedBody ? getZoneNameAt(reportedBody.x, reportedBody.z) : null);
 
   for (const p of shuffledBots) {
     const brain = brains.get(p.id);
@@ -2160,7 +2301,8 @@ export function generateFallbackMeetingChats(params: {
       continue;
     }
 
-    const myZone = p.role === 'vondo' ? brain.fakeStoryZone : brain.zoneHistory.at(-1) ?? 'Adda Chowk';
+    const rawMyZone = p.role === 'vondo' ? brain.fakeStoryZone : brain.zoneHistory.at(-1) ?? 'আড্ডা চক';
+    const myZone = ZONES.find((z) => z.name === rawMyZone)?.banglaName ?? rawMyZone;
     const topSus = getPrivateTopSuspect(p, brain, players);
     const vondoPartner = p.role === 'vondo' ? players.find((pl) => pl.alive && pl.id !== p.id && pl.role === 'vondo') : null;
     const partnerHeat =
@@ -2177,44 +2319,45 @@ export function generateFallbackMeetingChats(params: {
       const target = players.find((pl) => pl.id === brain.seenNearKill && pl.alive);
       if (target) {
         const s = target.name.split(' ')[0];
-        text = `bro ${s} ke shamne kill korte dekhsi!! ore Pukur e felo`;
+        text = `ভাই ${s} কে চোখের সামনে মারতে দেখছি!! ওকে পুকুরে ফ্যালো`;
         accusedId = target.id;
       }
     } else if (p.specialRole === 'master_moshai' && brain.masterAccusedId) {
       const target = players.find((pl) => pl.id === brain.masterAccusedId && pl.alive);
       if (target) {
-        text = `khata check disi, ${target.name} fake task kortesilo! batpar eta`;
+        text = `খাতা চেক দিছি, ${target.name} নকল টাস্ক করতেছিল! বাটপার এটা`;
         accusedId = target.id;
       }
     } else if (p.specialRole === 'goyenda' && brain.forensicHint) {
       if (topSus && topSus.score >= 1.5) {
         const s = topSus.player.name.split(' ')[0];
-        text = `goyenda clue paisi (${brain.forensicHint.toLowerCase()}), ${s} re onek sus lagse`;
+        text = `গোয়েন্দা ক্লু পাইছি (${brain.forensicHint}), ${s} কে অনেক সন্দেহ লাগছে`;
         accusedId = topSus.player.id;
       } else {
-        text = `goyenda clue paisi: ${brain.forensicHint.toLowerCase()}`;
+        text = `গোয়েন্দা ক্লু পাইছি: ${brain.forensicHint}`;
       }
     } else if (isCaller && meetingReason === 'body') {
-      const vz = bodyZone ?? 'eidik';
+      const vz = bodyZone ?? 'এইদিক';
       if (p.role === 'vondo') {
-        text = `bhai ${vz} e lash pore chilo just dekhlam, ke chila okhane?`;
+        text = `ভাই ${vz} এ লাশ পড়ে ছিল এইমাত্র দেখলাম, কে ছিলা ওখানে?`;
       } else {
         text = topSus && topSus.score >= 1.8
-          ? `${vz} e lash paisi! ${topSus.player.name.split(' ')[0]} pashe ghurtasilo`
-          : `${vz} e body dekhlam ei matro, ke kothay chila bolo`;
+          ? `${vz} এ লাশ পাইছি! ${topSus.player.name.split(' ')[0]} পাশে ঘুরতেছিল`
+          : `${vz} এ লাশ দেখলাম এইমাত্র, কে কোথায় ছিলা বলো`;
         if (topSus && topSus.score >= 1.8) accusedId = topSus.player.id;
       }
     } else if (p.role === 'vondo' && vondoPartner && partnerHeat >= 2.2 && rng() < BOT_AI_CONFIG.busPartnerChance) {
       const s = vondoPartner.name.split(' ')[0];
-      text = `bhai ashole ${s} ke ektu sus lagtese amar o, kothay chila ${s}?`;
+      text = `ভাই আসলে ${s} কে একটু সন্দেহ লাগতেছে আমারও, কোথায় ছিলা ${s}?`;
       accusedId = vondoPartner.id;
     } else if (p.role === 'parabasi' && topSus && topSus.score >= 1.8) {
       const s = topSus.player.name.split(' ')[0];
       const sight = [...brain.recentSightings].reverse().find((sg) => sg.id === topSus.player.id);
       if (sight) {
-        text = `${s} ke ${sight.zoneName} er pashe dekhsi ektu age, sus lagse`;
+        const sz = ZONES.find((z) => z.name === sight.zoneName)?.banglaName ?? sight.zoneName;
+        text = `${s} কে ${sz} এর পাশে দেখছি একটু আগে, সন্দেহ লাগছে`;
       } else {
-        text = `amar toh ${s} re sus lagche bhai, ke ki bolba?`;
+        text = `আমার তো ${s} কে সন্দেহ লাগতেছে ভাই, কে কী বলবা?`;
       }
       accusedId = topSus.player.id;
     } else if (p.role === 'vondo') {
@@ -2222,22 +2365,23 @@ export function generateFallbackMeetingChats(params: {
       const frame = cleanFrame[Math.floor(rng() * cleanFrame.length)];
       if (frame && rng() < 0.42) {
         const s = frame.name.split(' ')[0];
-        text = `ami ${myZone} te chilam, ${s} re ektu age pashe jete dekhsi mone hoy`;
+        text = `আমি ${myZone} এ ছিলাম, ${s} কে একটু আগে পাশে যেতে দেখছি মনে হয়`;
         accusedId = frame.id;
       } else {
-        text = `ami ${myZone} e task kortesilam bhai, ekdom clean`;
+        text = `আমি ${myZone} এ টাস্ক করতেছিলাম ভাই, একদম ক্লিয়ার`;
       }
     } else if (brain.personality === 'skeptic') {
-      text = `konovabe proof chara vote dio na, skip marbo naki?`;
+      text = `পাকা প্রমাণ ছাড়া কেউ ভোট দিও না, স্কিপ মারবো নাকি?`;
     } else if (brain.personality === 'chatty' && brain.recentSightings.length > 0) {
       const lastSight = brain.recentSightings[brain.recentSightings.length - 1];
       const s = lastSight.perceivedName.split(' ')[0];
-      text = `ami ${myZone} e chilam, ${s} re dekhsi ${lastSight.zoneName} dike`;
+      const lsz = ZONES.find((z) => z.name === lastSight.zoneName)?.banglaName ?? lastSight.zoneName;
+      text = `আমি ${myZone} এ ছিলাম, ${s} কে দেখছি ${lsz} দিকে`;
     } else {
       const variants = [
-        `ami toh ${myZone} e chilam bro`,
-        `ke kothay chila bolo toh, ami ${myZone} e task sesh korlam`,
-        `bhai ${myZone} theke ashlam just, kisu bujhtesi na`,
+        `আমি তো ${myZone} এ ছিলাম ভাই`,
+        `কে কোথায় ছিলা বলো তো, আমি ${myZone} এ টাস্ক শেষ করলাম`,
+        `ভাই ${myZone} থেকে আসলাম এইমাত্র, কিছু বুঝতেছি না`,
         BOT_BANTER_LINES[Math.floor(rng() * BOT_BANTER_LINES.length)],
       ];
       text = variants[Math.floor(rng() * variants.length)];
@@ -2427,7 +2571,7 @@ export function getMeetingTypingBotIds(
 
 /**
  * Decides an individual bot's vote using strictly private evidence, personality,
- * chat bandwagoning, randomness, and natural skips (zero shared hive-mind scoreboard!).
+ * corroborated accusation count, randomness, and natural splits/skips (no hive-mind pile-on!).
  */
 export function decideBotVote(params: {
   bot: PlayerState;
@@ -2449,91 +2593,124 @@ export function decideBotVote(params: {
   if (bot.role === 'parabasi' && (brain.seenNearKill || brain.masterAccusedId)) {
     const suspectId = brain.seenNearKill ?? brain.masterAccusedId;
     const target = aliveOthers.find((pl) => pl.id === suspectId);
-    if (target && rng() < 0.92) {
+    if (target && rng() < 0.93) {
       return target.id;
     }
   }
 
-  // 2. If no casualties yet in match (early emergency bell), skip rather than random ejecting
+  // 2. Early emergency bell with no bodies: smart humans usually skip
   const anyCasualties = players.some((pl) => !pl.alive) || bodies.length > 0;
-  if (!anyCasualties && rng() < 0.92) {
+  if (!anyCasualties && rng() < 0.9) {
     return 'skip';
   }
 
-  // 3. Impostor strategy: bus compromised Batpar partner occasionally, otherwise blend in with chat or frame someone
+  // Gather unique independent accusers per suspect so 1 loud voice doesn't create fake consensus
+  const uniqueAccusersByTarget = new Map<string, Set<string>>();
+  for (const claim of brain.heardClaims) {
+    if (claim.accusedId && claim.accusedId !== bot.id) {
+      const set = uniqueAccusersByTarget.get(claim.accusedId) ?? new Set<string>();
+      set.add(claim.speakerId);
+      uniqueAccusersByTarget.set(claim.accusedId, set);
+    }
+  }
+
+  // 3. Impostor strategy: bus heavily accused partner occasionally, otherwise split votes or skip naturally
   if (bot.role === 'vondo') {
     const partner = aliveOthers.find((pl) => pl.role === 'vondo');
     if (partner) {
-      const partnerAccusations = brain.heardClaims.filter((c) => c.accusedId === partner.id).length;
-      if (partnerAccusations >= 2 && rng() < BOT_AI_CONFIG.busPartnerChance) {
+      const partnerAccusers = uniqueAccusersByTarget.get(partner.id)?.size ?? 0;
+      if (partnerAccusers >= 2 && rng() < BOT_AI_CONFIG.busPartnerChance) {
         return partner.id;
       }
     }
 
-    // Count chat accusations against innocent players so impostor blends with the crowd
-    const crowdTargetCounts = new Map<string, number>();
-    for (const claim of brain.heardClaims) {
-      if (claim.accusedId && claim.accusedId !== bot.id) {
-        const cand = nonTeammates.find((pl) => pl.id === claim.accusedId);
-        if (cand) {
-          crowdTargetCounts.set(cand.id, (crowdTargetCounts.get(cand.id) ?? 0) + 1);
-        }
-      }
-    }
-    const topBandwagon = Array.from(crowdTargetCounts.entries()).sort((a, b) => b[1] - a[1])[0];
-    if (topBandwagon && topBandwagon[1] >= 1 && rng() < 0.68) {
-      return topBandwagon[0];
+    const crowdSorted = Array.from(uniqueAccusersByTarget.entries())
+      .filter(([cid]) => nonTeammates.some((pl) => pl.id === cid))
+      .sort((a, b) => b[1].size - a[1].size);
+    const topTarget = crowdSorted[0];
+    const secondTarget = crowdSorted[1];
+
+    // Only pile on bandwagon strongly when >=2 independent voices agree; single rumors split/skip!
+    if (topTarget && topTarget[1].size >= 2) {
+      if (rng() < 0.72) return topTarget[0];
+    } else if (topTarget && topTarget[1].size === 1) {
+      const roll = rng();
+      if (roll < 0.28) return topTarget[0];
+      if (secondTarget && roll < 0.48) return secondTarget[0];
+      if (roll < 0.78) return 'skip';
     }
 
-    if (nonTeammates.length > 0 && rng() < 0.14) {
+    if (nonTeammates.length > 0 && rng() < 0.22) {
       return nonTeammates[Math.floor(rng() * nonTeammates.length)].id;
     }
     return 'skip';
   }
 
-  // 4. Crew / Neutral individual voting based on private suspicion + chat influence + personality
-  const chatHeat = new Map<string, number>();
-  for (const claim of brain.heardClaims) {
-    if (claim.accusedId && claim.accusedId !== bot.id && !clearedSet.has(claim.accusedId)) {
-      const speakerTrust = (brain.trust[claim.speakerId] ?? 0) > 1.5 ? 1.3 : 1.0;
-      chatHeat.set(claim.accusedId, (chatHeat.get(claim.accusedId) ?? 0) + speakerTrust);
-    }
-  }
-
-  const scored: Array<{ id: string; score: number }> = [];
+  // 4. Crew / Neutral individual voting: separate hard first-hand observation from single chat rumors
+  const scored: Array<{ id: string; score: number; priv: number; accusers: number }> = [];
   for (const cand of aliveOthers) {
     if (clearedSet.has(cand.id)) continue;
     const priv = brain.suspicion[cand.id] ?? 0;
-    const heat = (chatHeat.get(cand.id) ?? 0) * BOT_AI_CONFIG.bandwagonStrength * 1.45;
-    const trustPenalty = (brain.trust[cand.id] ?? 0) * 0.5;
-    const total = priv + heat - trustPenalty;
+    const accuserSet = uniqueAccusersByTarget.get(cand.id);
+    const accuserCount = accuserSet?.size ?? 0;
+
+    // Count weighted trust across unique accusers, capping single uncorroborated claims
+    let chatHeat = 0;
+    if (accuserSet) {
+      for (const spId of accuserSet) {
+        const speakerTrust = (brain.trust[spId] ?? 0) > 1.5 ? 1.25 : 0.85;
+        chatHeat += speakerTrust;
+      }
+    }
+    const cappedHeat = accuserCount <= 1 ? Math.min(0.62, chatHeat * BOT_AI_CONFIG.bandwagonStrength) : chatHeat * BOT_AI_CONFIG.bandwagonStrength * 0.92;
+    const trustPenalty = (brain.trust[cand.id] ?? 0) * 0.55;
+    const personalJitter = (rng() - 0.5) * (0.45 + BOT_AI_CONFIG.voteRandomness * 1.4);
+    const total = priv + cappedHeat - trustPenalty + personalJitter;
     if (total > 0.35) {
-      scored.push({ id: cand.id, score: total });
+      scored.push({ id: cand.id, score: total, priv, accusers: accuserCount });
     }
   }
   scored.sort((a, b) => b.score - a.score);
 
   const threshold =
-    brain.personality === 'skeptic' || brain.personality === 'chill'
-      ? 1.72
-      : brain.personality === 'paranoid'
-        ? 1.18
-        : 1.38;
+    brain.personality === 'skeptic'
+      ? 1.92
+      : brain.personality === 'chill' || brain.personality === 'quiet'
+        ? 1.68
+        : brain.personality === 'paranoid'
+          ? 1.15
+          : 1.4;
 
   if (scored.length > 0 && scored[0].score >= threshold) {
-    // Natural randomness: occasionally votes #2 suspect or skips when evidence isn't overwhelming
-    if (scored[0].score < 2.8 && rng() < BOT_AI_CONFIG.voteRandomness * 0.7) {
-      if (scored[1] && scored[1].score >= threshold * 0.85 && rng() < 0.55) {
-        return scored[1].id;
-      }
-      return 'skip';
+    const top = scored[0];
+    const runner = scored[1];
+    const onlyWeakRumor = top.priv < 1.35 && top.accusers < 2;
+
+    // Skeptic / chill bots avoid piling on an uncorroborated single rumor
+    if (onlyWeakRumor && (brain.personality === 'skeptic' || brain.personality === 'chill')) {
+      if (rng() < 0.78) return 'skip';
     }
-    return scored[0].id;
+
+    // Genuine uncertainty when evidence isn't overwhelming (< 2.65) -> split between #1, #2, and skip
+    if (top.score < 2.65) {
+      if (runner && runner.score >= threshold * 0.85 && top.score - runner.score < 0.9 && rng() < 0.38) {
+        return runner.id;
+      }
+      const skipBias = onlyWeakRumor ? 0.42 : BOT_AI_CONFIG.voteRandomness * 0.9;
+      if (rng() < skipBias) {
+        return 'skip';
+      }
+    }
+    return top.id;
   }
 
-  // Rare chaotic random vote only on low randomness fraction; otherwise Skip
+  // Spread minor intuitive guesses occasionally when multiple suspects feel shady, else skip
+  if (scored.length >= 2 && rng() < BOT_AI_CONFIG.voteRandomness * 0.65) {
+    const pickIdx = rng() < 0.55 ? 0 : 1;
+    return scored[pickIdx].id;
+  }
   const unCleared = aliveOthers.filter((c) => !clearedSet.has(c.id));
-  if (unCleared.length > 0 && rng() < BOT_AI_CONFIG.voteRandomness * 0.28) {
+  if (unCleared.length > 0 && rng() < BOT_AI_CONFIG.voteRandomness * 0.22) {
     return unCleared[Math.floor(rng() * unCleared.length)].id;
   }
   return 'skip';

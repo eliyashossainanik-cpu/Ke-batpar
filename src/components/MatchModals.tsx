@@ -36,33 +36,33 @@ interface RouletteCardDef {
 }
 
 const ROLE_ROULETTE_DECK: RouletteCardDef[] = [
-  { id: 'none', label: 'PARA-BASI', bangla: 'পাড়াবাসী', faction: 'parabasi', accent: '#38bdf8' },
-  { id: 'vondo', label: 'BATPAR', bangla: 'বাটপার', faction: 'vondo', accent: '#fb7185' },
-  { id: 'goyenda', label: 'GOYENDA', bangla: 'গোয়েন্দা', faction: 'parabasi', accent: '#22d3ee' },
-  { id: 'bohurupi', label: 'BOHURUPI', bangla: 'বহুরূপী', faction: 'vondo', accent: '#f43f5e' },
-  { id: 'kobiraj', label: 'KOBIRAJ', bangla: 'তাবিজ বাবা', faction: 'parabasi', accent: '#34d399' },
-  { id: 'daroga', label: 'DAROGA', bangla: 'দারোগা', faction: 'parabasi', accent: '#f97316' },
-  { id: 'jharudar', label: 'JHARUDAR', bangla: 'সাফাই বাটপার', faction: 'vondo', accent: '#e11d48' },
-  { id: 'mistri', label: 'MISTRI', bangla: 'মিস্ত্রি বাবু', faction: 'parabasi', accent: '#fbbf24' },
-  { id: 'daktar', label: 'DAKTAR', bangla: 'ডাক্তার', faction: 'parabasi', accent: '#2dd4bf' },
-  { id: 'neta', label: 'NETA', bangla: 'মহল্লা নেতা', faction: 'parabasi', accent: '#facc15' },
-  { id: 'ghotok_khala', label: 'GHOTOK KHALA', bangla: 'ঘটক খালা', faction: 'parabasi', accent: '#f472b6' },
-  { id: 'master_moshai', label: 'MASTER MOSHAI', bangla: 'মাস্টার মশাই', faction: 'parabasi', accent: '#60a5fa' },
-  { id: 'cctv_kaku', label: 'CCTV KAKU', bangla: 'সিসিটিভি কাকু', faction: 'parabasi', accent: '#fb923c' },
-  { id: 'hatur_daktar', label: 'HATUR DAKTAR', bangla: 'হাতুড়ে ডাক্তার', faction: 'parabasi', accent: '#a3e635' },
-  { id: 'supari_killer', label: 'SUPARI KILLER', bangla: 'সুপারি কিলার', faction: 'vondo', accent: '#ef4444' },
-  { id: 'dalal', label: 'DALAL', bangla: 'দালাল বাটপার', faction: 'vondo', accent: '#dc2626' },
-  { id: 'pagol', label: 'PAGLA BABA', bangla: 'পাগলা বাবা', faction: 'neutral', accent: '#c084fc' },
-  { id: 'chamcha', label: 'CHAMCHA', bangla: 'চামচা', faction: 'neutral', accent: '#a855f7' },
-  { id: 'chandabaz', label: 'CHANDABAZ', bangla: 'চাঁদাবাজ', faction: 'neutral', accent: '#eab308' },
-  { id: 'tiktok_star', label: 'TIKTOK STAR', bangla: 'টিকটক স্টার', faction: 'neutral', accent: '#ec4899' },
+  { id: 'none', label: 'পাড়াবাসী', bangla: 'মহল্লা দল', faction: 'parabasi', accent: '#38bdf8' },
+  { id: 'vondo', label: 'বাটপার', bangla: 'বাটপার গ্যাং', faction: 'vondo', accent: '#fb7185' },
+  { id: 'goyenda', label: 'গোয়েন্দা মফিজ', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#22d3ee' },
+  { id: 'bohurupi', label: 'বহুরূপী বাটপার', bangla: 'বাটপার গ্যাং', faction: 'vondo', accent: '#f43f5e' },
+  { id: 'kobiraj', label: 'তাবিজ বাবা', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#34d399' },
+  { id: 'daroga', label: 'পাড়া দারোগা', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#f97316' },
+  { id: 'jharudar', label: 'সাফাই বাটপার', bangla: 'বাটপার গ্যাং', faction: 'vondo', accent: '#e11d48' },
+  { id: 'mistri', label: 'মিস্ত্রি বাবু', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#fbbf24' },
+  { id: 'daktar', label: 'পাড়া ডাক্তার', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#2dd4bf' },
+  { id: 'neta', label: 'মহল্লা নেতা', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#facc15' },
+  { id: 'ghotok_khala', label: 'ঘটক খালা', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#f472b6' },
+  { id: 'master_moshai', label: 'মাস্টার মশাই', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#60a5fa' },
+  { id: 'cctv_kaku', label: 'সিসিটিভি কাকু', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#fb923c' },
+  { id: 'hatur_daktar', label: 'হাতুড়ে ডাক্তার', bangla: 'পাড়াবাসী দল', faction: 'parabasi', accent: '#a3e635' },
+  { id: 'supari_killer', label: 'সুপারি কিলার', bangla: 'বাটপার গ্যাং', faction: 'vondo', accent: '#ef4444' },
+  { id: 'dalal', label: 'দালাল বাটপার', bangla: 'বাটপার গ্যাং', faction: 'vondo', accent: '#dc2626' },
+  { id: 'pagol', label: 'পাগলা বাবা', bangla: 'নিরপেক্ষ চরিত্র', faction: 'neutral', accent: '#c084fc' },
+  { id: 'chamcha', label: 'চামচা', bangla: 'নিরপেক্ষ চরিত্র', faction: 'neutral', accent: '#a855f7' },
+  { id: 'chandabaz', label: 'চাঁদাবাজ', bangla: 'নিরপেক্ষ চরিত্র', faction: 'neutral', accent: '#eab308' },
+  { id: 'tiktok_star', label: 'টিকটক স্টার', bangla: 'নিরপেক্ষ চরিত্র', faction: 'neutral', accent: '#ec4899' },
 ];
 
 const LOADING_MOHOLLA_TIPS = [
-  'Cha-er dokan e dudh-cha er pani gorom hocche...',
-  'Pukur er pani clean kora hocche chubani er jonno...',
-  'DESCO er fuse box check kora hocche...',
-  'Ke asli Batpar sheta godhuli bela e bojha jabe!',
+  'চায়ের দোকানে দুধ-চায়ের পানি গরম হচ্ছে...',
+  'চুবানির জন্য পুকুরের পানি পরিষ্কার করা হচ্ছে...',
+  'ডেসকো-র ফিউজ বক্স যাচাই করা হচ্ছে...',
+  'কে আসল বাটপার সেটা গোধূলি বেলাতেই ধরা পড়বে!',
 ];
 
 export function MatchLoadingOverlay({ subtitle }: { subtitle?: string }) {
@@ -79,7 +79,7 @@ export function MatchLoadingOverlay({ subtitle }: { subtitle?: string }) {
     <div
       role="status"
       aria-live="polite"
-      aria-label="Loading Moholla Match"
+      aria-label="মহল্লার ম্যাচ লোড হচ্ছে"
       className="fixed inset-0 z-40 flex flex-col items-center justify-center p-6 text-center overflow-hidden"
       style={{
         background: 'radial-gradient(circle at 50% 42%, rgba(15, 34, 66, 0.98) 0%, rgba(5, 8, 16, 1) 75%)',
@@ -110,10 +110,10 @@ export function MatchLoadingOverlay({ subtitle }: { subtitle?: string }) {
 
         <div className="space-y-1">
           <p className="font-mono-tabular text-[11px] uppercase tracking-[0.28em] text-amber-300 font-bold">
-            KE BATPAR? · MOHOLLA LOADING
+            কে বাটপার? · মহল্লা লোডিং
           </p>
           <h2 className="font-display text-2xl sm:text-3xl font-black text-white">
-            {subtitle ?? 'Entering the Moholla...'}
+            {subtitle ?? 'মহল্লায় প্রবেশ হচ্ছে...'}
           </h2>
           <p className="text-xs sm:text-sm text-slate-300">{LOADING_MOHOLLA_TIPS[tipIndex]}</p>
         </div>
@@ -192,70 +192,70 @@ function ChibiRolePortrait({
 function getRoleHowToPlay(isVondo: boolean, specialRole: SpecialRole): string[] {
   if (isVondo) {
     const lines = [
-      'Alada thaka Para-basi ke [Q / Gap e Naw] diye size koro ar [V] diye Dren diye palao!',
-      '[Tab / Map] theke DESCO Current, Wi-Fi, ba Gas Leak Sabotage dao jeno shobai chhutachhuti kore.',
+      'একা থাকা পাড়াবাসীকে [Q / ঘায়েল] দিয়ে আঘাত করো আর [V] চেপে ড্রেন দিয়ে পালিয়ে যাও!',
+      '[Tab / ম্যাপ] থেকে ডেসকো বিদ্যুৎ, ওয়াইফাই বা গ্যাস লিক নাশকতা দাও যাতে সবাই দৌড়াদৌড়ি করে।',
     ];
     if (specialRole === 'bohurupi') {
-      lines.push('Bohurupi Power [G]: Onno player er chehara churi kore CCTV te tader ke fashao!');
+      lines.push('বহুরূপী ক্ষমতা [G]: অন্য খেলোয়াড়ের ছদ্মবেশ ধরে সিসিটিভি ক্যামেরায় তাকে ফাঁসিয়ে দাও!');
     } else if (specialRole === 'jharudar') {
-      lines.push('Jharudar Power [G]: Size korar por Lash gayeb kore daw jeno keu report na kore!');
+      lines.push('সাফাই বাটপার [G]: শিকার করার পর পড়ে থাকা লাশ গায়েব করে দাও যাতে কেউ রিপোর্ট করতে না পারে!');
     } else if (specialRole === 'supari_killer') {
-      lines.push('Supari Killer [G]: Marked Supari target ke marle porer Kill Cooldown ORDHKE (50%) hobe!');
+      lines.push('সুপারি কিলার [G]: চিহ্নিত সুপারি টার্গেটকে মারলে পরের কিল বিরতি অর্ধেক (৫০%) কমে যাবে!');
     } else if (specialRole === 'dalal') {
-      lines.push('Dalal Power [G]: Shutter lock +8s baray ar 10s Admin Radar & Vitals jam kore dey!');
+      lines.push('দালাল ক্ষমতা [G]: শাটার বন্ধের সময় +৮ সেকেন্ড বাড়ায় ও ১০ সেকেন্ডের জন্য অ্যাডমিন রাডার ও ভাইটালস অচল করে!');
     } else {
-      lines.push('Shalish e bhalo acting koro — nije sus hoile onno kaure dosh diye bachaw!');
+      lines.push('সালিশে দারুণ অভিনয় করো — নিজের দিকে সন্দেহ এলে অন্য কারো ওপর দোষ চাপিয়ে বেঁচে যাও!');
     }
     return lines;
   }
   if (specialRole === 'pagol') {
     return [
-      'Tumi kono team e nai! Tomar Goal: Shalish e shobai jeno TOMAKE Pukur e fele!',
-      'Task na kore ektu shondhojonok bhabe ghuraghuri koro ar chat e ultapalta kotha bolo!',
+      'তুমি কোনো দলেই নেই! তোমার লক্ষ্য: সালিশে সবাই যেন তোমাকেই পুকুরে ফেলে দেয়!',
+      'কাজ না করে একটু সন্দেহজনকভাবে ঘোরাফেরা করো আর চ্যাটে উল্টাপাল্টা কথা বলো!',
     ];
   }
   if (specialRole === 'chamcha') {
     return [
-      'Match er moddhe [G] chepe ekjon Patron select koro — Patron er team jitle tumio CO-WIN korbe!',
-      'Jodi tomar Patron Batpar hoy tobe Batpar er sathei jite jabe; alive thaka must!',
+      'ম্যাচের মধ্যে [G] চেপে একজন বস বেছে নাও — বসের দল জিতলে তুমিও সহ-বিজয়ী হবে!',
+      'যদি তোমার বস বাটপার হয় তবে বাটপারদের সাথেই জিতবে; তবে শেষ পর্যন্ত জীবিত থাকতে হবে!',
     ];
   }
   if (specialRole === 'chandabaz') {
     return [
-      '3 jon alada neighbor er kache giye [G] chepe Chanda vasool koro — 3/3 hoilei Solo WIN!',
-      'Dhora na kheye stealth bhabe alada alada Para-basi er kach theke Chanda tule felo!',
+      '৩ জন আলাদা প্রতিবেশীর কাছে গিয়ে [G] চেপে চাঁদা আদায় করো — ৩/৩ হলেই একক জয়!',
+      'ধরা না খেয়ে চুপিসারে আলাদা আলাদা পাড়াবাসীর কাছ থেকে চাঁদা তুলে ফেলো!',
     ];
   }
   if (specialRole === 'tiktok_star') {
     return [
-      '3 ta alada Moholla zone e giye [G] chepe Viral Reel shoot koro!',
-      '3 ta Reel complete kore sesh <= 4 jon e tike thaklei Viral Solo WIN!',
+      '৩টি আলাদা মহল্লা এলাকায় গিয়ে [G] চেপে ভাইরাল রিল শুট করো!',
+      '৩টি রিল শেষ করে ম্যাচের শেষ ৪ জনে টিকে থাকতে পারলেই ভাইরাল একক জয়!',
     ];
   }
   const lines = [
-    'Holud marker e giye [E / Task] diye Para Tasks shesh koro — 100% hoile Para-basi WIN!',
-    'Lash dekhle [R / Report] dao ba Adda Bell bajiye Shalish e Batpar ke Pukur e felo!',
+    'হলুদ চিহ্নে গিয়ে [E / কাজ] দিয়ে পাড়ার কাজ শেষ করো — ১০০% হলেই পাড়াবাসীর জয়!',
+    'লাশ দেখলে [R / রিপোর্ট] দাও বা আড্ডা ঘণ্টা বাজিয়ে সালিশে বাটপারকে পুকুরে ফেলো!',
   ];
   if (specialRole === 'goyenda') {
-    lines.push('Goyenda Power [G]: 3D Footprints dekho ar Lash scan kore killer er color hint ber koro!');
+    lines.push('গোয়েন্দা ক্ষমতা [G]: পায়ের ছাপ দেখো আর লাশ স্ক্যান করে খুনির রঙের সূত্র বের করো!');
   } else if (specialRole === 'kobiraj') {
-    lines.push('Kobiraj Power [G]: Kacher neighbor ke Tabiz Shield porao — 1 bar Gap e neowa theke bachabe!');
+    lines.push('তাবিজ বাবা [G]: কাছের প্রতিবেশীকে তাবিজ ঢাল পরাও — একবার বাটপারের হামলা থেকে বাঁচাবে!');
   } else if (specialRole === 'mistri') {
-    lines.push('Mistri Power [V]: Dren diye shortcut nao ar dur thekei DESCO / Wi-Fi fix koro!');
+    lines.push('মিস্ত্রি ক্ষমতা [V]: ড্রেন দিয়ে দ্রুত যাতায়াত করো আর দূর থেকেই ডেসকো ও ওয়াইফাই ঠিক করো!');
   } else if (specialRole === 'daroga') {
-    lines.push('Daroga Power [G]: Batpar ke 1 shot e size koro! (Bhul kore Para-basi marle nijei out!)');
+    lines.push('দারোগা ক্ষমতা [G]: আসল বাটপারকে ১ গুলিতেই খতম করো! (ভুল করে পাড়াবাসী মারলে নিজেই বাদ!)');
   } else if (specialRole === 'neta') {
-    lines.push('Neta Power: Shalish e tomar Vote 2x count hobe ar +1 Extra Adda Bell pabe!');
+    lines.push('নেতা ক্ষমতা: সালিশে তোমার ভোট ২টি হিসেবে গণনা হবে আর বাড়তি ১টি আড্ডা ঘণ্টা পাবে!');
   } else if (specialRole === 'daktar') {
-    lines.push('Daktar Power [G]: Match e 1 bar unreported fallen neighbor ke Saline diye jinda koro!');
+    lines.push('ডাক্তার ক্ষমতা [G]: ম্যাচে ১ বার রিপোর্ট না হওয়া পড়া প্রতিবেশীকে স্যালাইন দিয়ে বাঁচিয়ে তোলো!');
   } else if (specialRole === 'ghotok_khala') {
-    lines.push('Ghotok Khala [G]: 2 jon ke Moholla Bond e joro koro — ekjon morle onnojon alert pabe!');
+    lines.push('ঘটক খালা [G]: ২ জনকে মহল্লা বন্ধনে জুড়ে দাও — একজন মরলেই অন্যজন সতর্কবার্তা পাবে!');
   } else if (specialRole === 'master_moshai') {
-    lines.push('Master Moshai [G]: Kacher player er Khata check kore dekho shey fake natok kortese kina!');
+    lines.push('মাস্টার মশাই [G]: কাছের খেলোয়াড়ের খাতা পরীক্ষা করে দেখো সে ভুয়া নাটক করছে কিনা!');
   } else if (specialRole === 'cctv_kaku') {
-    lines.push('CCTV Kaku [G]: Mohollar jekono jayga thekei pocket phone e live Security CCTV dekho!');
+    lines.push('সিসিটিভি কাকু [G]: মহল্লার যেকোনো জায়গা থেকেই পকেট ফোনে লাইভ সিসিটিভি ক্যামেরা দেখো!');
   } else if (specialRole === 'hatur_daktar') {
-    lines.push('Hatur Daktar [G]: Neighbor ke 12s er Jhajhro Injection daw — Batpar marle bache jabe!');
+    lines.push('হাতুড়ে ডাক্তার [G]: প্রতিবেশীকে ১২ সেকেন্ডের ঝাঁঝালো ইনজেকশন দাও — বাটপার মারলেও বেঁচে যাবে!');
   }
   return lines;
 }
@@ -337,22 +337,22 @@ export function RoleRevealModal({
 
   const revealHeadline =
     localPlayer.specialRole === 'pagol'
-      ? 'PAGLA BABA!'
+      ? 'তুমি পাগলা বাবা!'
       : localPlayer.specialRole === 'chamcha'
-        ? 'MOHOLLA CHAMCHA!'
+        ? 'তুমি মহল্লা চামচা!'
         : localPlayer.specialRole === 'chandabaz'
-          ? 'CHANDABAZ!'
+          ? 'তুমি চাঁদাবাজ!'
           : localPlayer.specialRole === 'tiktok_star'
-            ? 'TIKTOK STAR!'
+            ? 'তুমি টিকটক স্টার!'
             : isVondo
-              ? 'TUMI BATPAR!'
-              : 'TUMI PARA-BASI!';
+              ? 'তুমিই বাটপার!'
+              : 'তুমি পাড়াবাসী!';
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Role Reveal"
+      aria-label="পরিচয় প্রকাশ"
       className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-5 overflow-y-auto overflow-x-hidden"
       style={{ background: factionBg }}
     >
@@ -383,11 +383,11 @@ export function RoleRevealModal({
           /* STAGE 1: Among Us SHHHHH! + Super Sus Role Card Shuffle Roulette */
           <div className="py-4 sm:py-8 text-center space-y-4">
             <div className="animate-amg-shh font-display text-3xl sm:text-5xl font-black text-amber-300 drop-shadow-[0_4px_20px_rgba(251,191,36,0.4)]">
-              SHHHHH!
+              চুপ!!
             </div>
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-[11px] font-mono-tabular uppercase tracking-[0.22em] text-amber-300">
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-[11px] font-mono-tabular tracking-[0.14em] text-amber-300">
               <Sparkles className="w-3.5 h-3.5" />
-              DEALING MOHOLLA DOSSIER...
+              মহল্লার গোপন ফাইল বণ্টন হচ্ছে...
             </span>
 
             {/* Fanned Shuffle Cards Row */}
@@ -429,16 +429,16 @@ export function RoleRevealModal({
             </div>
 
             <p className="text-xs sm:text-sm text-slate-300 font-semibold">
-              Locking in role for <span className="text-amber-300 font-bold">{localPlayer.name}</span>...
+              <span className="text-amber-300 font-bold">{localPlayer.name}</span>-এর গোপন চরিত্র লক করা হচ্ছে...
             </p>
           </div>
         ) : (
           /* STAGE 2: Among Us Spotlight Reveal + Faction Banner + Imposter Gang + Role & Rules Briefing */
           <>
             <div className="animate-amg-slam text-center space-y-2.5">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-xs font-mono-tabular uppercase tracking-[0.26em] text-amber-300">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/40 text-xs font-mono-tabular tracking-[0.16em] text-amber-300">
                 <Volume2 className="w-3.5 h-3.5" />
-                SHHHHH! · নিশ্চুপ!
+                নিশ্চুপ! · গোপন পরিচয়
               </div>
 
               {/* Wide Among Us Style Horizontal Faction Banner */}
@@ -460,12 +460,12 @@ export function RoleRevealModal({
                 />
 
                 <div className="text-center sm:text-left space-y-1">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
+                  <p className="text-[11px] font-bold tracking-wider text-slate-300">
                     {isNeutral
-                      ? 'CHAOS NEUTRAL ROLE'
+                      ? 'নিরপেক্ষ বিশৃঙ্খল চরিত্র'
                       : isVondo
-                        ? 'SECRET BATPAR IMPOSTOR'
-                        : 'MOHOLLA CREW ROLE'}
+                        ? 'গোপন বাটপার চক্র'
+                        : 'মহল্লার পাড়াবাসী দল'}
                   </p>
                   <h2
                     className={`font-display text-3xl sm:text-4xl font-black leading-none tracking-tight ${
@@ -479,13 +479,13 @@ export function RoleRevealModal({
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-950/80 border border-white/15 mt-1">
                       <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: specialMeta.accentHex }} />
                       <span className="text-xs sm:text-sm font-bold" style={{ color: specialMeta.accentHex }}>
-                        {specialMeta.banglaTitle} · {specialMeta.title}
+                        {specialMeta.banglaTitle}
                       </span>
                     </div>
                   ) : (
                     <p className="text-xs sm:text-sm font-semibold text-amber-300/95">
                       {isVondo
-                        ? 'Ajke kare gap e nibi re Batpar?! Sabdhan, Pukur ready ache!'
+                        ? 'আজকে কাকে ফাঁদে ফেলবি রে বাটপার?! সাবধান, পুকুর কিন্তু প্রস্তুত!'
                         : ROLE_COMEDY_TAGLINES[localPlayer.specialRole]}
                     </p>
                   )}
@@ -496,11 +496,11 @@ export function RoleRevealModal({
             {/* Imposter Gang Reveal (ALL Batpars see all fellow Batpar teammates!) */}
             {isVondo && (
               <div className="rounded-xl border border-rose-500/40 bg-rose-950/35 px-3 py-2.5 text-center space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-rose-200 flex items-center justify-center gap-1.5">
+                <div className="text-[11px] font-bold tracking-wider text-rose-200 flex items-center justify-center gap-1.5">
                   <Skull className="w-3.5 h-3.5 text-rose-400" />
                   {fellowVondos.length > 1
-                    ? `Tor Batpar Gang (${fellowVondos.length} Jon Imposter — Ekshathe Kaj Koro!)`
-                    : 'Tumi Ekai Ajke Mohollar Asli Batpar!'}
+                    ? `তোমার বাটপার গ্যাং (${fellowVondos.length} জন বাটপার — একসাথে কাজ করো!)`
+                    : 'তুমি একাই আজ মহল্লার আসল বাটপার!'}
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {fellowVondos.map((p) => {
@@ -521,11 +521,11 @@ export function RoleRevealModal({
                         />
                         <span className="text-xs font-bold text-white">
                           {p.name}
-                          {p.id === localPlayer.id ? ' (You)' : ''}
+                          {p.id === localPlayer.id ? ' (তুমি)' : ''}
                         </span>
                         {p.specialRole !== 'none' && (
                           <span className="text-[10px] font-bold text-rose-200">
-                            · {pSpecial.title.split(' ')[0]}
+                            · {pSpecial.banglaTitle}
                           </span>
                         )}
                       </div>
@@ -541,7 +541,7 @@ export function RoleRevealModal({
               <div className="rounded-xl border border-white/12 bg-slate-900/85 p-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-display font-bold text-amber-300">
                   <ShieldCheck className="w-4 h-4 shrink-0" />
-                  <span>Tomar Role er Kaj &amp; Controls</span>
+                  <span>তোমার চরিত্রের কাজ ও নিয়ন্ত্রণ</span>
                 </div>
                 <ul className="space-y-1 text-[11px] sm:text-xs text-slate-200 leading-snug">
                   {roleSteps.map((step, i) => (
@@ -557,32 +557,32 @@ export function RoleRevealModal({
               <div className="rounded-xl border border-white/12 bg-slate-900/85 p-3 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-display font-bold text-sky-300">
                   <BookOpen className="w-4 h-4 shrink-0" />
-                  <span>Match er Niom (Rules)</span>
+                  <span>ম্যাচের নিয়মকানুন</span>
                 </div>
                 <ul className="space-y-1 text-[11px] sm:text-xs text-slate-200 leading-snug">
                   <li className="flex items-start gap-1.5">
                     <Users className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
                     <span>
-                      <strong className="text-rose-300">{fellowVondos.length} Batpar</strong> vs{' '}
-                      <strong className="text-sky-300">{parabasiCount} Para-basi</strong>
-                      {neutralCount > 0 ? ` + ${neutralCount} Neutral` : ''}.
+                      <strong className="text-rose-300">{fellowVondos.length} বাটপার</strong> বনাম{' '}
+                      <strong className="text-sky-300">{parabasiCount} পাড়াবাসী</strong>
+                      {neutralCount > 0 ? ` + ${neutralCount} নিরপেক্ষ` : ''}।
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <span className="text-emerald-400 font-bold shrink-0">✓</span>
                     <span>
-                      <strong>Para-basi Win:</strong> Shob Tasks ({snapshot.settings.tasksPerPlayer}/jon) sesh ba shob Batpar ke Pukur e felo!
+                      <strong>পাড়াবাসীর জয়:</strong> সব কাজ ({snapshot.settings.tasksPerPlayer}/জন) শেষ অথবা সব বাটপারকে পুকুরে ফেলো!
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <EyeOff className="w-3.5 h-3.5 text-sky-300 shrink-0 mt-0.5" />
                     <span>
-                      <strong>Ghost Rule:</strong> Morle Adrishyo Ghost hobe — Alive keu dekhbe na, Ghost hoyeo Tasks sesh kora jabe!
+                      <strong>ভূত নিয়ম:</strong> মারা গেলে অদৃশ্য ভূত হবে — জীবিত কেউ দেখবে না, ভূত হয়েও কাজ শেষ করা যাবে!
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5 font-mono-tabular text-[10px] sm:text-[11px] text-amber-200/90 pt-0.5">
                     <span>
-                      Kill CD: {snapshot.settings.killCooldownSec}s · Shalish: {snapshot.settings.meetingTimeSec}s · Eject Reveal: {snapshot.settings.confirmEjects ? 'ON' : 'OFF'}
+                      কিল বিরতি: {snapshot.settings.killCooldownSec}সে. · সালিশ: {snapshot.settings.meetingTimeSec}সে. · পরিচয় প্রকাশ: {snapshot.settings.confirmEjects ? 'চালু' : 'বন্ধ'}
                     </span>
                   </li>
                 </ul>
@@ -602,10 +602,10 @@ export function RoleRevealModal({
           <div className="flex items-center justify-between gap-3 text-[11px] text-slate-400">
             <span>
               {!flipped
-                ? 'Shuffling Moholla roles...'
+                ? 'মহল্লার চরিত্রগুলো মেলানো হচ্ছে...'
                 : onContinue
-                  ? 'Role card & rules ready!'
-                  : `Match starts in ${Math.max(1, Math.ceil((TOTAL_DISPLAY_MS - elapsedMs) / 1000))}s...`}
+                  ? 'চরিত্র কার্ড ও নিয়ম প্রস্তুত!'
+                  : `ম্যাচ শুরু হচ্ছে ${Math.max(1, Math.ceil((TOTAL_DISPLAY_MS - elapsedMs) / 1000))} সেকেন্ডে...`}
             </span>
             {onContinue && flipped && (
               <button
@@ -613,7 +613,7 @@ export function RoleRevealModal({
                 onClick={onContinue}
                 className="min-h-[40px] px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-xs sm:text-sm shadow-lg"
               >
-                Enter Moholla
+                মহল্লায় ঢোকো
               </button>
             )}
           </div>
@@ -624,20 +624,20 @@ export function RoleRevealModal({
 }
 
 const EJECT_LAST_WORDS_INNOCENT = [
-  '"Bhai ami toh shudhu Cha ar Shingara khaitasilam reee!!"',
-  '"Amar Task 1 ta baki chilo maaagooo!"',
-  '"Satar jani na bhai, tube daw keuuuu!!"',
+  '"ভাই আমি তো শুধু চা আর সিঙাড়া খাইতেসিলাম রে!!"',
+  '"আমার ১টা কাজ বাকি ছিল মাগো!"',
+  '"সাঁতার জানি না ভাই, টিউব দাও কেউ!!"',
 ];
 
 const EJECT_LAST_WORDS_BATPAR = [
-  '"Dhore felso bhai... kintu DESCO fuse e pani amii disilam hehe!"',
-  '"Tader ke bolbi na ami Dren diye palaitam!!"',
-  '"Pukur er mach o amar friend reee!"',
+  '"ধরে ফেলেছ ভাই... কিন্তু ডেসকো ফিউজ বক্সে পানি আমিই দিয়েছিলাম হিহি!"',
+  '"ওদের বইলো না আমি ড্রেন দিয়ে পালাইতাম!!"',
+  '"পুকুরের মাছও আমার বন্ধু রে!"',
 ];
 
 const EJECT_LAST_WORDS_PAGOL = [
-  '"HAHAHAHAHA! Shobai BAIT khaise!! Ami e Pagla Baba!!"',
-  '"Tomader Shalish ke ullu banay gelam reee!!"',
+  '"হাহাহাহাহা! সবাই ফাঁদে পা দিছে!! আমিই পাগলা বাবা!!"',
+  '"তোমাদের সালিশকে বোকা বানায় গেলাম রে!!"',
 ];
 
 export function EjectionModal({
@@ -695,14 +695,14 @@ export function EjectionModal({
 
     const countdownLabel =
       elapsedMs < 460
-        ? '1... DHORO!'
+        ? '১... ধরো!'
         : elapsedMs < 920
-          ? '2... TULO ORE!'
+          ? '২... তোলো ওরে!'
           : elapsedMs < 1400
-            ? '3... CHUBANI TIME!!'
+            ? '৩... চুবানির সময়!!'
             : elapsedMs < 2250
-              ? 'URE JAA PUKUR E!!'
-              : 'ZHAPANGGG!! PUKUR E CHUBANI!';
+              ? 'উড়ে যা পুকুরে!!'
+              : 'ঝপাং!! পুকুরে চুবানি!';
 
     return (
       <div
@@ -747,8 +747,8 @@ export function EjectionModal({
             />
             <h2 className="font-display text-lg sm:text-2xl font-extrabold text-white">
               {isAct1Windup
-                ? `${ejection.ejectedName} ke Pukur Ghat e niye gese Moholla-bashi!`
-                : `${ejection.ejectedName} ke Pukur e Chubani Deowa Holo!`}
+                ? `${ejection.ejectedName}-কে পুকুর ঘাটে নিয়ে গেছে মহল্লাবাসী!`
+                : `${ejection.ejectedName}-কে পুকুরে চুবানি দেওয়া হলো!`}
             </h2>
           </div>
 
@@ -761,7 +761,7 @@ export function EjectionModal({
           {isBubbling && (
             <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-bold text-sky-300 animate-pulse py-1">
               <Waves className="w-4 h-4" />
-              <span>Pukur er pani theke ki khobor uthlo...?</span>
+              <span>পুকুরের পানি থেকে কী খবর উঠল...?</span>
             </div>
           )}
 
@@ -779,33 +779,33 @@ export function EjectionModal({
                     }`}
                   >
                     {ejection.wasSpecialRole === 'pagol'
-                      ? 'PAGLA BABA BAIT DIYE JITSE!'
+                      ? 'পাগলা বাবা ফাঁদ পেতে জিতেছে!'
                       : ejection.wasVondo
-                        ? 'ASLI BATPAR DHORE FELSI!'
-                        : 'HAY RE! NIRAPARADH PARA-BASI CHILO!'}
+                        ? 'আসল বাটপার ধরে ফেলেছি!'
+                        : 'হায় রে! নির্দোষ পাড়াবাসী ছিল!'}
                   </div>
                   <p className="text-xs sm:text-sm font-semibold text-slate-200">
                     {ejection.wasSpecialRole === 'pagol'
-                      ? `${ejection.ejectedName} chilo Pagla Baba — shobai ullu hoye gese!`
+                      ? `${ejection.ejectedName} ছিল পাগলা বাবা — সবাই বোকা হয়ে গেছে!`
                       : ejection.wasVondo
-                        ? `${ejection.ejectedName} asolei Batpar${
+                        ? `${ejection.ejectedName} আসলেই বাটপার${
                             ejection.wasSpecialRole !== 'none'
-                              ? ` (${SPECIAL_ROLES[ejection.wasSpecialRole].title})`
+                              ? ` (${SPECIAL_ROLES[ejection.wasSpecialRole].banglaTitle})`
                               : ''
-                          } chilo! ${taunts[1]}`
-                        : `${ejection.ejectedName} nirdosh Para-basi chilo (${
+                          } ছিল! ${taunts[1]}`
+                        : `${ejection.ejectedName} নির্দোষ পাড়াবাসী ছিল (${
                             ejection.wasSpecialRole !== 'none'
-                              ? SPECIAL_ROLES[ejection.wasSpecialRole].title
-                              : 'Neighbor'
-                          })... Moholla boro bhul korlo!`}
+                              ? SPECIAL_ROLES[ejection.wasSpecialRole].banglaTitle
+                              : 'প্রতিবেশী'
+                          })... মহল্লা বড় ভুল করল!`}
                   </p>
                   <p className="text-xs font-mono-tabular text-amber-300 font-bold">
-                    Batpars remaining in Moholla: {ejection.remainingVondos}
+                    মহল্লায় বাটপার বাকি আছে: {ejection.remainingVondos} জন
                   </p>
                 </>
               ) : (
                 <p className="text-xs sm:text-sm font-semibold text-slate-300">
-                  Confirm Ejects is OFF — {ejection.ejectedName} ki Batpar chilo sheta gopon thaklo!
+                  পরিচয় প্রকাশ বন্ধ আছে — {ejection.ejectedName} বাটপার ছিল কিনা তা গোপন থাকল!
                 </p>
               )}
             </div>
@@ -821,7 +821,7 @@ export function EjectionModal({
             </div>
             <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400">
               <span>
-                {showVerdict ? 'Next round shuru hocche...' : 'Pukur Chubani in progress...'}
+                {showVerdict ? 'পরের রাউন্ড শুরু হচ্ছে...' : 'পুকুর চুবানি চলছে...'}
               </span>
               {onContinue && showVerdict && (
                 <button
@@ -829,7 +829,7 @@ export function EjectionModal({
                   onClick={onContinue}
                   className="px-3.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-xs"
                 >
-                  Continue
+                  চালিয়ে যাও
                 </button>
               )}
             </div>
@@ -853,17 +853,17 @@ export function EjectionModal({
         </div>
         <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-white">
           {ejection.reason === 'tie'
-            ? 'Vote Tai! Pukur er Mach Ajke Uposh Thaklo!'
-            : 'Shobai Skip Marlo — Batpar Cha Khaitese!'}
+            ? 'ভোট সমান! পুকুরের মাছ আজ উপোস থাকল!'
+            : 'সবাই স্কিপ মারল — বাটপার চা খাচ্ছে!'}
         </h2>
         <p className="text-xs sm:text-sm text-slate-300">
           {ejection.reason === 'tie'
-            ? 'Dui joner vote shoman! Shalish e jhogra korei shomoy sesh, keu pukur e gelo na!'
-            : 'Keu kaure Pukur e felle na — Asli Batpar kop-e Cha ar Shingara niye hashtease!'}
+            ? 'দুইজনের ভোট সমান! সালিশে ঝগড়া করেই সময় শেষ, কেউ পুকুরে গেল না!'
+            : 'কেউ কাউকে পুকুরে ফেলল না — আসল বাটপার কাপে চা আর সিঙাড়া নিয়ে হাসছে!'}
         </p>
         {ejection.confirmEjects && (
           <p className="text-xs font-mono-tabular text-amber-300 font-bold">
-            Batpars remaining in Moholla: {ejection.remainingVondos}
+            মহল্লায় বাটপার বাকি আছে: {ejection.remainingVondos} জন
           </p>
         )}
         <div className="space-y-2 pt-1">
@@ -879,7 +879,7 @@ export function EjectionModal({
               onClick={onContinue}
               className="px-4 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-xs"
             >
-              Continue
+              চালিয়ে যাও
             </button>
           )}
         </div>
@@ -903,7 +903,7 @@ export function PauseModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Game Paused"
+      aria-label="খেলা বিরতি"
       className="fixed inset-0 z-30 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.8)' }}
     >
@@ -911,8 +911,8 @@ export function PauseModal({
         className="w-full max-w-sm rounded-2xl p-6 border border-white/15 shadow-2xl space-y-4 text-center"
         style={{ backgroundColor: 'rgba(15, 23, 42, 0.98)' }}
       >
-        <h2 className="font-display text-2xl font-bold text-white">Adda Paused</h2>
-        <p className="text-xs text-slate-400">Take a Cha break before returning to the Moholla.</p>
+        <h2 className="font-display text-2xl font-bold text-white">গেম পজ</h2>
+        <p className="text-xs text-slate-400">মহল্লায় ফেরার আগে একটু চা খেয়ে নাও।</p>
         <div className="space-y-2.5 pt-2">
           <button
             type="button"
@@ -920,7 +920,7 @@ export function PauseModal({
             className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-sm flex items-center justify-center gap-2"
           >
             <Play className="w-4 h-4 fill-current" />
-            Resume Match
+            খেলা চালিয়ে যাও
           </button>
           {onOpenMemePack && (
             <button
@@ -929,7 +929,7 @@ export function PauseModal({
               className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-amber-400/35 text-amber-200 font-semibold text-sm flex items-center justify-center gap-2"
             >
               <Music2 className="w-4 h-4 text-amber-300" />
-              Original Meme Pack
+              মিম সাউন্ড প্যাক
             </button>
           )}
           <button
@@ -938,7 +938,7 @@ export function PauseModal({
             className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center gap-2"
           >
             <RotateCcw className="w-4 h-4" />
-            Restart Match
+            নতুন করে ম্যাচ শুরু করো
           </button>
           <button
             type="button"
@@ -946,7 +946,7 @@ export function PauseModal({
             className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-sm flex items-center justify-center gap-2"
           >
             <Home className="w-4 h-4" />
-            Return to Title
+            মূল পর্দায় ফেরো
           </button>
         </div>
       </div>
@@ -984,31 +984,31 @@ export function OutcomeModal({
   const career = loadCareerStats();
 
   const reasonText: Record<MatchOutcome['reason'], string> = {
-    tasks_completed: 'Mohollar shob kaaj shesh — ajke shobar jonne Biryani party!',
-    batpars_out: 'Shob Batpar dhora kheye Pukur e chubani khaise! Batpari khotom!',
-    batpars_outnumber: 'Batpar ra pura Moholla dokhol kore nise — Cha-er dokan o bondho!',
-    critical_sabotage_timeout: 'Gas Phute Pura Para Uthhe Gese! Chulha ar tanki dui-i Blast!',
-    pagol_ejected: `${outcome.winnerPlayerName ?? 'Pagla Baba'} shobai ke ullu banay cup niye gelo!`,
-    chandabaz_extorted: `${outcome.winnerPlayerName ?? 'Chandabaz'} 3 joner kach theke Chanda tule cup niye gelo!`,
-    tiktok_viral: `${outcome.winnerPlayerName ?? 'TikTok Star'} 3 ta Viral Reel chere cup jite nilo!`,
+    tasks_completed: 'মহল্লার সব কাজ শেষ — আজ সবার জন্য বিরিয়ানি পার্টি!',
+    batpars_out: 'সব বাটপার ধরা খেয়ে পুকুরে চুবানি খেয়েছে! বাটপারি খতম!',
+    batpars_outnumber: 'বাটপাররা পুরো মহল্লা দখল করে নিয়েছে — চায়ের দোকানও বন্ধ!',
+    critical_sabotage_timeout: 'গ্যাস ফেটে পুরো পাড়া উড়ে গেছে! চুলা আর ট্যাংকি দুই-ই শেষ!',
+    pagol_ejected: `${outcome.winnerPlayerName ?? 'পাগলা বাবা'} সবাইকে বোকা বানিয়ে কাপ নিয়ে গেল!`,
+    chandabaz_extorted: `${outcome.winnerPlayerName ?? 'চাঁদাবাজ'} ৩ জনের কাছ থেকে চাঁদা তুলে কাপ নিয়ে গেল!`,
+    tiktok_viral: `${outcome.winnerPlayerName ?? 'টিকটক স্টার'} ৩টি ভাইরাল রিল ছেড়ে কাপ জিতে নিল!`,
   };
 
   const winnerBannerLabel =
     outcome.winner === 'pagol'
-      ? 'Pagla Baba Chaos Victory'
+      ? 'পাগলা বাবার চালবাজি জয়'
       : outcome.winner === 'chandabaz'
-        ? 'Chandabaz Vasool Victory'
+        ? 'চাঁদাবাজের জয়'
         : outcome.winner === 'tiktok_star'
-          ? 'TikTok Star Viral Victory'
+          ? 'টিকটক স্টারের ভাইরাল বিজয়'
           : outcome.winner === 'parabasi'
-            ? 'Para-basi Victory'
-            : 'Batpar Victory';
+            ? 'পাড়াবাসীর বিজয়'
+            : 'বাটপারদের বিজয়';
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Match Outcome"
+      aria-label="ম্যাচের ফলাফল"
       className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4"
       style={{ backgroundColor: 'rgba(6, 10, 18, 0.88)' }}
     >
@@ -1025,17 +1025,17 @@ export function OutcomeModal({
         </div>
 
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-300">
+          <span className="text-xs font-semibold tracking-wider text-amber-300">
             {winnerBannerLabel}
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-white mt-1">
-            {won ? 'Khela Hobe! Jitsi Bhai!' : 'Dhora Khaisi! Khela Shesh!'}
+            {won ? 'দারুণ জিতেছ! খেলা জমে ক্ষীর!' : 'ধরা খেয়েছ! খেলা শেষ!'}
           </h2>
           <p className="text-sm text-slate-300 mt-1">{reasonText[outcome.reason]}</p>
           {outcome.coWinnerNames && outcome.coWinnerNames.length > 0 && (
             <p className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-950/60 border border-purple-400/40 text-xs font-bold text-purple-200">
               <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-              Chamcha Co-Win: {outcome.coWinnerNames.join(', ')}
+              চামচা সহ-বিজয়: {outcome.coWinnerNames.join(', ')}
             </p>
           )}
         </div>
@@ -1043,19 +1043,19 @@ export function OutcomeModal({
         {/* 3 Tabular Match Stats */}
         <div className="grid grid-cols-3 gap-2.5 text-left">
           <div className="rounded-xl p-3 bg-slate-900 border border-slate-800">
-            <span className="block text-[11px] text-slate-400">Para Tasks</span>
+            <span className="block text-[11px] text-slate-400">পাড়ার কাজ</span>
             <span className="font-mono-tabular text-lg font-bold text-emerald-400">
               {snapshot.completedTasks}/{snapshot.totalTasks}
             </span>
           </div>
           <div className="rounded-xl p-3 bg-slate-900 border border-slate-800">
-            <span className="block text-[11px] text-slate-400">Survivors</span>
+            <span className="block text-[11px] text-slate-400">জীবিত</span>
             <span className="font-mono-tabular text-lg font-bold text-white">
               {snapshot.players.filter((p) => p.alive).length}/{snapshot.players.length}
             </span>
           </div>
           <div className="rounded-xl p-3 bg-slate-900 border border-slate-800">
-            <span className="block text-[11px] text-slate-400">The Batpar</span>
+            <span className="block text-[11px] text-slate-400">আসল বাটপার</span>
             <span className="text-sm font-bold text-rose-400 truncate block">
               {vondos.map((v) => v.name).join(', ')}
             </span>
@@ -1065,9 +1065,9 @@ export function OutcomeModal({
         {/* Full Post-Match Player Role Reveal Roster */}
         <div className="rounded-xl p-3 bg-slate-900/90 border border-slate-800 text-left">
           <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-2">
-            <span>Full Moholla Role Reveal ({snapshot.players.length}P)</span>
+            <span>সব খেলোয়াড়ের পরিচয় ({snapshot.players.length} জন)</span>
             <span className="font-mono-tabular text-amber-300">
-              Career: {career.wins}W / {career.matchesPlayed}M · {career.tasksCompleted} Tasks
+              ক্যারিয়ার: {career.wins} জয় / {career.matchesPlayed} ম্যাচ · {career.tasksCompleted} কাজ
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-0.5">
@@ -1076,10 +1076,10 @@ export function OutcomeModal({
               const meta = SPECIAL_ROLES[p.specialRole];
               const roleLabel =
                 p.specialRole !== 'none'
-                  ? meta.title.split(' ')[0]
+                  ? meta.banglaTitle
                   : p.role === 'vondo'
-                    ? 'Batpar'
-                    : 'Para-basi';
+                    ? 'বাটপার'
+                    : 'পাড়াবাসী';
               const roleColor =
                 p.role === 'vondo'
                   ? '#fb7185'
@@ -1100,7 +1100,7 @@ export function OutcomeModal({
                     />
                     <span className="font-semibold text-white truncate">
                       {p.name}
-                      {p.id === localPlayerId ? ' (You)' : ''}
+                      {p.id === localPlayerId ? ' (তুমি)' : ''}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -1108,7 +1108,7 @@ export function OutcomeModal({
                       {roleLabel}
                     </span>
                     <span className={`text-[10px] ${p.alive ? 'text-emerald-400' : 'text-slate-500'}`}>
-                      {p.alive ? 'Alive' : 'Out'}
+                      {p.alive ? 'জীবিত' : 'বাদ'}
                     </span>
                   </div>
                 </div>
@@ -1125,7 +1125,7 @@ export function OutcomeModal({
             className="flex-1 py-3.5 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-sm flex items-center justify-center gap-2"
           >
             <RotateCcw className="w-4 h-4" />
-            {isMultiplayer ? 'Back to Lobby' : 'Play Again'}
+            {isMultiplayer ? 'লবিতে ফিরে যাও' : 'আবার খেলো'}
           </button>
           <button
             type="button"
@@ -1133,7 +1133,7 @@ export function OutcomeModal({
             className="py-3.5 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm flex items-center justify-center gap-2"
           >
             <Home className="w-4 h-4" />
-            Title Screen
+            মূল পর্দা
           </button>
         </div>
       </div>

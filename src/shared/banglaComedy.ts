@@ -10,7 +10,7 @@ export const FUNNY_MULTIPLAYER_IDENTITIES: AutoIdentity[] = [
   { name: 'Fuchka King', color: 'komola' },
   { name: 'Biryani Bablu', color: 'lal' },
   { name: 'Cha-Pagol Titu', color: 'shobuj' },
-  { name: 'Wi-Fi Wasim', color: 'neel' },
+  { name: 'WiFi Wasim', color: 'neel' },
   { name: 'Pukur Pintu', color: 'beguni' },
   { name: 'Daktar Dulal', color: 'sada' },
   { name: 'Kalo Kalu', color: 'kalo' },
@@ -18,9 +18,9 @@ export const FUNNY_MULTIPLAYER_IDENTITIES: AutoIdentity[] = [
   { name: 'Akashi Raju', color: 'akashi' },
   { name: 'Badami Bashir', color: 'badami' },
   { name: 'Tute Tariq', color: 'tute' },
-  { name: 'Jam Jashim', color: 'jam' },
+  { name: 'Jam Jasim', color: 'jam' },
   { name: 'Pata Polash', color: 'olive' },
-  { name: 'Shona Sohel', color: 'tan' },
+  { name: 'Sona Sohel', color: 'tan' },
 ];
 
 export function pickAutoMultiplayerIdentity(
@@ -95,61 +95,61 @@ export function resolveUniqueMultiplayerIdentity(
 }
 
 export const QUICK_BANGLISH_ALIVE = [
-  'Ami toh Cha khaitasilam bhai!',
-  '100% Or-e Pukur e chubani dao!',
-  'Tui e Batpar, chokh dekhei bujhsi!',
-  'Proof chara kotha bolbi na mama!',
-  'Fuchka Chottor e sus ghurtesilo!',
-  'Current jawa matroi kam sarche!',
-  'Skip mar, pore dekha jabe!',
+  'আমি তো চায়ের দোকানে চা খাচ্ছিলাম ভাই!',
+  'একশ পার্সেন্ট ওকে পুকুরে চুবানি দাও!',
+  'তুই-ই বাটপার, দেখেই সন্দেহ লাগছে!',
+  'প্রমাণ ছাড়া দোষ দিও না মামা!',
+  'ফুচকা চত্বরে কেমন সন্দেহজনক ঘুরছিল!',
+  'কারেন্ট যাওয়া মাত্রই কাজটা সেরেছে!',
+  'এখন স্কিপ মারো, পরের রাউন্ডে দেখা যাবে!',
 ];
 
 export const QUICK_BANGLISH_GHOST = [
-  'Amake size kore dise re bhai!',
-  'Batpar amar piche chilo, dhoro ore!',
-  'Ghost hoye Cha khacchi hehe!',
+  'আমাকে পিছন থেকে গায়েব করে দিল রে ভাই!',
+  'বাটপার আমার পিছে ছিল, ওকে ধরো সবাই!',
+  'ভূত হয়েও চায়ের আড্ডা দেখছি হিহি!',
 ];
 
 export const ROLE_COMEDY_TAGLINES: Record<SpecialRole, string> = {
-  none: 'Cha-Biscuit khao, Task saro — ar Batpar dekhlei Shalish dako!',
-  goyenda: 'Chokh-e magnifying glass lagao — ajke asli Batpar dhora porbei!',
-  kobiraj: 'Tabiz er power ON! Dhorai dileo ajke keu katte parbe na!',
-  mistri: 'Tester haate niye ghuro — Current ar Dren duitai tomar dokhole!',
-  daroga: 'Ek guli te Batpar khotom — kintu bhul korlei nijeri chakri sesh!',
-  neta: 'Vote e 2x power! Bhashon dilei shobai Pukur e jabe!',
-  daktar: 'Saline niye ready thako — mora Para-basi ke jinda kore dao!',
-  ghotok_khala: 'Biye-shadi lagao Mohollay — ekjon morlei khobor chole ashbe!',
-  master_moshai: 'Bet haate khata check koro — fake natok korlei Batpar dhora!',
-  cctv_kaku: 'Pocket mobile e shob CCTV — Cha kheyei choraBatpar dekho!',
-  hatur_daktar: 'Jhajhro injection diye 12s er jonne neighbor ke loohar moto banao!',
-  bohurupi: 'Chehara bodlay onno kaure fashao — ekdom cinema level natok!',
-  jharudar: 'Jharu diye shob proof gayeb koro — keu kono lash-i pabe na!',
-  supari_killer: 'Supari contract mark koro — target size korlei half cooldown!',
-  dalal: 'Shutter আটকাও ar Comms jam koro — pura Moholla blind hoye jabe!',
-  pagol: 'Emon acting koro jeno shobai tomakei Pukur e fele — taholei WIN!',
-  chamcha: 'Boro bhai er piche lege thako — shey jitlei tumio free cup nibe!',
-  chandabaz: '3 jon er theke Chanda tullei bazar chhere shobar age WIN!',
-  tiktok_star: '3 ta hotspot e viral reel shoot koro — sesh 4 jon e thaklei Trend WIN!',
+  none: 'চা-বিস্কুট খাও, কাজ সারো — আর বাটপার দেখলেই সালিশ ডাকো!',
+  goyenda: 'চোখে আতশকাঁচ লাগাও — আজকে আসল বাটপার ধরা পড়বেই!',
+  kobiraj: 'তাবিজের পাওয়ার চালু! আড়ালে মারতে এলেও কেউ বাঁচতে পারবে না!',
+  mistri: 'টেস্টার হাতে নিয়ে ঘোরো — বিদ্যুৎ আর ড্রেন দুটোই তোমার দখলে!',
+  daroga: 'এক গুলিতে বাটপার খতম — কিন্তু ভুল করলে নিজেরই চাকরি শেষ!',
+  neta: 'ভোটে দ্বিগুণ ক্ষমতা! ভাষণ দিলেই সবাই পুকুরে যাবে!',
+  daktar: 'স্যালাইন নিয়ে তৈরি থাকো — পড়ে যাওয়া পাড়াবাসীকে বাঁচিয়ে তোলো!',
+  ghotok_khala: 'মহল্লায় জুটি লাগাও — একজন মরলেই সাথে সাথে খবর চলে আসবে!',
+  master_moshai: 'হাতে খাতা নিয়ে যাচাই করো — ভুয়া নাটক করলেই বাটপার ধরা!',
+  cctv_kaku: 'পকেট ফোনেই সব সিসিটিভি — চা খেতে খেতেই চোরা বাটপার ধরো!',
+  hatur_daktar: 'ঝাঁঝালো ইনজেকশন দিয়ে ১২ সেকেন্ডের জন্য পাড়াবাসীকে লোহার মতো বানাও!',
+  bohurupi: 'চেহারা বদলে অন্য কাউকে ফাঁসাও — একদম সিনেমা লেভেলের নাটক!',
+  jharudar: 'ঝাড়ু দিয়ে সব প্রমাণ গায়েব করো — কেউ কোনো লাশই খুঁজে পাবে না!',
+  supari_killer: 'সুপারি টার্গেট দাগিয়ে রাখো — নিশানা মারলেই বিরতি অর্ধেক!',
+  dalal: 'শাটার আটকাও আর ম্যাপ জ্যাম করো — পুরো মহল্লা অন্ধ হয়ে যাবে!',
+  pagol: 'এমন অভিনয় করো যেন সবাই তোমাকেই পুকুরে ফেলে — তাহলেই জয়!',
+  chamcha: 'বড় ভাইয়ের পেছনে লেগে থাকো — সে জিতলেই তুমিও সাথে কাপ পাবে!',
+  chandabaz: '৩ জনের থেকে চাঁদা তুললেই সবার আগে একা জিতে যাবে!',
+  tiktok_star: '৩ জায়গায় ভাইরাল রিল বানাও — শেষ ৪ জনে টিকে থাকলেই জয়!',
 };
 
 export function getChubaniTaunts(name: string, wasVondo: boolean, wasPagol: boolean): string[] {
   if (wasPagol) {
     return [
-      `${name}: "Hahahaha shobai BAIT khaise!"`,
-      'Pukur er mach-o hashte hashte kheye gelo!',
-      'Moholla ke choto-khato ullu banay gelo!',
+      `${name}: "হাহাহা সবাই ফাঁদে পা দিয়েছ!"`,
+      'পুকুরের মাছও হাসতে হাসতে গড়াগড়ি খাচ্ছে!',
+      'পুরো মহল্লাকে দারুণ বোকা বানিয়ে জিতে গেল!',
     ];
   }
   if (wasVondo) {
     return [
-      `1... 2... 3... ${name} PUKUR E JAA!!`,
-      '"Batpari chharbi naki chubani khabi?!"',
-      'Satar na janle tube niye nam re!',
+      `১... ২... ৩... ${name} পুকুরে যা!!`,
+      '"বাটপারি ছাড়বি নাকি পুকুরে চুবানি খাবি?!"',
+      'সাঁতার না জানলে টিউব নিয়ে নামো রে!',
     ];
   }
   return [
-    `1... 2... 3... ZHAPANG!!`,
-    `"Bhai ami toh shudhu Fuchka khaitasilam!"`,
-    `Moholla ajke boro ekta bhul korlo naki?!`,
+    '১... ২... ৩... ঝপাং!!',
+    '"ভাই আমি তো শুধু ফুচকা খাচ্ছিলাম!"',
+    'মহল্লা আজকে বড় একটা ভুল করে ফেলল নাকি?!',
   ];
 }

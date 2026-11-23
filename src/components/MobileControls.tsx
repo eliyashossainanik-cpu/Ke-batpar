@@ -104,7 +104,7 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
         <div
           ref={padRef}
           role="application"
-          aria-label="Virtual movement joystick"
+          aria-label="ভার্চুয়াল চলাফেরার জয়স্টিক"
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -145,7 +145,7 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
         >
           {sprinting && (
             <span className="absolute -top-2.5 px-1.5 py-0.5 rounded bg-emerald-400 text-slate-950 font-display text-[8px] font-black tracking-wider pointer-events-none shadow">
-              SPRINT
+              দৌড়
             </span>
           )}
           {/* PUBG tactical directional crosshairs inside thumbpad */}
@@ -178,7 +178,7 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
             className="text-[10px] font-semibold text-slate-200 px-2 py-0.5 rounded-md border border-white/15 max-w-[124px] text-center leading-tight"
             style={{ backgroundColor: 'rgba(9, 14, 24, 0.78)' }}
           >
-            Right: 360° · Pinch
+            ড্র্যাগ: ৩৬০° ঘুরে দেখো
           </span>
         )}
       </div>
@@ -191,7 +191,7 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
             e.stopPropagation();
             onJump();
           }}
-          aria-label="Jump"
+          aria-label="লাফ দাও"
           className={`fixed z-20 pointer-events-auto select-none ${
             isLandscapeCompact ? 'w-[48px] h-[48px] bottom-[5.05rem]' : 'w-[54px] h-[54px] bottom-[5.85rem]'
           } rounded-full border-2 border-amber-300/75 flex flex-col items-center justify-center text-amber-200 active:scale-90 transition-transform shadow-[0_6px_20px_rgba(0,0,0,0.65)]`}
@@ -203,7 +203,7 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
         >
           <span className="absolute inset-[3px] rounded-full border border-white/15 pointer-events-none" />
           <ArrowUp className={isLandscapeCompact ? 'w-4 h-4' : 'w-5 h-5'} />
-          <span className="text-[8px] font-display font-black tracking-wider leading-none mt-0.5">JUMP</span>
+          <span className="text-[9px] font-display font-black tracking-wider leading-none mt-0.5">লাফ</span>
         </button>
       )}
     </>

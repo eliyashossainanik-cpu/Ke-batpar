@@ -130,9 +130,9 @@ export function useMultiplayerClient(
       setSnapshot(null);
       setConnected(false);
       setConnecting(false);
-      setErrorMsg(msg.message || 'Host tomake room theke kick korse.');
+      setErrorMsg(msg.message || 'হোস্ট তোমাকে রুম থেকে বের করে দিয়েছে।');
     } else if (msg.type === 'room:error') {
-      if (pendingRoomRetryRef.current && /already active/i.test(msg.message)) {
+      if (pendingRoomRetryRef.current && /already active|আগে থেকেই/i.test(msg.message)) {
         const retry = pendingRoomRetryRef.current;
         pendingRoomRetryRef.current = null;
         retry();
@@ -306,14 +306,14 @@ export function useMultiplayerClient(
         setConnected(false);
         setConnecting(false);
         if (snapshotRef.current) {
-          setErrorMsg('Connection interrupted. Rejoin with your Room Code or return to Title.');
+          setErrorMsg('সংযোগ বিচ্ছিন্ন হয়েছে। রুম কোড দিয়ে আবার ঢোকো অথবা টাইটেলে ফিরে যাও।');
         }
       };
 
       ws.onerror = () => {
         if (intentionallyClosingSocketsRef.current.has(ws)) return;
         setConnecting(false);
-        setErrorMsg('Could not reach multiplayer server. Check your internet connection.');
+        setErrorMsg('মাল্টিপ্লেয়ার সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করো।');
       };
 
       ws.onmessage = (ev) => {
@@ -431,7 +431,7 @@ export function useMultiplayerClient(
           return;
         }
         setConnecting(false);
-        setErrorMsg('Could not open Room Code network. Check internet connection and try again.');
+        setErrorMsg('রুম কোড নেটওয়ার্ক চালু করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করো।');
       });
     },
     [cleanupP2P, closeCurrentWs, handleServerMessage],
@@ -444,7 +444,7 @@ export function useMultiplayerClient(
       const cleanCode = normalizeRoomCode(roomCode);
       if (cleanCode.length < 3) {
         setConnecting(false);
-        setErrorMsg('Enter a valid Room Code.');
+        setErrorMsg('সঠিক রুম কোড লিখো।');
         return;
       }
       setConnecting(true);
@@ -460,7 +460,7 @@ export function useMultiplayerClient(
       const joinTimeout = window.setTimeout(() => {
         if (!guestConnRef.current?.open) {
           setConnecting(false);
-          setErrorMsg(`Room "${cleanCode}" not found or Host network blocked direct relay.`);
+          setErrorMsg(`রুম "${cleanCode}" পাওয়া যায়নি অথবা হোস্টের নেটওয়ার্ক সরাসরি সংযোগ ব্লক করেছে।`);
           cleanupP2P();
         }
       }, 15000);
@@ -499,20 +499,20 @@ export function useMultiplayerClient(
           window.clearTimeout(joinTimeout);
           setConnected(false);
           setConnecting(false);
-          setErrorMsg('Host chole gese — room bondho hoye gese.');
+          setErrorMsg('হোস্ট চলে গেছে — রুম বন্ধ হয়ে গেছে।');
         });
 
         conn.on('error', () => {
           window.clearTimeout(joinTimeout);
           setConnecting(false);
-          setErrorMsg(`Ei code e kono room nai (${cleanCode}).`);
+          setErrorMsg(`এই কোডে কোনো রুম পাওয়া যায়নি (${cleanCode})।`);
         });
       });
 
       peer.on('error', () => {
         window.clearTimeout(joinTimeout);
         setConnecting(false);
-        setErrorMsg(`Ei code e kono room nai (${cleanCode}) ba Host offline.`);
+        setErrorMsg(`এই কোডে কোনো রুম পাওয়া যায়নি (${cleanCode}) অথবা হোস্ট অফলাইন।`);
       });
     },
     [cleanupP2P, closeCurrentWs, handleServerMessage],
@@ -587,7 +587,7 @@ export function useMultiplayerClient(
       const cleanCode = normalizeRoomCode(roomCode);
       if (cleanCode.length < 3) {
         setConnecting(false);
-        setErrorMsg('Enter a valid Room Code.');
+        setErrorMsg('সঠিক রুম কোড লিখো।');
         return;
       }
       setErrorMsg(null);

@@ -34,7 +34,7 @@ export const VISUAL_TASK_VISIBLE_RANGE = 6.0;
 export const SABOTAGE_INITIAL_LOCKOUT_SEC = 40;
 export const SABOTAGE_COOLDOWN_SEC = 35;
 export const NON_CRITICAL_SABOTAGE_DURATION_SEC = 90;
-export const CRITICAL_SABOTAGE_DURATION_SEC = 45;
+export const CRITICAL_SABOTAGE_DURATION_SEC = 75;
 export const NON_CRITICAL_FIX_HOLD_SEC = 3.0;
 export const GAS_VALVE_HOLD_SEC = 2.0;
 export const SABOTAGE_FIX_RANGE = 3.2;
@@ -504,34 +504,34 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
   if (!settings.enableSpecialRoles) {
     return {
       batparCount,
-      specialBatparRange: '0',
-      specialCrewRange: '0',
-      neutralLabel: 'OFF',
+      specialBatparRange: '০',
+      specialCrewRange: '০',
+      neutralLabel: 'বন্ধ',
       plainCrewMin: clamped - batparCount,
-      summary: `${batparCount} Batpar · ${clamped - batparCount} Plain Parabasi (Special Roles OFF)`,
+      summary: `${batparCount} বাটপার · ${clamped - batparCount} সাধারণ পাড়াবাসী (স্পেশাল রোল বন্ধ)`,
     };
   }
 
-  let specialCrewRange = '1';
-  let neutralLabel = '0';
+  let specialCrewRange = '১';
+  let neutralLabel = '০';
   let plainCrewMin = 3;
-  const specialBatparRange = clamped <= 7 ? '0–1' : batparCount >= 3 ? '1–2' : batparCount > 1 ? '1–2' : '1';
+  const specialBatparRange = clamped <= 7 ? '০–১' : batparCount >= 3 ? '১–২' : batparCount > 1 ? '১–২' : '১';
 
   if (clamped === 5) {
-    specialCrewRange = '1';
-    neutralLabel = '0';
+    specialCrewRange = '১';
+    neutralLabel = '০';
     plainCrewMin = 3;
   } else if (clamped === 6) {
-    specialCrewRange = '2';
-    neutralLabel = settings.enableNeutralRoles ? '0–1 (60%)' : '0';
+    specialCrewRange = '২';
+    neutralLabel = settings.enableNeutralRoles ? '০–১ (৬০%)' : '০';
     plainCrewMin = settings.enableNeutralRoles ? 2 : 3;
   } else if (clamped <= 10) {
-    specialCrewRange = settings.enableNeutralRoles ? '2–3' : '3';
-    neutralLabel = settings.enableNeutralRoles ? '0–1 (60%)' : '0';
+    specialCrewRange = settings.enableNeutralRoles ? '২–৩' : '৩';
+    neutralLabel = settings.enableNeutralRoles ? '০–১ (৬০%)' : '০';
     plainCrewMin = Math.max(2, Math.ceil((clamped - batparCount) * 0.4));
   } else {
-    specialCrewRange = settings.enableNeutralRoles ? '3–5' : '4–5';
-    neutralLabel = settings.enableNeutralRoles ? '0–2' : '0';
+    specialCrewRange = settings.enableNeutralRoles ? '৩–৫' : '৪–৫';
+    neutralLabel = settings.enableNeutralRoles ? '০–২' : '০';
     plainCrewMin = Math.max(4, Math.ceil((clamped - batparCount) * 0.4));
   }
 
@@ -541,7 +541,7 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
     specialCrewRange,
     neutralLabel,
     plainCrewMin,
-    summary: `${batparCount} Batpar (Special ${specialBatparRange}) · ${specialCrewRange} Special Crew · Neutral ${neutralLabel} · ${plainCrewMin}+ Plain Parabasi`,
+    summary: `${batparCount} বাটপার (স্পেশাল ${specialBatparRange}) · ${specialCrewRange} স্পেশাল পাড়াবাসী · নিরপেক্ষ ${neutralLabel} · ${plainCrewMin}+ সাধারণ পাড়াবাসী`,
   };
 }
 
@@ -683,23 +683,23 @@ export function canExecuteKill(
   target: PlayerState,
 ): { allowed: boolean; reason?: string } {
   if (!killer.alive || killer.role !== 'vondo') {
-    return { allowed: false, reason: 'Only an alive Batpar can eliminate.' };
+    return { allowed: false, reason: 'শুধু জীবিত বাটপারই হামলা করতে পারবে।' };
   }
   if (killer.inVent) {
-    return { allowed: false, reason: 'Exit the drain vent first.' };
+    return { allowed: false, reason: 'আগে ড্রেন থেকে বের হয়ে এসো।' };
   }
   if (killer.killCooldownRemaining > 0.05) {
-    return { allowed: false, reason: 'Kill cooldown active.' };
+    return { allowed: false, reason: 'হামলার কুলডাউন চলছে।' };
   }
   if (!target.alive || target.id === killer.id || target.role === 'vondo') {
-    return { allowed: false, reason: 'Invalid target.' };
+    return { allowed: false, reason: 'ভুল টার্গেট।' };
   }
   if (target.inVent) {
-    return { allowed: false, reason: 'Target is unreachable.' };
+    return { allowed: false, reason: 'টার্গেট ড্রেনের ভেতর আছে।' };
   }
   const dist = distance2D(killer.x, killer.z, target.x, target.z);
   if (dist > KILL_RANGE) {
-    return { allowed: false, reason: 'Target out of range.' };
+    return { allowed: false, reason: 'টার্গেট অনেক দূরে।' };
   }
   return { allowed: true };
 }
@@ -823,11 +823,11 @@ export function canStartLobbyMatch(
 ): { ok: boolean; reason?: string } {
   if (players.length < MIN_MATCH_PLAYERS) {
     const missing = MIN_MATCH_PLAYERS - players.length;
-    return { ok: false, reason: `Aro ${missing} jon lagbe (min ${MIN_MATCH_PLAYERS})` };
+    return { ok: false, reason: `আরও ${missing} জন লাগবে (কমপক্ষে ${MIN_MATCH_PLAYERS} জন)` };
   }
   const unready = players.find((p) => !p.isBot && !p.isHost && !p.ready);
   if (unready) {
-    return { ok: false, reason: `${unready.name} ready na` };
+    return { ok: false, reason: `${unready.name} এখনো রেডি না` };
   }
   return { ok: true };
 }
@@ -890,17 +890,17 @@ export function getColorShadeHint(color: PlayerColorId): string {
     case 'sada':
     case 'golapi':
     case 'tan':
-      return 'Light / Warm suit pigment (Lal, Holud, Komola, Sada, Golapi, or Shona)';
+      return 'হালকা বা উষ্ণ রঙের পোশাক (লাল, হলুদ, কমলা, সাদা, গোলাপি বা সোনা)';
     default:
-      return 'Dark / Cool suit pigment (Neel, Shobuj, Beguni, Kalo, Akashi, Badami, Tute, Jam, or Pata)';
+      return 'গাঢ় বা শীতল রঙের পোশাক (নীল, সবুজ, বেগুনি, কালো, আকাশী, বাদামী, তুতে, জাম বা পাতা)';
   }
 }
 
 export function inspectBodyClue(body: BodyMarker, nowMs: number = Date.now()): { title: string; detail: string } {
   const ageSec = Math.max(1, Math.round((nowMs - body.killedAt) / 1000));
   return {
-    title: `Goyenda Clue: ${body.victimName}`,
-    detail: `Fell ~${ageSec}s ago near ${body.killerZoneHint}. Trace found: ${body.killerColorHint}.`,
+    title: `গোয়েন্দা সূত্র: ${body.victimName}`,
+    detail: `~${ageSec} সেকেন্ড আগে ${body.killerZoneHint}-এর কাছে ঘটেছে। সূত্র: ${body.killerColorHint}।`,
   };
 }
 
@@ -1050,7 +1050,7 @@ export function executeGoyendaScan(
     scansRemaining: nextScans,
     clue: {
       title: baseClue.title,
-      detail: `${baseClue.detail} (${nextScans} scans left)`,
+      detail: `${baseClue.detail} (বাকি স্ক্যান: ${nextScans})`,
     },
   };
 }
@@ -1259,22 +1259,22 @@ export function inspectPlayerTaskAuthenticity(
 ): { title: string; detail: string; isSus: boolean } {
   if (target.role === 'vondo') {
     return {
-      title: `Khata Alert: ${target.name}`,
-      detail: `${target.name} fake task natok kortese! Asol KHATA khali — BATPAR confirmed!`,
+      title: `খাতা সতর্কতা: ${target.name}`,
+      detail: `${target.name} ভুয়া কাজের নাটক করছে! আসল খাতা একদম খালি — বাটপার নিশ্চিত!`,
       isSus: true,
     };
   }
   if (isNeutralRole(target.specialRole)) {
     return {
-      title: `Khata Neutral: ${target.name}`,
-      detail: `${target.name} er kono Moholla task khata e nai — Neutral character!`,
+      title: `খাতা নিরপেক্ষ: ${target.name}`,
+      detail: `${target.name}-এর কোনো মহল্লা কাজের খাতাই নেই — নিরপেক্ষ চরিত্র!`,
       isSus: true,
     };
   }
   const done = target.tasks.filter((t) => t.completed).length;
   return {
-    title: `Khata Verified: ${target.name}`,
-    detail: `${target.name} Asol Para-basi! (${done}/${target.tasks.length} tasks verified)`,
+    title: `খাতা যাচাইকৃত: ${target.name}`,
+    detail: `${target.name} আসল পাড়াবাসী! (${done}/${target.tasks.length} কাজ যাচাই হয়েছে)`,
     isSus: false,
   };
 }

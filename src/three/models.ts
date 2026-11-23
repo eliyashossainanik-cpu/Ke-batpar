@@ -1661,8 +1661,11 @@ export function createAlleyProps(textures: ProceduralTextureSet, isSoftwareGl: b
   const group = new THREE.Group();
   const binMat = new THREE.MeshStandardMaterial({ color: '#065f46', roughness: 0.45, metalness: 0.45 });
   const woodMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.82 });
+  const brickPilasterMat = new THREE.MeshStandardMaterial({ color: '#9a3412', roughness: 0.78 });
+  const ironBracketMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.45, metalness: 0.72 });
+  const lanternGlowMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
 
-  // Framed Banglish Wall Posters mounted onto the alley sightline walls
+  // Framed Bangla Wall Posters mounted onto the alley sightline walls
   const posterGeo = new THREE.BoxGeometry(0.08, 1.35, 1.05);
   const posterConfigs: Array<[number, number, number, number, number]> = [
     [-15.42, 1.5, -14.5, 0, 0],
@@ -1682,7 +1685,44 @@ export function createAlleyProps(textures: ProceduralTextureSet, isSoftwareGl: b
     group.add(poster);
   }
 
-  // Roadside Dustbins & Wooden Benches tucked along alley corners
+  // Warm Terracotta Brick Corner Pilasters & Wall-Mounted Brass Lantern Sconces on Alley Walls
+  const pilasterGeo = new THREE.BoxGeometry(0.32, 2.74, 0.32);
+  const pilasterCorners: Array<[number, number]> = [
+    [-17.5, -20.5], [-15.5, -20.5], [-17.5, -9.5], [-15.5, -9.5],
+    [15.5, -20.5], [17.5, -20.5], [15.5, -9.5], [17.5, -9.5],
+    [-17.5, 9.5], [-15.5, 9.5], [-17.5, 20.5], [-15.5, 20.5],
+    [15.5, 9.5], [17.5, 9.5], [15.5, 20.5], [17.5, 20.5],
+  ];
+  for (const [cx, cz] of pilasterCorners) {
+    const pil = new THREE.Mesh(pilasterGeo, brickPilasterMat);
+    pil.position.set(cx, 1.37, cz);
+    group.add(pil);
+  }
+
+  const lanternConfigs: Array<[number, number, number]> = [
+    [-15.32, 2.25, -18.2],
+    [15.32, 2.25, -18.2],
+    [-15.32, 2.25, 18.2],
+    [15.32, 2.25, 18.2],
+    [-19.5, 2.25, -33.65],
+    [19.5, 2.25, -33.65],
+    [-19.5, 2.25, 33.65],
+    [19.5, 2.25, 33.65],
+  ];
+  const armGeo = new THREE.BoxGeometry(0.18, 0.08, 0.18);
+  const lanternCapGeo = new THREE.CylinderGeometry(0.06, 0.16, 0.1, 8);
+  const lanternBulbGeo = new THREE.SphereGeometry(0.1, 8, 8);
+  for (const [lx, ly, lz] of lanternConfigs) {
+    const arm = new THREE.Mesh(armGeo, ironBracketMat);
+    arm.position.set(lx, ly + 0.12, lz);
+    const hood = new THREE.Mesh(lanternCapGeo, ironBracketMat);
+    hood.position.set(lx, ly + 0.04, lz);
+    const bulb = new THREE.Mesh(lanternBulbGeo, lanternGlowMat);
+    bulb.position.set(lx, ly - 0.05, lz);
+    group.add(arm, hood, bulb);
+  }
+
+  // Roadside Dustbins tucked along alley corners
   for (const [bx, bz] of [
     [-14.6, -9.8],
     [14.6, -9.8],
@@ -1891,7 +1931,7 @@ export function createSandbagBarricade(isSoftwareGl: boolean): THREE.Group {
 }
 
 export function createTerrainSkirt(): THREE.Mesh {
-  const geo = new THREE.PlaneGeometry(720, 720, 96, 96);
+  const geo = new THREE.PlaneGeometry(1080, 1080, 96, 96);
   geo.rotateX(-Math.PI / 2);
 
   const pos = geo.getAttribute('position') as THREE.BufferAttribute;
@@ -1905,7 +1945,7 @@ export function createTerrainSkirt(): THREE.Mesh {
     const x = pos.getX(i);
     const z = pos.getZ(i);
     const maxEdge = Math.max(Math.abs(x), Math.abs(z));
-    const blend = THREE.MathUtils.smoothstep(maxEdge, 108, 152);
+    const blend = THREE.MathUtils.smoothstep(maxEdge, 165, 228);
 
     const hills =
       Math.sin(x * 0.042) * Math.cos(z * 0.038) * 6.5 +
@@ -2020,26 +2060,36 @@ export function createInstancedGrassTufts(): {
     if (gx >= -42.0 && Math.abs(gz) < 7.5) continue;
     coords.push([gx, gz, 0.8 + rand() * 0.55, rand() * Math.PI]);
   }
-  // 3. Compound inner lawn corners & perimeter tree bases (208m × 208m compound, avoiding rail ballast z = 83..90)
-  for (let i = 0; i < 400; i++) {
+  // 3. Compound inner lawn corners & perimeter tree bases (320m x 320m compound, avoiding rail ballast z = 83..90 & outer houses)
+  for (let i = 0; i < 620; i++) {
     const side = i % 4;
     let gx = 0;
     let gz = 0;
     if (side === 0) {
-      gx = (rand() - 0.5) * 196;
-      gz = -100.8 + rand() * 3.0;
+      gx = (rand() - 0.5) * 308;
+      gz = -156.8 + rand() * 3.2;
     } else if (side === 1) {
-      gx = (rand() - 0.5) * 196;
-      gz = 98.2 + rand() * 2.8;
+      gx = (rand() - 0.5) * 308;
+      gz = 153.6 + rand() * 3.2;
     } else if (side === 2) {
-      gx = -100.8 + rand() * 3.0;
-      gz = (rand() - 0.5) * 196;
+      gx = -156.8 + rand() * 3.2;
+      gz = (rand() - 0.5) * 308;
     } else {
-      gx = 97.8 + rand() * 3.0;
-      gz = (rand() - 0.5) * 196;
+      gx = 153.6 + rand() * 3.2;
+      gz = (rand() - 0.5) * 308;
     }
-    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.2) continue;
-    if (gz < -79.2 && ((gx > -83 && gx < -65) || (gx > -41 && gx < -23) || (gx > 23 && gx < 41) || (gx > 65 && gx < 83))) {
+    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.5) continue;
+    if (
+      gz < -125.0 &&
+      ((gx > -148 && gx < -128) ||
+        (gx > -79 && gx < -59) ||
+        (gx > -39 && gx < -17) ||
+        (gx > 17 && gx < 39) ||
+        (gx > 59 && gx < 79))
+    ) {
+      continue;
+    }
+    if (gz > 118.0 && gz < 138.0 && ((gx > -39 && gx < -17) || (gx > 59 && gx < 79))) {
       continue;
     }
     coords.push([gx, gz, 0.8 + rand() * 0.6, rand() * Math.PI]);
@@ -2051,13 +2101,27 @@ export function createInstancedGrassTufts(): {
     if (Math.hypot(gx - 66, gz + 26) < 4.5) continue;
     coords.push([gx, gz, 0.72 + rand() * 0.45, rand() * Math.PI]);
   }
-  // 4. Outer rolling green verges beyond 208m perimeter walls (109..138m)
-  for (let i = 0; i < 360; i++) {
+  // 3c. Jheel Par lakeside embankment & Shishu Park lawn grass tufts
+  for (let i = 0; i < 200; i++) {
+    const gx = -151.5 + rand() * 26.5;
+    const gz = -95.0 + rand() * 26.0;
+    if (gx >= -147.2 && gx <= -129.8 && gz >= -92.2 && gz <= -71.8) continue;
+    if (gx >= -130.8 && gx <= -126.0 && gz >= -85.8 && gz <= -78.2) continue;
+    coords.push([gx, gz, 0.78 + rand() * 0.55, rand() * Math.PI]);
+  }
+  for (let i = 0; i < 160; i++) {
+    const gx = 126.0 + rand() * 25.0;
+    const gz = -95.0 + rand() * 26.0;
+    if (gx >= 134.8 && gx <= 142.6 && gz >= -86.2 && gz <= -77.8) continue;
+    coords.push([gx, gz, 0.75 + rand() * 0.5, rand() * Math.PI]);
+  }
+  // 4. Outer rolling green verges beyond 320m perimeter walls (166..205m)
+  for (let i = 0; i < 480; i++) {
     const angle = rand() * Math.PI * 2;
-    const dist = 109 + rand() * 28;
+    const dist = 166 + rand() * 39;
     const gx = Math.cos(angle) * dist;
     const gz = Math.sin(angle) * dist;
-    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.0) continue;
+    if (Math.abs(gz - RAILWAY_TRACK_Z) < 4.5) continue;
     coords.push([gx, gz, 0.95 + rand() * 0.7, rand() * Math.PI]);
   }
 
@@ -2177,7 +2241,7 @@ export function createTwilightSkyline(): {
     `,
   });
 
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(340, 36, 24), skyShaderMat);
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(500, 36, 24), skyShaderMat);
   group.add(skyDome);
 
   // Twinkling Starfield
@@ -2185,7 +2249,7 @@ export function createTwilightSkyline(): {
   for (let i = 0; i < 260; i++) {
     const theta = ((i * 137.5) % 360) * (Math.PI / 180);
     const phi = (0.2 + ((i * 29) % 58) / 100) * Math.PI * 0.5;
-    const r = 305;
+    const r = 455;
     starPos[i * 3] = Math.cos(theta) * Math.cos(phi) * r;
     starPos[i * 3 + 1] = Math.sin(phi) * r + 14;
     starPos[i * 3 + 2] = Math.sin(theta) * Math.cos(phi) * r;
@@ -2194,26 +2258,26 @@ export function createTwilightSkyline(): {
   starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
   const stars = new THREE.Points(
     starGeo,
-    new THREE.PointsMaterial({ color: '#fef9c3', size: 0.95, transparent: true, opacity: 0.86, fog: false }),
+    new THREE.PointsMaterial({ color: '#fef9c3', size: 1.15, transparent: true, opacity: 0.86, fog: false }),
   );
   group.add(stars);
 
-  // Multi-Tiered Dhaka Apartment Buildings outside the 208m perimeter with rooftop tanks, aviation beacons & window grids
+  // Multi-Tiered Dhaka Apartment Buildings outside the 320m perimeter with rooftop tanks, aviation beacons & window grids
   const blocks: Array<[number, number, number, number, number]> = [
-    [-138, -128, 18, 28, 16],
-    [-58, -138, 20, 34, 16],
-    [42, -134, 22, 30, 16],
-    [136, -126, 17, 26, 16],
-    [-136, 126, 19, 29, 16],
-    [-38, 138, 20, 32, 16],
-    [54, 136, 20, 27, 16],
-    [138, 124, 18, 26, 16],
-    [-142, 0, 16, 25, 24],
-    [142, -6, 16, 29, 22],
-    [-166, -42, 18, 38, 18],
-    [166, 42, 18, 36, 18],
-    [0, -162, 26, 40, 18],
-    [0, 162, 24, 36, 18],
+    [-205, -198, 22, 34, 18],
+    [-92, -210, 24, 40, 18],
+    [68, -206, 24, 36, 18],
+    [205, -196, 20, 32, 18],
+    [-202, 198, 22, 35, 18],
+    [-64, 212, 24, 38, 18],
+    [82, 208, 22, 32, 18],
+    [206, 196, 20, 32, 18],
+    [-212, 0, 18, 30, 26],
+    [212, -10, 18, 34, 24],
+    [-248, -58, 20, 44, 20],
+    [248, 58, 20, 42, 20],
+    [0, -246, 30, 46, 20],
+    [0, 246, 28, 42, 20],
   ];
 
   blocks.forEach(([bx, bz, bw, bh, bd], idx) => {
@@ -2251,12 +2315,12 @@ export function createTwilightSkyline(): {
 
   // Glowing Twilight Moon + Halo
   const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(6.8, 26, 20),
+    new THREE.SphereGeometry(9.2, 26, 20),
     new THREE.MeshBasicMaterial({ color: '#fef3c7', fog: false }),
   );
-  moon.position.set(-135, 76, -180);
+  moon.position.set(-195, 84, -255);
   const halo = new THREE.Mesh(
-    new THREE.SphereGeometry(10.8, 22, 18),
+    new THREE.SphereGeometry(14.5, 22, 18),
     new THREE.MeshBasicMaterial({ color: '#fde68a', transparent: true, opacity: 0.18, fog: false }),
   );
   halo.position.copy(moon.position);
@@ -2755,38 +2819,40 @@ export function createRailCrossingGate(
     new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 0.1 }),
   ];
 
-  // Full 206m Gravel Ballast Bed & Twin Steel Rails across East-West Moholla Corridor
-  const ballast = new THREE.Mesh(new THREE.BoxGeometry(206.0, 0.08, 4.6), ballastMat);
+  // Full 318m Gravel Ballast Bed & Twin Steel Rails across East-West Moholla Corridor
+  const ballast = new THREE.Mesh(new THREE.BoxGeometry(318.0, 0.08, 4.6), ballastMat);
   ballast.position.set(0, 0.04, trackZ);
   ballast.receiveShadow = true;
   group.add(ballast);
 
   for (const rz of [trackZ - 0.85, trackZ + 0.85]) {
-    const track = new THREE.Mesh(new THREE.BoxGeometry(206.0, 0.1, 0.16), railMat);
+    const track = new THREE.Mesh(new THREE.BoxGeometry(318.0, 0.1, 0.16), railMat);
     track.position.set(0, 0.11, rz);
     group.add(track);
   }
 
-  // Twin Brick Railway Tunnel Portals at West & East Perimeter Boundaries (x = ±102.2)
-  for (const px of [-102.2, 102.2]) {
-    const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 4.4, 1.4), brickArchMat);
-    leftPillar.position.set(px, 2.2, trackZ - 2.45);
-    const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 4.4, 1.4), brickArchMat);
-    rightPillar.position.set(px, 2.2, trackZ + 2.45);
+  // Twin Brick Railway Tunnel Portals at West & East Perimeter Boundaries (x = ±158.2)
+  for (const px of [-158.2, 158.2]) {
+    const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.2, 1.4), brickArchMat);
+    leftPillar.position.set(px, 2.6, trackZ - 2.45);
+    const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.2, 1.4), brickArchMat);
+    rightPillar.position.set(px, 2.6, trackZ + 2.45);
     const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.25, 6.4), brickArchMat);
-    lintel.position.set(px, 4.75, trackZ);
-    const portalDark = new THREE.Mesh(new THREE.BoxGeometry(0.4, 3.85, 3.6), darkTunnelMat);
-    portalDark.position.set(px + (px < 0 ? -0.8 : 0.8), 1.95, trackZ);
+    lintel.position.set(px, 5.45, trackZ);
+    const portalDark = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4.4, 3.6), darkTunnelMat);
+    portalDark.position.set(px + (px < 0 ? -0.8 : 0.8), 2.2, trackZ);
     group.add(leftPillar, rightPillar, lintel, portalDark);
   }
 
-  // 4 Gateman Cabins matching WALLS AABBs + 3 Animated Level Crossings (x = -52, 0, +52)
+  // 6 Gateman Cabins matching WALLS AABBs + 5 Animated Level Crossings (x = -118, -52, 0, +52, +118)
   const boomArms: Array<{ arm: THREE.Group; side: 1 | -1 }> = [];
   const cabinConfigs: Array<{ cx: number; cz: number; gateX: number; side: 1 | -1; idx: number }> = [
+    { cx: -123.75, cz: 82.15, gateX: -121.2, side: 1, idx: 0 },
     { cx: -57.75, cz: 82.15, gateX: -55.4, side: 1, idx: 0 },
     { cx: -9.65, cz: 82.15, gateX: -6.8, side: 1, idx: 1 },
     { cx: 9.65, cz: 82.15, gateX: 6.8, side: -1, idx: 0 },
     { cx: 57.75, cz: 82.15, gateX: 55.4, side: -1, idx: 1 },
+    { cx: 123.75, cz: 82.15, gateX: 121.2, side: -1, idx: 1 },
   ];
 
   for (const cfg of cabinConfigs) {
@@ -2821,8 +2887,8 @@ export function createRailCrossingGate(
     boomArms.push({ arm: boomGroup, side: cfg.side });
   }
 
-  // Opposite-side signal posts at x = -48.6 & x = 48.6
-  for (const sx of [-48.6, 48.6]) {
+  // Opposite-side signal posts at x = -114.6, -48.6, 48.6 & 114.6
+  for (const sx of [-114.6, -48.6, 48.6, 114.6]) {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.0, 10), roofMat);
     post.position.set(sx, 1.5, trackZ + 3.2);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), beaconMats[sx < 0 ? 1 : 0]);
@@ -2888,12 +2954,12 @@ export function createRailCrossingGate(
   // Merge all static track, platform, and cabin parts BEFORE adding InstancedMesh sleepers
   optimizeStaticGroup(group, boomArms.map((b) => b.arm));
 
-  const sleeperCount = 171;
+  const sleeperCount = 263;
   const sleeperGeo = new THREE.BoxGeometry(0.32, 0.07, 2.4);
   const sleeperInst = new THREE.InstancedMesh(sleeperGeo, tieMat, sleeperCount);
   const sDummy = new THREE.Object3D();
   for (let i = 0; i < sleeperCount; i++) {
-    sDummy.position.set(-102 + i * 1.2, 0.065, trackZ);
+    sDummy.position.set(-157.2 + i * 1.2, 0.065, trackZ);
     sDummy.rotation.set(0, 0, 0);
     sDummy.scale.set(1, 1, 1);
     sDummy.updateMatrix();
@@ -3087,4 +3153,796 @@ export function createRooftopMachanProp(isSoftwareGl: boolean): THREE.Group {
 
   return optimizeStaticGroup(grp);
 }
+
+export function createParkedCarModel(
+  bodyHex: string,
+  isSoftwareGl: boolean,
+  isTaxi = false,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyHex, roughness: 0.28, metalness: 0.48 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.65, metalness: 0.35 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: '#0f172a',
+    roughness: 0.14,
+    metalness: 0.65,
+  });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.85 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.3, metalness: 0.82 });
+  const headMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+  const tailMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
+
+  // Lower Chassis & Bumpers (4.4m long along X, 2.0m wide along Z)
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(4.25, 0.66, 1.92), bodyMat);
+  lower.position.set(0, 0.56, 0);
+  lower.castShadow = !isSoftwareGl;
+  const frontBumper = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 1.94), trimMat);
+  frontBumper.position.set(2.16, 0.34, 0);
+  const rearBumper = frontBumper.clone();
+  rearBumper.position.x = -2.16;
+
+  // Cabin & Tinted Windshields
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.64, 1.66), bodyMat);
+  cabin.position.set(-0.18, 1.18, 0);
+  cabin.castShadow = !isSoftwareGl;
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.5, 1.7), glassMat);
+  windshield.position.set(-0.14, 1.16, 0);
+  const sideGlass = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.48, 1.5), glassMat);
+  sideGlass.position.set(-0.18, 1.16, 0);
+
+  // Headlights & Taillights
+  for (const lz of [-0.62, 0.62]) {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.32), headMat);
+    hl.position.set(2.14, 0.62, lz);
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.34), tailMat);
+    tl.position.set(-2.14, 0.64, lz);
+    grp.add(hl, tl);
+  }
+
+  // 4 Wheels
+  for (const wx of [-1.32, 1.32]) {
+    for (const wz of [-0.94, 0.94]) {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.24, 16), tireMat);
+      tire.rotation.x = Math.PI / 2;
+      tire.position.set(wx, 0.35, wz);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.26, 10), rimMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(wx, 0.35, wz);
+      grp.add(tire, rim);
+    }
+  }
+
+  if (isTaxi) {
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.22, 0.72),
+      new THREE.MeshBasicMaterial({ color: '#fde047' }),
+    );
+    sign.position.set(0.05, 1.6, 0);
+    grp.add(sign);
+  }
+
+  grp.add(lower, frontBumper, rearBumper, cabin, windshield, sideGlass);
+  return optimizeStaticGroup(grp);
+}
+
+export function createPickupTruckModel(
+  bodyHex: string,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyHex, roughness: 0.34, metalness: 0.42 });
+  const bedMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.75, metalness: 0.2 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.18, metalness: 0.6 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.85 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.3, metalness: 0.8 });
+  const tarpMat = new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.78 });
+
+  // Chassis + Cab + Cargo Bed (4.6m long along X, 2.2m wide along Z)
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.56, 2.08), bedMat);
+  chassis.position.set(0, 0.56, 0);
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.72, 2.06), bodyMat);
+  hood.position.set(1.58, 0.92, 0);
+  hood.castShadow = !isSoftwareGl;
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.24, 1.98), bodyMat);
+  cab.position.set(0.45, 1.24, 0);
+  cab.castShadow = !isSoftwareGl;
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.56, 1.76), glassMat);
+  glass.position.set(0.46, 1.44, 0);
+
+  // Open Rear Bed + Cargo Crate Stack
+  const bedFloor = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.48, 2.06), bodyMat);
+  bedFloor.position.set(-1.25, 0.84, 0);
+  const cargo = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.7, 1.65), tarpMat);
+  cargo.position.set(-1.25, 1.38, 0);
+  cargo.castShadow = !isSoftwareGl;
+
+  // Rollbar
+  const roll = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.65, 1.88), rimMat);
+  roll.position.set(-0.32, 1.56, 0);
+
+  // Wheels
+  for (const wx of [-1.42, 1.42]) {
+    for (const wz of [-1.04, 1.04]) {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.28, 16), tireMat);
+      tire.rotation.x = Math.PI / 2;
+      tire.position.set(wx, 0.4, wz);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 10), rimMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(wx, 0.4, wz);
+      grp.add(tire, rim);
+    }
+  }
+
+  grp.add(chassis, hood, cab, glass, bedFloor, cargo, roll);
+  return optimizeStaticGroup(grp);
+}
+
+export function createShippingContainerModel(
+  colorHex: string,
+  textures: ProceduralTextureSet,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const shellMat = new THREE.MeshStandardMaterial({
+    color: colorHex,
+    roughness: 0.48,
+    metalness: 0.42,
+    normalMap: textures.tinNormal,
+    normalScale: new THREE.Vector2(1.0, 1.0),
+  });
+  const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5, metalness: 0.72 });
+  const barMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.3, metalness: 0.88 });
+
+  // 6.4m long × 2.85m high × 2.5m deep freight container
+  const body = new THREE.Mesh(new THREE.BoxGeometry(6.35, 2.75, 2.46), shellMat);
+  body.position.set(0, 1.44, 0);
+  body.castShadow = !isSoftwareGl;
+  body.receiveShadow = true;
+  grp.add(body);
+
+  // Corner steel posts & top/bottom beams
+  for (const cx of [-3.15, 3.15]) {
+    for (const cz of [-1.22, 1.22]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.88, 0.18), frameMat);
+      post.position.set(cx, 1.44, cz);
+      grp.add(post);
+    }
+  }
+  const doorSeam = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.62, 0.08), frameMat);
+  doorSeam.position.set(3.2, 1.42, 0);
+  grp.add(doorSeam);
+  for (const bz of [-0.45, 0.45]) {
+    const lockBar = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.55, 8), barMat);
+    lockBar.position.set(3.22, 1.42, bz);
+    grp.add(lockBar);
+  }
+
+  return optimizeStaticGroup(grp);
+}
+
+export function createAirdropCrateModel(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const blueMat = new THREE.MeshStandardMaterial({ color: '#1d4ed8', roughness: 0.42, metalness: 0.45 });
+  const redCapMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.55, metalness: 0.12 });
+  const strapMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.7 });
+  const chuteMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.72 });
+  const beaconMat = new THREE.MeshBasicMaterial({
+    color: '#ef4444',
+    transparent: true,
+    opacity: 0.22,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.22, 1.65), blueMat);
+  base.position.set(0, 0.61, 0);
+  base.castShadow = !isSoftwareGl;
+  base.receiveShadow = true;
+
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.36, 1.74), redCapMat);
+  lid.position.set(0, 1.38, 0);
+  lid.castShadow = !isSoftwareGl;
+
+  // Crossed cargo straps
+  const strapX = new THREE.Mesh(new THREE.BoxGeometry(1.78, 1.56, 0.14), strapMat);
+  strapX.position.set(0, 0.8, 0);
+  const strapZ = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.56, 1.78), strapMat);
+  strapZ.position.set(0, 0.8, 0);
+
+  // Folded parachute pack strapped on top
+  const chute = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.26, 0.64), chuteMat);
+  chute.position.set(-0.2, 1.66, 0.15);
+  chute.rotation.y = 0.25;
+
+  // Tall PUBG/Free Fire red flare smoke column
+  const flareCol = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.12, 11.5, 12, 1, true), beaconMat);
+  flareCol.position.set(0.35, 7.2, -0.2);
+  const ember = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 10, 10),
+    new THREE.MeshBasicMaterial({ color: '#fca5a5' }),
+  );
+  ember.position.set(0.35, 1.62, -0.2);
+
+  grp.add(base, lid, strapX, strapZ, chute, flareCol, ember);
+  return grp;
+}
+
+export function createBusStopShelterModel(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const steelMat = new THREE.MeshStandardMaterial({ color: '#0369a1', roughness: 0.42, metalness: 0.65 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: '#bae6fd',
+    roughness: 0.12,
+    transparent: true,
+    opacity: 0.42,
+  });
+  const roofMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.5, metalness: 0.45 });
+  const benchMat = new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.72 });
+  const bannerMat = new THREE.MeshBasicMaterial({ color: '#fbbf24' });
+
+  // Back Frame + Twin Pillars
+  for (const px of [-2.4, 2.4]) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 2.75, 10), steelMat);
+    col.position.set(px, 1.375, -0.78);
+    grp.add(col);
+  }
+  const backGlass = new THREE.Mesh(new THREE.BoxGeometry(4.65, 2.2, 0.06), glassMat);
+  backGlass.position.set(0, 1.3, -0.78);
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.14, 2.25), roofMat);
+  canopy.position.set(0, 2.82, -0.05);
+  canopy.rotation.x = 0.08;
+  canopy.castShadow = !isSoftwareGl;
+  const frontFascia = new THREE.Mesh(new THREE.BoxGeometry(5.3, 0.24, 0.1), bannerMat);
+  frontFascia.position.set(0, 2.75, 1.05);
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.12, 0.65), benchMat);
+  bench.position.set(0, 0.52, -0.32);
+
+  grp.add(backGlass, canopy, frontFascia, bench);
+  return optimizeStaticGroup(grp);
+}
+
+export function createBillboardHoarding(
+  tex: THREE.CanvasTexture,
+  w = 7.4,
+  h = 3.7,
+  postHeight = 4.0,
+  isSoftwareGl = false,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const steelMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.42, metalness: 0.75 });
+  const concreteMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.85 });
+  const accentTrimMat = new THREE.MeshStandardMaterial({
+    color: '#f59e0b',
+    emissive: '#f59e0b',
+    emissiveIntensity: 0.35,
+    roughness: 0.35,
+  });
+  const lightMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+
+  const boardY = postHeight + h * 0.45;
+  for (const px of [-w * 0.34, w * 0.34]) {
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.46, 0.72), concreteMat);
+    plinth.position.set(px, 0.23, 0);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, boardY, 10), steelMat);
+    post.position.set(px, boardY / 2, 0);
+    post.castShadow = !isSoftwareGl;
+    grp.add(plinth, post);
+  }
+
+  // Rear structural steel cross-truss
+  const crossBrace = new THREE.Mesh(new THREE.BoxGeometry(w * 0.72, 0.14, 0.14), steelMat);
+  crossBrace.position.set(0, postHeight * 0.58, -0.14);
+  grp.add(crossBrace);
+
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.36, h + 0.36, 0.26), steelMat);
+  frame.position.set(0, boardY, 0);
+  frame.castShadow = !isSoftwareGl;
+
+  // Warm amber perimeter cornice strip
+  const topTrim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, 0.08, 0.3), accentTrimMat);
+  topTrim.position.set(0, boardY + h * 0.5 + 0.18, 0);
+  const botTrim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.4, 0.08, 0.3), accentTrimMat);
+  botTrim.position.set(0, boardY - h * 0.5 - 0.18, 0);
+
+  const faceMat = new THREE.MeshStandardMaterial({
+    map: tex,
+    roughness: 0.32,
+    emissive: '#ffffff',
+    emissiveMap: tex,
+    emissiveIntensity: 0.26,
+  });
+  // Keep +/-0.15 clear of frame +/-0.13 to guarantee zero z-fighting
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), faceMat);
+  front.position.set(0, boardY, 0.15);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), faceMat);
+  back.rotation.y = Math.PI;
+  back.position.set(0, boardY, -0.15);
+
+  // Twin floodlight arms & reflector hoods on both faces
+  for (const side of [-1, 1]) {
+    for (const lx of [-w * 0.25, w * 0.25]) {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.65), steelMat);
+      arm.position.set(lx, boardY + h * 0.5 + 0.2, side * 0.36);
+      const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.18, 0.16, 10), steelMat);
+      hood.position.set(lx, boardY + h * 0.5 + 0.12, side * 0.65);
+      hood.rotation.x = side * 0.35;
+      const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.05, 10), lightMat);
+      bulb.position.set(lx, boardY + h * 0.5 + 0.05, side * 0.65);
+      bulb.rotation.x = side * 0.35;
+      grp.add(arm, hood, bulb);
+    }
+  }
+
+  grp.add(frame, topTrim, botTrim, front, back);
+  return grp;
+}
+
+export function createBoulevardWelcomeArch(
+  tex: THREE.CanvasTexture,
+  spanWidth = 12.6,
+  isSoftwareGl = false,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const steelMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.42, metalness: 0.75 });
+  const concreteMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.85 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.35, metalness: 0.5 });
+  const ledStripMat = new THREE.MeshBasicMaterial({ color: '#fbbf24' });
+  const soffitLightMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+
+  // Twin side piers with concrete plinths + diagonal gusset braces straddling wide boulevard
+  for (const px of [-spanWidth / 2, spanWidth / 2]) {
+    const sign = px < 0 ? 1 : -1;
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.42, 1.18), concreteMat);
+    plinth.position.set(px, 0.21, 0);
+    const pier = new THREE.Mesh(new THREE.BoxGeometry(0.68, 6.2, 0.68), steelMat);
+    pier.position.set(px, 3.1, 0);
+    pier.castShadow = !isSoftwareGl;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.52, 0.96), trimMat);
+    base.position.set(px, 0.68, 0);
+    const gusset = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.18, 0.22), steelMat);
+    gusset.position.set(px + sign * 0.55, 4.45, 0);
+    gusset.rotation.z = sign * 0.72;
+    grp.add(plinth, pier, base, gusset);
+  }
+
+  // Overhead Truss Banner + Glowing Cornice & Downward Soffit Wash Lights
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(spanWidth + 0.95, 1.96, 0.32), steelMat);
+  beam.position.set(0, 5.75, 0);
+  const topStrip = new THREE.Mesh(new THREE.BoxGeometry(spanWidth + 1.0, 0.09, 0.36), ledStripMat);
+  topStrip.position.set(0, 6.76, 0);
+  const botStrip = new THREE.Mesh(new THREE.BoxGeometry(spanWidth + 1.0, 0.09, 0.36), ledStripMat);
+  botStrip.position.set(0, 4.74, 0);
+
+  for (const lx of [-spanWidth * 0.28, 0, spanWidth * 0.28]) {
+    const wash = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.06, 0.2), soffitLightMat);
+    wash.position.set(lx, 4.71, 0);
+    grp.add(wash);
+  }
+
+  const bannerMat = new THREE.MeshStandardMaterial({
+    map: tex,
+    roughness: 0.34,
+    emissive: '#ffffff',
+    emissiveMap: tex,
+    emissiveIntensity: 0.28,
+  });
+  // Place +/-0.20 clear of beam +/-0.16 so banners never flicker
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(spanWidth - 0.6, 1.65), bannerMat);
+  front.position.set(0, 5.75, 0.2);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(spanWidth - 0.6, 1.65), bannerMat);
+  back.rotation.y = Math.PI;
+  back.position.set(0, 5.75, -0.2);
+
+  grp.add(beam, topStrip, botStrip, front, back);
+  return grp;
+}
+
+export function createRoadDividerCluster(): THREE.Group {
+  const grp = new THREE.Group();
+  const concreteMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.82 });
+  const yellowMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.5 });
+  const coneMat = new THREE.MeshStandardMaterial({ color: '#f97316', roughness: 0.45 });
+  const stripeMat = new THREE.MeshBasicMaterial({ color: '#f8fafc' });
+
+  // Highway Jersey Barrier
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.35, 0.64), concreteMat);
+  base.position.set(0, 0.175, 0);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.42, 0.34), yellowMat);
+  top.position.set(0, 0.56, 0);
+  grp.add(base, top);
+
+  // Twin Reflective Traffic Cones flanking barrier
+  for (const cx of [-2.05, 2.05]) {
+    const cBase = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.06, 0.38), coneMat);
+    cBase.position.set(cx, 0.03, 0);
+    const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.16, 0.54, 12), coneMat);
+    cone.position.set(cx, 0.3, 0);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.115, 0.12, 12), stripeMat);
+    band.position.set(cx, 0.34, 0);
+    grp.add(cBase, cone, band);
+  }
+
+  return optimizeStaticGroup(grp);
+}
+
+export function createStreetBenchModel(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.72 });
+  const ironMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5, metalness: 0.75 });
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.1, 0.58), woodMat);
+  seat.position.set(0, 0.46, 0);
+  seat.castShadow = !isSoftwareGl;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.42, 0.09), woodMat);
+  back.position.set(0, 0.78, -0.25);
+  back.rotation.x = -0.14;
+  for (const lx of [-0.86, 0.86]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 0.54), ironMat);
+    leg.position.set(lx, 0.23, 0);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.52, 0.09), ironMat);
+    post.position.set(lx, 0.72, -0.24);
+    grp.add(leg, post);
+  }
+  grp.add(seat, back);
+  return optimizeStaticGroup(grp);
+}
+
+export function createJhalmuriCartModel(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.78 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5, metalness: 0.65 });
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: '#fef08a',
+    emissive: '#fbbf24',
+    emissiveIntensity: 0.35,
+    transparent: true,
+    opacity: 0.58,
+  });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.78 });
+
+  const box = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.68, 0.92), woodMat);
+  box.position.set(0, 0.7, 0);
+  box.castShadow = !isSoftwareGl;
+  const snackCase = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 0.65), glassMat);
+  snackCase.position.set(-0.2, 1.32, 0);
+  const bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 10, 10),
+    new THREE.MeshBasicMaterial({ color: '#fde047' }),
+  );
+  bulb.position.set(0.45, 1.72, 0);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.75, 8), frameMat);
+  pole.position.set(0.45, 1.36, 0);
+  for (const wz of [-0.52, 0.52]) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.08, 14), wheelMat);
+    wheel.rotation.x = Math.PI / 2;
+    wheel.position.set(0, 0.32, wz);
+    grp.add(wheel);
+  }
+
+  grp.add(box, snackCase, pole, bulb);
+  return optimizeStaticGroup(grp);
+}
+
+export function createBanyanTree(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const barkMat = new THREE.MeshStandardMaterial({ color: '#5c4033', roughness: 0.92 });
+  const leafDark = new THREE.MeshStandardMaterial({ color: '#14532d', roughness: 0.72 });
+  const leafMid = new THREE.MeshStandardMaterial({ color: '#166534', roughness: 0.7 });
+
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.95, 4.2, 10), barkMat);
+  trunk.position.set(0, 2.1, 0);
+  trunk.castShadow = !isSoftwareGl;
+  grp.add(trunk);
+
+  // Hanging aerial prop roots
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const root = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 3.3, 6), barkMat);
+    root.position.set(Math.cos(a) * 1.45, 1.65, Math.sin(a) * 1.45);
+    grp.add(root);
+  }
+
+  // Broad multi-lobed banyan shade canopy
+  const lobes: Array<[number, number, number, number, THREE.MeshStandardMaterial]> = [
+    [0, 5.1, 0, 3.2, leafDark],
+    [-2.0, 4.4, 1.1, 2.35, leafMid],
+    [2.1, 4.5, -0.9, 2.4, leafMid],
+    [0.5, 4.3, 2.1, 2.2, leafDark],
+    [-0.9, 4.2, -2.0, 2.25, leafMid],
+  ];
+  for (const [lx, ly, lz, rad, mat] of lobes) {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(rad, 12, 10), mat);
+    dome.scale.set(1.15, 0.68, 1.15);
+    dome.position.set(lx, ly, lz);
+    dome.castShadow = !isSoftwareGl;
+    grp.add(dome);
+  }
+
+  return optimizeStaticGroup(grp);
+}
+
+export function createRooftopChhilekotha(accentHex: string, isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const wallMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.78 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: accentHex, roughness: 0.5 });
+  const doorMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.55 });
+
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(3.1, 2.35, 3.0), wallMat);
+  cabin.position.set(0, 1.175, 0);
+  cabin.castShadow = !isSoftwareGl;
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.22, 3.5), roofMat);
+  slab.position.set(0, 2.45, 0);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.9, 0.12), doorMat);
+  door.position.set(0, 0.95, 1.52);
+
+  grp.add(cabin, slab, door);
+  return optimizeStaticGroup(grp);
+}
+
+export function createBushCluster(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const leafDark = new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.78 });
+  const leafBright = new THREE.MeshStandardMaterial({ color: '#22c55e', roughness: 0.72 });
+  const blossomMat = new THREE.MeshStandardMaterial({ color: '#f43f5e', roughness: 0.5 });
+
+  const lobes: Array<[number, number, number, number, THREE.MeshStandardMaterial]> = [
+    [0, 0.48, 0, 0.62, leafDark],
+    [-0.45, 0.36, 0.24, 0.44, leafBright],
+    [0.44, 0.38, -0.22, 0.46, leafDark],
+    [0.14, 0.34, 0.42, 0.38, leafBright],
+  ];
+  for (const [x, y, z, r, mat] of lobes) {
+    const s = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 1), mat);
+    s.scale.set(1.08, 0.84, 1.08);
+    s.position.set(x, y, z);
+    s.castShadow = !isSoftwareGl;
+    grp.add(s);
+  }
+  for (const [bx, by, bz] of [
+    [-0.35, 0.62, 0.28],
+    [0.32, 0.68, -0.1],
+    [0.05, 0.85, 0.12],
+  ]) {
+    const fl = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6), blossomMat);
+    fl.position.set(bx, by, bz);
+    grp.add(fl);
+  }
+  return optimizeStaticGroup(grp);
+}
+
+export function createHedgeRow(length: number, isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const curbMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.84 });
+  const hedgeMat = new THREE.MeshStandardMaterial({ color: '#166534', roughness: 0.76 });
+  const topMat = new THREE.MeshStandardMaterial({ color: '#16a34a', roughness: 0.72 });
+
+  const curb = new THREE.Mesh(new THREE.BoxGeometry(length + 0.2, 0.18, 0.92), curbMat);
+  curb.position.set(0, 0.09, 0);
+  curb.receiveShadow = true;
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(length, 0.72, 0.72), hedgeMat);
+  body.position.set(0, 0.54, 0);
+  body.castShadow = !isSoftwareGl;
+  body.receiveShadow = true;
+
+  const crest = new THREE.Mesh(new THREE.BoxGeometry(length - 0.12, 0.2, 0.56), topMat);
+  crest.position.set(0, 0.94, 0);
+  grp.add(curb, body, crest);
+  return optimizeStaticGroup(grp);
+}
+
+export function createMotorbikeModel(bodyHex: string, isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyHex, roughness: 0.28, metalness: 0.52 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.5, metalness: 0.72 });
+  const seatMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.78 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.25, metalness: 0.88 });
+  const headMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+  const tailMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
+
+  for (const wx of [-0.62, 0.62]) {
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.14, 14), seatMat);
+    tire.rotation.x = Math.PI / 2;
+    tire.position.set(wx, 0.28, 0);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.16, 10), chromeMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.set(wx, 0.28, 0);
+    grp.add(tire, rim);
+  }
+  const engine = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.36, 0.28), frameMat);
+  engine.position.set(0, 0.42, 0);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.28, 0.34), bodyMat);
+  tank.position.set(0.16, 0.76, 0);
+  tank.castShadow = !isSoftwareGl;
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.16, 0.3), seatMat);
+  seat.position.set(-0.32, 0.74, 0);
+  const fork = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.76, 8), chromeMat);
+  fork.position.set(0.5, 0.62, 0);
+  fork.rotation.z = 0.34;
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.66, 8), frameMat);
+  handle.rotation.x = Math.PI / 2;
+  handle.position.set(0.38, 0.98, 0);
+  const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), headMat);
+  headlight.position.set(0.54, 0.88, 0);
+  const taillight = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.16), tailMat);
+  taillight.position.set(-0.7, 0.74, 0);
+  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.78, 8), chromeMat);
+  exhaust.rotation.z = Math.PI / 2;
+  exhaust.position.set(-0.26, 0.34, 0.18);
+
+  grp.add(engine, tank, seat, fork, handle, headlight, taillight, exhaust);
+  return optimizeStaticGroup(grp);
+}
+
+export function createDhakaMiniBusModel(
+  bodyHex: string,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyHex, roughness: 0.36, metalness: 0.34 });
+  const stripeMat = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.35, metalness: 0.2 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.45 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.16, metalness: 0.65 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.86 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.3, metalness: 0.8 });
+  const rackMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.7 });
+  const headMat = new THREE.MeshBasicMaterial({ color: '#fef08a' });
+  const tailMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
+
+  // 5.5m long × 2.35m wide × 2.55m tall Dhaka Mini-Bus / Leguna
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.45, 2.2), rackMat);
+  chassis.position.set(0, 0.56, 0);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(5.35, 1.75, 2.24), bodyMat);
+  body.position.set(0, 1.56, 0);
+  body.castShadow = !isSoftwareGl;
+  body.receiveShadow = true;
+
+  const band = new THREE.Mesh(new THREE.BoxGeometry(5.39, 0.3, 2.28), stripeMat);
+  band.position.set(0, 1.18, 0);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(5.45, 0.22, 2.3), roofMat);
+  roof.position.set(0, 2.52, 0);
+
+  // Side windows & Front Windshield
+  const sideWin = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.62, 2.3), glassMat);
+  sideWin.position.set(-0.2, 1.9, 0);
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 1.95), glassMat);
+  windshield.position.set(2.68, 1.85, 0);
+
+  // Rooftop steel luggage carrier & bundled parcel
+  const rack = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.18, 1.85), rackMat);
+  rack.position.set(-0.4, 2.72, 0);
+  const parcel = new THREE.Mesh(
+    new THREE.BoxGeometry(1.4, 0.36, 1.25),
+    new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.8 }),
+  );
+  parcel.position.set(-0.6, 2.9, 0);
+
+  for (const lz of [-0.72, 0.72]) {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.36), headMat);
+    hl.position.set(2.69, 0.92, lz);
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.36), tailMat);
+    tl.position.set(-2.69, 0.95, lz);
+    grp.add(hl, tl);
+  }
+
+  for (const wx of [-1.65, 1.65]) {
+    for (const wz of [-1.08, 1.08]) {
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.28, 16), tireMat);
+      tire.rotation.x = Math.PI / 2;
+      tire.position.set(wx, 0.42, wz);
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 10), rimMat);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(wx, 0.42, wz);
+      grp.add(tire, rim);
+    }
+  }
+
+  grp.add(chassis, body, band, roof, sideWin, windshield, rack, parcel);
+  return optimizeStaticGroup(grp);
+}
+
+export function createRoadsideTapriStall(
+  roofHex: string,
+  textures: ProceduralTextureSet,
+  isSoftwareGl: boolean,
+): THREE.Group {
+  const grp = new THREE.Group();
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.78 });
+  const counterMat = new THREE.MeshStandardMaterial({ color: '#b45309', roughness: 0.7 });
+  const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.55, metalness: 0.5 });
+  const tinMat = new THREE.MeshStandardMaterial({
+    color: roofHex,
+    roughness: 0.38,
+    metalness: 0.55,
+    normalMap: textures.tinNormal,
+    normalScale: new THREE.Vector2(0.85, 0.85),
+  });
+  const jarMat = new THREE.MeshStandardMaterial({
+    color: '#fef08a',
+    emissive: '#f59e0b',
+    emissiveIntensity: 0.45,
+    transparent: true,
+    opacity: 0.78,
+  });
+  const bulbMat = new THREE.MeshBasicMaterial({ color: '#fde047' });
+
+  // 4.1m × 2.5m roadside tea/pan tapri kiosk
+  const backPanel = new THREE.Mesh(new THREE.BoxGeometry(3.95, 2.25, 0.16), woodMat);
+  backPanel.position.set(0, 1.125, -1.08);
+  backPanel.castShadow = !isSoftwareGl;
+
+  for (const px of [-1.92, 1.92]) {
+    for (const pz of [-1.06, 1.06]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.45, 0.14), frameMat);
+      post.position.set(px, 1.225, pz);
+      grp.add(post);
+    }
+  }
+
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(3.85, 0.96, 1.05), counterMat);
+  counter.position.set(0, 0.48, 0.35);
+  counter.castShadow = !isSoftwareGl;
+  counter.receiveShadow = true;
+
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.14, 2.95), tinMat);
+  roof.position.set(0, 2.52, 0.05);
+  roof.rotation.x = 0.1;
+  roof.castShadow = !isSoftwareGl;
+
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), bulbMat);
+  bulb.position.set(0, 2.28, 0.85);
+
+  // Biscuits & Chanachur Glass Jars + Kettle on Counter
+  for (let i = 0; i < 4; i++) {
+    const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.32, 10), jarMat);
+    jar.position.set(-1.1 + i * 0.48, 1.12, 0.42);
+    grp.add(jar);
+  }
+  const kettle = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.3, 12), frameMat);
+  kettle.position.set(1.15, 1.11, 0.32);
+
+  grp.add(backPanel, counter, roof, bulb, kettle);
+  return optimizeStaticGroup(grp);
+}
+
+export function createBrickDepotCluster(isSoftwareGl: boolean): THREE.Group {
+  const grp = new THREE.Group();
+  const palletMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.88 });
+  const brickMat = new THREE.MeshStandardMaterial({ color: '#b91c1c', roughness: 0.88 });
+  const brickLight = new THREE.MeshStandardMaterial({ color: '#c2410c', roughness: 0.85 });
+  const bambooMat = new THREE.MeshStandardMaterial({ color: '#a16207', roughness: 0.76 });
+  const tarpMat = new THREE.MeshStandardMaterial({ color: '#0369a1', roughness: 0.72 });
+
+  // Two stacked kiln-brick pallets + bamboo pole bundle (4.7m × 2.7m footprint)
+  for (const [px, pz, h, mat] of [
+    [-1.15, 0, 1.35, brickMat],
+    [1.1, 0.15, 1.05, brickLight],
+  ] as const) {
+    const pallet = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.14, 2.25), palletMat);
+    pallet.position.set(px, 0.07, pz);
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(1.92, h, 2.05), mat);
+    stack.position.set(px, 0.14 + h / 2, pz);
+    stack.castShadow = !isSoftwareGl;
+    stack.receiveShadow = true;
+    grp.add(pallet, stack);
+  }
+
+  // Blue tarpaulin cover over cement bags + leaning bamboo poles
+  const tarp = new THREE.Mesh(new THREE.BoxGeometry(1.98, 0.18, 2.1), tarpMat);
+  tarp.position.set(1.1, 1.24, 0.15);
+  grp.add(tarp);
+
+  for (let b = 0; b < 4; b++) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 2.85, 8), bambooMat);
+    pole.position.set(-1.95 + b * 0.24, 1.1, -1.05);
+    pole.rotation.x = -0.35;
+    pole.rotation.z = 0.12;
+    grp.add(pole);
+  }
+
+  return optimizeStaticGroup(grp);
+}
+
+
 

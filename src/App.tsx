@@ -274,7 +274,7 @@ export default function App() {
       if (loadingTimerRef.current !== null) {
         window.clearTimeout(loadingTimerRef.current);
       }
-      setLoadingSubtitle(`Preparing ${soloPlayerCount}P Moholla Lobby...`);
+      setLoadingSubtitle(`${soloPlayerCount} জনের মহল্লা লবি তৈরি হচ্ছে...`);
       loadingTimerRef.current = window.setTimeout(() => {
         loadingTimerRef.current = null;
         setLoadingSubtitle(null);
@@ -652,7 +652,7 @@ export default function App() {
           });
           if (st) {
             if (isTaskLockedBySabotage(st.id, activeSnapshot.sabotage) && lp.role !== 'vondo') {
-              showClueNotice('Wi-Fi Nai!', 'Dish Hub e giye Wi-Fi thik koro — digital task locked!');
+              showClueNotice('ওয়াই-ফাই নেই!', 'ডিশ হাবে গিয়ে ওয়াই-ফাই ঠিক করো — ডিজিটাল কাজ এখন বন্ধ!');
             } else {
               setActiveTaskId(st.id);
             }
@@ -963,7 +963,7 @@ export default function App() {
             onOpenTask={(id) => {
               const lp = activeSnapshot.players.find((p) => p.id === activePlayerId);
               if (lp && isTaskLockedBySabotage(id, activeSnapshot.sabotage) && lp.role !== 'vondo') {
-                showClueNotice('Wi-Fi Nai!', 'Dish Hub e giye Wi-Fi thik koro — digital task locked!');
+                showClueNotice('ওয়াই-ফাই নেই!', 'ডিশ হাবে গিয়ে ওয়াই-ফাই ঠিক করো — ডিজিটাল কাজ এখন বন্ধ!');
                 return;
               }
               setActiveTaskId(id);
@@ -1099,7 +1099,7 @@ export default function App() {
           }}
         >
           <span className="text-xs font-extrabold uppercase tracking-[0.28em] text-amber-300 mb-2">
-            Khela Shesh · Moholla Verdict
+            খেলা শেষ · মহল্লার রায়
           </span>
           <h1
             className={`font-display text-4xl sm:text-6xl font-black tracking-tight drop-shadow-lg ${
@@ -1113,33 +1113,33 @@ export default function App() {
             }`}
           >
             {activeSnapshot.outcome.winner === 'pagol'
-              ? 'PAGLA BABA VICTORY!'
+              ? 'পাগলা বাবা বিজয়ী!'
               : activeSnapshot.outcome.winner === 'chandabaz'
-                ? 'CHANDABAZ VICTORY!'
+                ? 'চাঁদাবাজ বিজয়ী!'
                 : activeSnapshot.outcome.winner === 'tiktok_star'
-                  ? 'TIKTOK STAR VICTORY!'
+                  ? 'টিকটক স্টার বিজয়ী!'
                   : activeSnapshot.outcome.winner === 'parabasi'
-                    ? 'PARA-BASI VICTORY!'
-                    : 'BATPAR VICTORY!'}
+                    ? 'পাড়াবাসী বিজয়ী!'
+                    : 'বাটপার বিজয়ী!'}
           </h1>
           <p className="mt-3 max-w-lg text-sm sm:text-base font-semibold text-slate-100">
             {activeSnapshot.outcome.reason === 'tasks_completed'
-              ? 'Mohollar shob kaaj shesh — ajke shobar jonne Biryani party!'
+              ? 'মহল্লার সব কাজ শেষ — আজকে সবার জন্য বিরিয়ানি পার্টি!'
               : activeSnapshot.outcome.reason === 'batpars_out'
-                ? 'Shob Batpar dhora kheye Pukur e chubani khaise!'
+                ? 'সব বাটপার ধরা খেয়ে পুকুরে চুবানি খেয়েছে!'
                 : activeSnapshot.outcome.reason === 'batpars_outnumber'
-                  ? 'Batpar ra pura Moholla dokhol kore nise!'
+                  ? 'বাটপাররা পুরো মহল্লা দখল করে নিয়েছে!'
                   : activeSnapshot.outcome.reason === 'critical_sabotage_timeout'
-                    ? 'Gas Phute Pura Para Uthhe Gese!'
+                    ? 'গ্যাস ফেটে পুরো পাড়া উড়ে গেছে!'
                     : activeSnapshot.outcome.reason === 'chandabaz_extorted'
-                      ? `${activeSnapshot.outcome.winnerPlayerName ?? 'Chandabaz'} 3 jon theke Chanda tule jite gese!`
+                      ? `${activeSnapshot.outcome.winnerPlayerName ?? 'চাঁদাবাজ'} ৩ জন থেকে চাঁদা তুলে জিতে গেছে!`
                       : activeSnapshot.outcome.reason === 'tiktok_viral'
-                        ? `${activeSnapshot.outcome.winnerPlayerName ?? 'TikTok Star'} 3 ta Viral Reel chere cup niye nilo!`
-                        : `${activeSnapshot.outcome.winnerPlayerName ?? 'Pagla Baba'} shobai ke ullu banay cup niye gelo!`}
+                        ? `${activeSnapshot.outcome.winnerPlayerName ?? 'টিকটক স্টার'} ৩টা ভাইরাল রিল ছেড়ে কাপ নিয়ে নিল!`
+                        : `${activeSnapshot.outcome.winnerPlayerName ?? 'পাগলা বাবা'} সবাইকে উল্লু বানিয়ে কাপ নিয়ে গেল!`}
           </p>
           {activeSnapshot.outcome.coWinnerNames && activeSnapshot.outcome.coWinnerNames.length > 0 && (
             <p className="mt-2 text-xs font-bold text-purple-200">
-              + Chamcha Co-Win: {activeSnapshot.outcome.coWinnerNames.join(', ')}
+              + চামচা সহ-বিজয়ী: {activeSnapshot.outcome.coWinnerNames.join(', ')}
             </p>
           )}
           <button
@@ -1147,7 +1147,7 @@ export default function App() {
             onClick={() => setShowOutcomeModal(true)}
             className="mt-6 px-4 py-2 rounded-xl bg-slate-900/75 hover:bg-slate-800 border border-white/15 text-xs font-semibold text-slate-300"
           >
-            View Match Breakdown
+            ম্যাচের বিস্তারিত দেখো
           </button>
         </div>
       )}
@@ -1179,7 +1179,7 @@ export default function App() {
       {/* Among Us Style Moholla Loading Overlay */}
       {(loadingSubtitle || (mode === 'multi' && mp.connecting && !activeSnapshot)) && (
         <MatchLoadingOverlay
-          subtitle={loadingSubtitle ?? 'Connecting to Moholla Room...'}
+          subtitle={loadingSubtitle ?? 'মহল্লা রুমে যুক্ত হচ্ছে...'}
         />
       )}
     </div>
