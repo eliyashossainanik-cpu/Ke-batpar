@@ -86,9 +86,11 @@ export function runSimulatedMatch(playerCount: number, seed: number): SimResult 
     p.yaw = sp.yaw;
     p.killCooldownRemaining = p.role === 'vondo' ? INITIAL_KILL_COOLDOWN_SEC : 0;
     p.abilityCooldown =
-      p.specialRole === 'bohurupi' || p.specialRole === 'kobiraj' || p.specialRole === 'daroga' || p.specialRole === 'jharudar'
-        ? 6
-        : 0;
+      p.specialRole === 'chandabaz'
+        ? 20
+        : p.specialRole === 'bohurupi' || p.specialRole === 'kobiraj' || p.specialRole === 'daroga' || p.specialRole === 'jharudar'
+          ? 6
+          : 0;
     p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
     p.scansLeft = p.specialRole === 'goyenda' ? 2 : 0;
     p.shotsLeft = p.specialRole === 'daroga' ? 1 : 0;
@@ -300,6 +302,7 @@ export function runSimulatedMatch(playerCount: number, seed: number): SimResult 
           p.hasVoted = false;
           p.votedFor = null;
           if (p.role === 'vondo') p.killCooldownRemaining = settings.killCooldownSec;
+          if (p.specialRole === 'chandabaz') p.abilityCooldown = Math.max(p.abilityCooldown, 14);
         });
         emergencyCooldown = settings.emergencyCooldownSec;
         phase = 'playing';

@@ -134,10 +134,10 @@ export function createCharacterRig(
 
   const visorMat = new THREE.MeshStandardMaterial({
     color: colorSpec.visorTint,
-    roughness: 0.08,
-    metalness: 0.24,
+    roughness: 0.06,
+    metalness: 0.32,
     emissive: colorSpec.visorTint,
-    emissiveIntensity: 0.12,
+    emissiveIntensity: 0.18,
   });
 
   const suitMaterials = [suitMat];
@@ -3365,7 +3365,7 @@ export function createAirdropCrateModel(isSoftwareGl: boolean): THREE.Group {
   ember.position.set(0.35, 1.62, -0.2);
 
   grp.add(base, lid, strapX, strapZ, chute, flareCol, ember);
-  return grp;
+  return optimizeStaticGroup(grp, [flareCol]);
 }
 
 export function createBusStopShelterModel(isSoftwareGl: boolean): THREE.Group {
@@ -3475,7 +3475,7 @@ export function createBillboardHoarding(
   }
 
   grp.add(frame, topTrim, botTrim, front, back);
-  return grp;
+  return optimizeStaticGroup(grp);
 }
 
 export function createBoulevardWelcomeArch(
@@ -3535,7 +3535,7 @@ export function createBoulevardWelcomeArch(
   back.position.set(0, 5.75, -0.2);
 
   grp.add(beam, topStrip, botStrip, front, back);
-  return grp;
+  return optimizeStaticGroup(grp);
 }
 
 export function createRoadDividerCluster(): THREE.Group {

@@ -41,7 +41,8 @@ import {
   CCTV_KAKU_COOLDOWN_SEC,
   CHAMCHA_COOLDOWN_SEC,
   CHANDABAZ_COOLDOWN_SEC,
-  CHANDABAZ_GOAL,
+  CHANDABAZ_INITIAL_COOLDOWN_SEC,
+  CHANDABAZ_WITNESS_RANGE,
   DALAL_COOLDOWN_SEC,
   DALAL_JAM_DURATION_MS,
   HATUR_COOLDOWN_SEC,
@@ -52,6 +53,7 @@ import {
   TIKTOK_ZONE_GOAL,
   applyDalalBrokerJam,
   collectChandaFromTarget,
+  countAliveChandabazTargets,
   findGhotokPairCandidates,
   findGhotokPartnerOnDeath,
   findNearestChamchaPatron,
@@ -103,6 +105,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getColorShadeHint,
   inspectBodyClue,
   isCriticalSabotage,
@@ -127,6 +130,7 @@ import {
   createBotBrainState,
   generateFallbackMeetingChats,
   getMeetingTypingBotIds,
+  notifyBotsOfChandabazExtort,
   processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
@@ -398,6 +402,11 @@ function sendToSocket(ws: WebSocket, msg: ServerMessage): void {
   }
 }
 
+function sendToPlayer(room: RoomInternal, playerId: string, msg: ServerMessage): void {
+  const ws = room.clients.get(playerId);
+  if (ws) sendToSocket(ws, msg);
+}
+
 function broadcastRoom(room: RoomInternal, msg?: ServerMessage): void {
   if (msg) {
     const payload = JSON.stringify(msg);
@@ -616,14 +625,16 @@ function startMatch(room: RoomInternal): void {
     p.watchingCams = false;
     p.visualTaskTimer = 0;
     p.abilityCooldown =
-      p.specialRole === 'bohurupi' ||
-      p.specialRole === 'kobiraj' ||
-      p.specialRole === 'daroga' ||
-      p.specialRole === 'jharudar' ||
-      p.specialRole === 'hatur_daktar' ||
-      p.specialRole === 'dalal'
-        ? 6
-        : 0;
+      p.specialRole === 'chandabaz'
+        ? CHANDABAZ_INITIAL_COOLDOWN_SEC
+        : p.specialRole === 'bohurupi' ||
+            p.specialRole === 'kobiraj' ||
+            p.specialRole === 'daroga' ||
+            p.specialRole === 'jharudar' ||
+            p.specialRole === 'hatur_daktar' ||
+            p.specialRole === 'dalal'
+          ? 6
+          : 0;
     p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
     p.scansLeft = p.specialRole === 'goyenda' ? 2 : 0;
     p.shotsLeft = p.specialRole === 'daroga' ? 1 : 0;
@@ -1045,6 +1056,9 @@ setInterval(() => {
             p.votedFor = null;
             if (p.role === 'vondo') {
               p.killCooldownRemaining = room.settings.killCooldownSec;
+            }
+            if (p.specialRole === 'chandabaz') {
+              p.abilityCooldown = Math.max(p.abilityCooldown, 14);
             }
             idx++;
           }
@@ -1796,23 +1810,56 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       }
       if (player.specialRole === 'chandabaz') {
         if (player.abilityCooldown > 0.05) return;
-        const target = findNearestChandabazTarget(player, Array.from(room.players.values()));
+        if (isCriticalSabotage(room.sabotage.active)) {
+          sendToSocket(ws, {
+            type: 'clue:result',
+            title: 'গ্যাস লিক চলছে!',
+            detail: 'জরুরি নাশকতার সময় চাঁদা তোলা যাবে না — আগে গ্যাস সামলাও!',
+          });
+          return;
+        }
+        const allPlayers = Array.from(room.players.values());
+        const target = findNearestChandabazTarget(player, allPlayers);
         if (!target) {
           sendToSocket(ws, {
             type: 'clue:result',
             title: 'চাঁদাবাজ',
-            detail: 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর কাছে যাও!',
+            detail: 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর একদম কাছে যাও!',
           });
           return;
         }
-        const res = collectChandaFromTarget(player, target);
+        const res = collectChandaFromTarget(player, target, allPlayers);
         if (!res.ok) return;
         player.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+        notifyBotsOfChandabazExtort(player, target, allPlayers, room.botMemories, room.doorLocks);
+        if (!target.isBot) {
+          sendToPlayer(room, target.id, {
+            type: 'clue:result',
+            title: 'চাঁদাবাজ হানা!',
+            detail: `${player.name} তোমাকে ভয় দেখিয়ে চাঁদা নিয়েছে — সালিশে সবাইকে জানাও!`,
+          });
+        }
+        for (const pl of allPlayers) {
+          if (
+            !pl.isBot &&
+            pl.alive &&
+            pl.id !== player.id &&
+            pl.id !== target.id &&
+            distance2D(pl.x, pl.z, player.x, player.z) <= CHANDABAZ_WITNESS_RANGE &&
+            hasLineOfSight(pl.x, pl.z, player.x, player.z, WALLS, room.doorLocks)
+          ) {
+            sendToPlayer(room, pl.id, {
+              type: 'clue:result',
+              title: 'চাঁদাবাজির সাক্ষী!',
+              detail: `${player.name} এইমাত্র ${target.name}-এর কাছ থেকে চাঁদা নিচ্ছে!`,
+            });
+          }
+        }
         sendToSocket(ws, { type: 'sfx:event', kind: 'task' });
         sendToSocket(ws, {
           type: 'clue:result',
-          title: `চাঁদা উসুল (${res.count}/${CHANDABAZ_GOAL})!`,
-          detail: `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে!`,
+          title: `চাঁদা উসুল (${countAliveChandabazTargets(player, allPlayers)}/${getChandabazGoal(player, allPlayers)})!`,
+          detail: `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে — বাকি সবাই বেঁচে থাকা অবস্থায় শেষ করো!`,
         });
         if (!checkAndApplyWinCondition(room)) {
           broadcastRoom(room);
@@ -2078,7 +2125,19 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       break;
     }
     case 'player:meme_sfx': {
-      const allowed = new Set(['vine_boom', 'bonk', 'sad_trombone', 'airhorn', 'dun_dun', 'chubani']);
+      const allowed = new Set([
+        'vine_boom',
+        'bonk',
+        'sad_trombone',
+        'airhorn',
+        'dun_dun',
+        'chubani',
+        'aaho_bhatija',
+        'helicopter_milon',
+        'gacher_pata',
+        'ashraful',
+        'prank_call',
+      ]);
       if (allowed.has(msg.memeId)) {
         broadcastRoom(room, { type: 'meme:play', memeId: msg.memeId });
       }
@@ -2174,10 +2233,16 @@ const VALID_MEME_SLOTS = new Set([
   'airhorn',
   'dun_dun',
   'chubani',
+  'aaho_bhatija',
+  'helicopter_milon',
+  'gacher_pata',
+  'ashraful',
+  'prank_call',
   'event_kill',
   'event_report',
   'event_meeting',
   'event_eject',
+  'event_eject_vondo',
   'event_sabotage',
   'event_shield',
   'event_daroga',

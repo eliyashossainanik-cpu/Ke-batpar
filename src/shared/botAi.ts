@@ -3,7 +3,8 @@ import {
   BOHURUPI_DISGUISE_DURATION_SEC,
   CHAMCHA_COOLDOWN_SEC,
   CHANDABAZ_COOLDOWN_SEC,
-  CHANDABAZ_GOAL,
+  CHANDABAZ_INITIAL_COOLDOWN_SEC,
+  CHANDABAZ_WITNESS_RANGE,
   DALAL_COOLDOWN_SEC,
   DAROGA_COOLDOWN_SEC,
   HATUR_COOLDOWN_SEC,
@@ -23,6 +24,7 @@ import {
   canCompleteTasks,
   canExecuteKill,
   collectChandaFromTarget,
+  countAliveChandabazTargets,
   createSabotageState,
   executeGoyendaScan,
   findGhotokPairCandidates,
@@ -37,6 +39,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getColorShadeHint,
   getConnectedVents,
   inspectPlayerTaskAuthenticity,
@@ -83,7 +86,7 @@ export const BOT_AI_CONFIG = {
   voteRandomness: 0.2,
   chatDelayRange: [2.0, 9.8] as readonly [number, number],
   memoryErrorChance: 0.14,
-  riskyKillChance: 0.15,
+  riskyKillChance: 0.24,
   bandwagonStrength: 0.52,
   selfReportChance: 0.14,
   busPartnerChance: 0.34,
@@ -382,6 +385,7 @@ const EXTRA_NAV_NODES: Array<{ x: number; z: number }> = [
   { x: -32.0, z: -114.0 },
   { x: 32.0, z: -114.0 },
   { x: 74.0, z: -114.0 },
+  { x: -58.5, z: 128.0 },
 ];
 
 export const NAV_NODES: Array<{ x: number; z: number }> = (() => {
@@ -753,8 +757,8 @@ export function createBotBrainState(rng: () => number = Math.random): BotBrainSt
     voteTimer: 2.2 + rng() * 5.2,
     hasChatted: false,
     huntTargetId: null,
-    sabotageDelayTimer: 36 + rng() * 26,
-    killWaitTimer: 5 + rng() * 4,
+    sabotageDelayTimer: 32 + rng() * 24,
+    killWaitTimer: 3 + rng() * 3,
     recentSightings: [],
     knownBodies: [],
     heardClaims: [],
@@ -841,7 +845,7 @@ export function resetBotBrainsForMeeting(
     brain.pauseTimer = 0.3 + rng() * 0.6;
     brain.detourNodeIdx = null;
     brain.detourTimer = 0;
-    brain.killWaitTimer = 76 + rng() * 22;
+    brain.killWaitTimer = 40 + rng() * 18;
     brain.processedMeetingClues = false;
     brain.ventTimer = 0;
     brain.ventTargetId = null;
@@ -859,7 +863,7 @@ export function resetBotBrainsForMeeting(
     brain.reportedCallerId = null;
     // Slight natural suspicion decay between rounds so old weak rumors don't stick forever
     for (const k of Object.keys(brain.suspicion)) {
-      brain.suspicion[k] = Number((brain.suspicion[k] * 0.55).toFixed(2));
+      brain.suspicion[k] = Number((brain.suspicion[k] * 0.65).toFixed(2));
       if (brain.suspicion[k] < 0.25) delete brain.suspicion[k];
     }
   }
@@ -874,7 +878,7 @@ export function recordKillWitnesses(
   doorLocks: DoorLockState,
   rng: () => number = Math.random,
 ): void {
-  const visionRange = sabotageActive === 'loadshedding' ? 8.5 : 16.5;
+  const visionRange = sabotageActive === 'loadshedding' ? 9.5 : 19.5;
   const perceived = resolvePerceivedPlayerIdentity(killer, players);
 
   for (const observer of players) {
@@ -974,20 +978,21 @@ function updateBotPerception(
     }
   }
 
-  // Track visible valve holders personally seen during gas_leak
+  // Track visible valve holders personally seen during gas_leak (persist across doorway LOS breaks to prevent ping-pong)
   if (sabotage.active === 'gas_leak') {
-    const seenHolders: string[] = [];
+    const knownOccupied = new Set(brain.observedValveHolders);
     for (const v of sabotage.valves) {
-      if (
-        v.holderId &&
-        v.holderId !== p.id &&
-        distance2D(p.x, p.z, v.x, v.z) <= 18 &&
-        hasLineOfSight(p.x, p.z, v.x, v.z, WALLS, doorLocks)
-      ) {
-        seenHolders.push(v.id);
+      const distV = distance2D(p.x, p.z, v.x, v.z);
+      const hasLosV = distV <= 18 && hasLineOfSight(p.x, p.z, v.x, v.z, WALLS, doorLocks);
+      if (hasLosV) {
+        if (v.holderId && v.holderId !== p.id) {
+          knownOccupied.add(v.id);
+        } else if (distV <= 5.5 && !v.holderId) {
+          knownOccupied.delete(v.id);
+        }
       }
     }
-    brain.observedValveHolders = seenHolders;
+    brain.observedValveHolders = Array.from(knownOccupied);
   } else {
     brain.observedValveHolders = [];
   }
@@ -1082,11 +1087,6 @@ function decideBotGoal(
   let activeStationTarget: (typeof TASK_STATIONS)[number] | null = null;
   let sprintBoost = false;
 
-  if (brain.detourNodeIdx !== null && brain.detourTimer > 0) {
-    const dNode = NAV_NODES[brain.detourNodeIdx % NAV_NODES.length];
-    return { goalX: dNode.x, goalZ: dNode.z, activeStationTarget: null, sprintBoost: false, tookVent: false };
-  }
-
   // Individual crew sabotage response using private LOS + recent sightings (zero hive-mind!)
   if (sabotage.active === 'gas_leak' && p.role === 'parabasi' && !isNeutralRole(p.specialRole)) {
     const v0 = GAS_LEAK_VALVES[0];
@@ -1095,23 +1095,41 @@ function decideBotGoal(
     const d1 = distance2D(p.x, p.z, v1.x, v1.z);
     const v0OccupiedSeen = brain.observedValveHolders.includes(v0.id);
     const v1OccupiedSeen = brain.observedValveHolders.includes(v1.id);
+    const nearbyHelperAtV0 = players.some(
+      (pl) =>
+        pl.alive &&
+        pl.id !== p.id &&
+        pl.role === 'parabasi' &&
+        !isNeutralRole(pl.specialRole) &&
+        distance2D(pl.x, pl.z, v0.x, v0.z) < 9 &&
+        hasLineOfSight(p.x, p.z, pl.x, pl.z, WALLS, doorLocks),
+    );
+    const nearbyHelperAtV1 = players.some(
+      (pl) =>
+        pl.alive &&
+        pl.id !== p.id &&
+        pl.role === 'parabasi' &&
+        !isNeutralRole(pl.specialRole) &&
+        distance2D(pl.x, pl.z, v1.x, v1.z) < 9 &&
+        hasLineOfSight(p.x, p.z, pl.x, pl.z, WALLS, doorLocks),
+    );
 
     // Infer from personal recent sightings whether crewmates were already on the West (Cha) or East (Rickshaw) wing
     const westRecent = brain.recentSightings.filter((s) => nowMs - s.atMs <= 14000 && s.x < -8).length;
     const eastRecent = brain.recentSightings.filter((s) => nowMs - s.atMs <= 14000 && s.x > 8).length;
-    const personalityBiasEast = brain.personality === 'leader' || brain.personality === 'skeptic';
+    const personalityBiasEast = brain.personality === 'leader' || brain.personality === 'skeptic' || brain.personality === 'paranoid';
 
     let chosenValve = d0 <= d1 ? v0 : v1;
-    if (v0OccupiedSeen && !v1OccupiedSeen) {
+    if ((v0OccupiedSeen || nearbyHelperAtV0) && !v1OccupiedSeen && !nearbyHelperAtV1) {
       chosenValve = v1;
-    } else if (v1OccupiedSeen && !v0OccupiedSeen) {
+    } else if ((v1OccupiedSeen || nearbyHelperAtV1) && !v0OccupiedSeen && !nearbyHelperAtV0) {
       chosenValve = v0;
     } else if (d0 <= d1 && westRecent >= 1 && eastRecent === 0 && personalityBiasEast) {
       chosenValve = v1;
     } else if (d1 < d0 && eastRecent >= 1 && westRecent === 0 && personalityBiasEast) {
       chosenValve = v0;
-    } else if (Math.abs(d0 - d1) < 36 && brain.wanderSeed > Math.PI * 0.9) {
-      chosenValve = v1;
+    } else if (Math.abs(d0 - d1) < 24 && brain.wanderSeed > Math.PI) {
+      chosenValve = chosenValve.id === v0.id ? v1 : v0;
     }
 
     // Mistri may hop via drain shortcut toward critical gas valve
@@ -1139,6 +1157,11 @@ function decideBotGoal(
       sprintBoost: true,
       tookVent: false,
     };
+  }
+
+  if (brain.detourNodeIdx !== null && brain.detourTimer > 0) {
+    const dNode = NAV_NODES[brain.detourNodeIdx % NAV_NODES.length];
+    return { goalX: dNode.x, goalZ: dNode.z, activeStationTarget: null, sprintBoost: false, tookVent: false };
   }
 
   if (
@@ -1244,9 +1267,13 @@ function decideBotGoal(
       };
     }
 
-    // No target in LOS right now: drift toward last remembered sighting or patrol populated Moholla task hubs
+    // No target in LOS right now: drift toward last remembered non-partner sighting or patrol Moholla hubs
     const recentMem = brain.recentSightings
-      .filter((s) => nowMs - s.atMs < 20000)
+      .filter((s) => {
+        if (nowMs - s.atMs >= 20000) return false;
+        const pl = players.find((o) => o.id === s.id);
+        return !pl || pl.role !== 'vondo';
+      })
       .sort((a, b) => b.atMs - a.atMs)[0];
     if (recentMem && distance2D(p.x, p.z, recentMem.x, recentMem.z) > 3.5) {
       return { goalX: recentMem.x, goalZ: recentMem.z, activeStationTarget: null, sprintBoost: false, tookVent: false };
@@ -1332,7 +1359,7 @@ function decideBotGoal(
     activeStationTarget = st;
     goalX = st.x;
     goalZ = st.z;
-    if (p.role === 'parabasi' && distance2D(p.x, p.z, st.x, st.z) > 65) {
+    if (p.role === 'parabasi' && distance2D(p.x, p.z, st.x, st.z) > 62) {
       sprintBoost = true;
     }
   }
@@ -1361,6 +1388,38 @@ function decideBotGoal(
   }
 
   return { goalX, goalZ, activeStationTarget, sprintBoost, tookVent: false };
+}
+
+/**
+ * Alerts bot victim and nearby witnesses with LOS whenever a Chandabaz extorts someone.
+ */
+export function notifyBotsOfChandabazExtort(
+  chandabaz: PlayerState,
+  target: PlayerState,
+  players: PlayerState[],
+  brains: Map<string, BotBrainState>,
+  doorLocks: DoorLockState,
+): void {
+  if (target.isBot) {
+    const tBrain = brains.get(target.id);
+    if (tBrain) {
+      tBrain.suspicion[chandabaz.id] = (tBrain.suspicion[chandabaz.id] ?? 0) + 2.3;
+      tBrain.trust[chandabaz.id] = Math.min(0, (tBrain.trust[chandabaz.id] ?? 0) - 2.0);
+      tBrain.clearedIds = tBrain.clearedIds.filter((id) => id !== chandabaz.id);
+    }
+  }
+  for (const observer of players) {
+    if (!observer.alive || !observer.isBot || observer.id === chandabaz.id || observer.id === target.id) continue;
+    const dist = distance2D(observer.x, observer.z, chandabaz.x, chandabaz.z);
+    if (dist <= CHANDABAZ_WITNESS_RANGE && hasLineOfSight(observer.x, observer.z, chandabaz.x, chandabaz.z, WALLS, doorLocks)) {
+      const oBrain = brains.get(observer.id);
+      if (oBrain) {
+        oBrain.suspicion[chandabaz.id] = (oBrain.suspicion[chandabaz.id] ?? 0) + 1.65;
+        oBrain.trust[chandabaz.id] = Math.min(0, (oBrain.trust[chandabaz.id] ?? 0) - 1.2);
+        oBrain.clearedIds = oBrain.clearedIds.filter((id) => id !== chandabaz.id);
+      }
+    }
+  }
 }
 
 /**
@@ -1413,7 +1472,16 @@ function stepHumanizedMovement(
   const hopDist = Math.hypot(dx, dz);
   if (hopDist < 0.05) {
     brain.pathRefreshTimer = 0;
-    brain.targetWaypointIdx = Math.floor(rng() * BOT_WAYPOINTS.length);
+    brain.stuckTimer += dt;
+    if (brain.stuckTimer > 0.4) {
+      brain.stuckTimer = 0;
+      const candidates = findNearestWalkableNodes(p.x, p.z, doorLocks);
+      if (candidates.length > 0) {
+        brain.detourNodeIdx = candidates[Math.floor(rng() * candidates.length)];
+        brain.detourTimer = 1.4;
+      }
+      brain.targetWaypointIdx = Math.floor(rng() * BOT_WAYPOINTS.length);
+    }
     return;
   }
 
@@ -1488,13 +1556,76 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
   const gameAlmostWonByVondo = aliveVondos >= Math.max(1, aliveNonVondos - 1);
 
   for (const p of players) {
-    if (!p.isBot || !p.alive) continue;
+    if (!p.isBot) continue;
     let brain = brains.get(p.id);
     if (!brain) {
       brain = createBotBrainState(rng);
       brain.lastX = p.x;
       brain.lastZ = p.z;
       brains.set(p.id, brain);
+    }
+
+    // Ghost crewmate bots continue finishing their remaining tasks like real players
+    if (!p.alive) {
+      if (!canCompleteTasks(p)) {
+        p.vx = 0;
+        p.vz = 0;
+        continue;
+      }
+      if (brain.pauseTimer > 0) {
+        brain.pauseTimer -= dt;
+        p.vx = 0;
+        p.vz = 0;
+        if (brain.pauseTimer <= 0 && brain.activeTaskId) {
+          const tItem = p.tasks.find(
+            (t) => t.taskId === brain.activeTaskId && !t.completed && !isTaskLockedBySabotage(t.taskId, sabotage),
+          );
+          const st = tItem ? TASK_STATIONS.find((s) => s.id === tItem.taskId) : null;
+          if (tItem && st && distance2D(p.x, p.z, st.x, st.z) <= st.radius + 1.5) {
+            tItem.completed = true;
+            brain.activeTaskId = null;
+            if (ctx.onTaskCompletedCheckWin?.()) return true;
+          }
+        }
+        continue;
+      }
+      const nextTasks = p.tasks.filter((t) => !t.completed && !isTaskLockedBySabotage(t.taskId, sabotage));
+      let st =
+        brain.activeTaskId && nextTasks.some((t) => t.taskId === brain.activeTaskId)
+          ? TASK_STATIONS.find((s) => s.id === brain.activeTaskId) ?? null
+          : null;
+      if (!st && nextTasks.length > 0) {
+        const picked = nextTasks
+          .map((t) => TASK_STATIONS.find((s) => s.id === t.taskId))
+          .filter((s): s is (typeof TASK_STATIONS)[number] => Boolean(s))
+          .sort((a, b) => distance2D(p.x, p.z, a.x, a.z) - distance2D(p.x, p.z, b.x, b.z))[0];
+        if (picked) {
+          st = picked;
+          brain.activeTaskId = picked.id;
+        }
+      }
+      if (st) {
+        const dx = st.x - p.x;
+        const dz = st.z - p.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist <= st.radius * 0.75) {
+          brain.activeTaskId = st.id;
+          brain.pauseTimer = st.holdDurationSec + 34.0 + rng() * 14.0;
+          p.vx = 0;
+          p.vz = 0;
+        } else {
+          const ghostSpeed = settings.moveSpeed * 0.25;
+          p.vx = (dx / dist) * ghostSpeed;
+          p.vz = (dz / dist) * ghostSpeed;
+          p.x += p.vx * dt;
+          p.z += p.vz * dt;
+          p.yaw = Math.atan2(p.vx, p.vz);
+        }
+      } else {
+        p.vx = 0;
+        p.vz = 0;
+      }
+      continue;
     }
 
     if (brain.sabotageDelayTimer > 0 && !sabotage.active && sabotage.cooldownRemaining <= 0) {
@@ -1715,15 +1846,27 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         p.abilityCooldown = CHAMCHA_COOLDOWN_SEC;
       }
     }
-    if (p.specialRole === 'chandabaz' && p.abilityCooldown <= 0.05) {
+    if (p.specialRole === 'chandabaz' && p.abilityCooldown <= 0.05 && sabotage.active !== 'gas_leak') {
       const target = findNearestChandabazTarget(p, players);
-      const currentCollected = p.chandabazTargets?.length ?? 0;
-      const deadCount = players.filter((pl) => !pl.alive).length;
-      const canFinishChanda = currentCollected < CHANDABAZ_GOAL - 1 || (nowMs >= 65000 && deadCount >= 1);
-      if (target && canFinishChanda && rng() < 0.05) {
-        collectChandaFromTarget(p, target);
+      const currentCollected = countAliveChandabazTargets(p, players);
+      const nearbyCrowds = players.filter(
+        (pl) =>
+          pl.alive &&
+          pl.id !== p.id &&
+          pl.id !== target?.id &&
+          !pl.inVent &&
+          distance2D(p.x, p.z, pl.x, pl.z) <= CHANDABAZ_WITNESS_RANGE &&
+          hasLineOfSight(pl.x, pl.z, p.x, p.z, WALLS, doorLocks),
+      ).length;
+      const chandaGoal = getChandabazGoal(p, players);
+      const canFinishChanda = currentCollected < chandaGoal - 1 || nowMs >= CHANDABAZ_INITIAL_COOLDOWN_SEC * 4500;
+      if (target && canFinishChanda && nearbyCrowds <= 1 && rng() < 0.04) {
+        const res = collectChandaFromTarget(p, target, players);
         p.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
-        if ((p.chandabazTargets?.length ?? 0) >= CHANDABAZ_GOAL) {
+        if (res.ok) {
+          notifyBotsOfChandabazExtort(p, target, players, brains, doorLocks);
+        }
+        if (res.reachedGoal) {
           if (ctx.onTaskCompletedCheckWin?.()) return true;
         }
       }
@@ -1767,13 +1910,13 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
       ) {
         const roll = rng();
         const sabType: SabotageType =
-          roll < 0.50 ? 'loadshedding' : roll < 0.87 ? 'wifi_down' : 'gas_leak';
+          roll < 0.52 ? 'loadshedding' : roll < 0.90 ? 'wifi_down' : 'gas_leak';
         const newSab = createSabotageState(sabType, SABOTAGE_COOLDOWN_SEC);
         Object.assign(sabotage, newSab);
         for (const other of players) {
           if (other.role === 'vondo') {
             const ob = brains.get(other.id);
-            if (ob) ob.sabotageDelayTimer = 34 + rng() * 28;
+            if (ob) ob.sabotageDelayTimer = 34 + rng() * 24;
           }
         }
         ctx.onSabotage?.(sabType);
@@ -1827,7 +1970,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             if (p.specialRole === 'supari_killer') {
               p.supariTargetId = pickSupariContractTarget(p, players, p.supariTargetId)?.id ?? null;
             }
-            brain.killWaitTimer = 86 + rng() * 24;
+            brain.killWaitTimer = 44 + rng() * 18;
             const killerColorForClue = p.disguiseColor ?? p.color;
             bodies.push({
               id: `body_${nowMs}_${victim.id}_${Math.floor(rng() * 1000)}`,
@@ -1849,7 +1992,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             // Smart Vent Escape if near a manhole & unwitnessed
             if (!witnessed && p.specialRole !== 'jharudar') {
               const nearVent = VENTS.find((v) => distance2D(p.x, p.z, v.x, v.z) <= 5.5);
-              if (nearVent && rng() < 0.65) {
+              if (nearVent && rng() < 0.45) {
                 const links = getConnectedVents(nearVent.x, nearVent.z).targets;
                 if (links.length > 0) {
                   const pickHop = links[Math.floor(rng() * links.length)];
@@ -1939,7 +2082,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         brain.pauseTimer =
           p.role === 'vondo'
             ? Math.max(1.8, goal.activeStationTarget.holdDurationSec * (0.65 + rng() * 0.55))
-            : goal.activeStationTarget.holdDurationSec + 0.85 + rng() * 0.55;
+            : goal.activeStationTarget.holdDurationSec + 1.15 + rng() * 0.6;
         if (canCompleteTasks(p) && goal.activeStationTarget.isVisual && settings.visualTasks) {
           p.visualTaskTimer = 2.6;
         }
@@ -2116,14 +2259,17 @@ export function processChatMessageForBots(params: {
         const isHardWitnessClaim =
           /সামনে|চোখে দেখছি|খাতা চেক|নকল টাস্ক|মারতে দেখ|ভেন্ট|ড্রেন দিয়ে/i.test(msg.text) ||
           /shamne|khata check|fake task|kill korte|batpar eta|vent/i.test(msg.text);
+        const isSceneProximityClaim =
+          /লাশ পাইছি.*পাশে|পাশে ঘুরতেছিল|গোয়েন্দা ক্লু পাইছি/i.test(msg.text);
         // Keep uncorroborated single-rumor suspicion restrained so bots don't blind-pile one name
         const priorAccusers = new Set(
           brain.heardClaims
             .filter((c) => c.accusedId === mentioned.id && c.speakerId !== speaker.id)
             .map((c) => c.speakerId),
         ).size;
-        const corroborationBoost = priorAccusers >= 1 ? 1.15 : 0.72;
-        const claimWeight = isHardWitnessClaim ? 1.55 : 0.68;
+        const corroborationBoost =
+          priorAccusers >= 1 ? 1.18 : isHardWitnessClaim ? 0.95 : isSceneProximityClaim ? 0.88 : 0.72;
+        const claimWeight = isHardWitnessClaim ? 2.85 : isSceneProximityClaim ? 1.65 : 0.68;
         const persMult =
           brain.personality === 'follower'
             ? 1.25
@@ -2215,15 +2361,15 @@ function processPrivateMeetingCluesForBot(
       if (bot.specialRole === 'goyenda' && kb.killerColorHint && brain.recentSightings.length > 0) {
         for (const cand of players) {
           if (cand.alive && cand.id !== bot.id && getColorShadeHint(cand.color) === kb.killerColorHint) {
-            brain.suspicion[cand.id] = (brain.suspicion[cand.id] ?? 0) + 1.25;
+            brain.suspicion[cand.id] = (brain.suspicion[cand.id] ?? 0) + 1.65;
           }
         }
       }
       for (const sight of brain.recentSightings) {
         if (clearedSet.has(sight.id)) continue;
         const d = distance2D(sight.x, sight.z, kb.x, kb.z);
-        if (d <= 28 && Math.abs(sight.atMs - kb.killedAt) <= 36000) {
-          const proximityBoost = d <= 16 ? 3.0 : 2.25;
+        if (d <= 38 && Math.abs(sight.atMs - kb.killedAt) <= 45000) {
+          const proximityBoost = d <= 20 ? 3.65 : 2.75;
           brain.suspicion[sight.id] = (brain.suspicion[sight.id] ?? 0) + proximityBoost;
         }
       }
@@ -2674,25 +2820,25 @@ export function decideBotVote(params: {
 
   const threshold =
     brain.personality === 'skeptic'
-      ? 1.92
+      ? 1.72
       : brain.personality === 'chill' || brain.personality === 'quiet'
-        ? 1.68
+        ? 1.48
         : brain.personality === 'paranoid'
-          ? 1.15
-          : 1.4;
+          ? 1.08
+          : 1.25;
 
   if (scored.length > 0 && scored[0].score >= threshold) {
     const top = scored[0];
     const runner = scored[1];
-    const onlyWeakRumor = top.priv < 1.35 && top.accusers < 2;
+    const onlyWeakRumor = top.priv < 0.9 && top.accusers < 2;
 
     // Skeptic / chill bots avoid piling on an uncorroborated single rumor
     if (onlyWeakRumor && (brain.personality === 'skeptic' || brain.personality === 'chill')) {
-      if (rng() < 0.78) return 'skip';
+      if (rng() < 0.72) return 'skip';
     }
 
-    // Genuine uncertainty when evidence isn't overwhelming (< 2.65) -> split between #1, #2, and skip
-    if (top.score < 2.65) {
+    // Genuine uncertainty when evidence isn't overwhelming (< 2.35) -> split between #1, #2, and skip
+    if (top.score < 2.35) {
       if (runner && runner.score >= threshold * 0.85 && top.score - runner.score < 0.9 && rng() < 0.38) {
         return runner.id;
       }

@@ -6,13 +6,19 @@ export type QuickMemeId =
   | 'sad_trombone'
   | 'airhorn'
   | 'dun_dun'
-  | 'chubani';
+  | 'chubani'
+  | 'aaho_bhatija'
+  | 'helicopter_milon'
+  | 'gacher_pata'
+  | 'ashraful'
+  | 'prank_call';
 
 export type EventMemeId =
   | 'event_kill'
   | 'event_report'
   | 'event_meeting'
   | 'event_eject'
+  | 'event_eject_vondo'
   | 'event_sabotage'
   | 'event_shield'
   | 'event_daroga'
@@ -29,9 +35,11 @@ export type MemeSlotId = QuickMemeId | EventMemeId;
 export interface MemeSlotMeta {
   id: MemeSlotId;
   category: 'quick' | 'event';
+  isVoicePack?: boolean;
   defaultLabel: string;
   banglaHint: string;
   shortKey?: string;
+  defaultAudioUrl?: string;
   keywords: string[];
 }
 
@@ -85,14 +93,66 @@ export const MEME_SLOTS: MemeSlotMeta[] = [
     shortKey: '6',
     keywords: ['chubani', 'pukur', 'splash', '6'],
   },
+  {
+    id: 'aaho_bhatija',
+    category: 'quick',
+    isVoicePack: true,
+    defaultLabel: 'আহো ভাতিজা আহো!',
+    banglaHint: 'ভয়েস প্যাক [৭] · ভাইরাল বাংলা ডায়লগ',
+    shortKey: '7',
+    defaultAudioUrl: '/assets/memes/aaho_bhatija_aaho.mp3',
+    keywords: ['aaho', 'bhatija', '7'],
+  },
+  {
+    id: 'helicopter_milon',
+    category: 'quick',
+    isVoicePack: true,
+    defaultLabel: 'এই তোমরা কেমন আছো?',
+    banglaHint: 'ভয়েস প্যাক [৮] · হেলিকপ্টার মিলন',
+    shortKey: '8',
+    defaultAudioUrl: '/assets/memes/helicopter_milon.mp3',
+    keywords: ['helicopter', 'milon', 'kemon', '8'],
+  },
+  {
+    id: 'gacher_pata',
+    category: 'quick',
+    isVoicePack: true,
+    defaultLabel: 'গাছের পাতা সবুজ!',
+    banglaHint: 'ভয়েস প্যাক [৯] · ভাইরাল মজার ভয়েস',
+    shortKey: '9',
+    defaultAudioUrl: '/assets/memes/gacher_pata_sobhuj.mp3',
+    keywords: ['gacher', 'pata', 'sobhuj', '9'],
+  },
+  {
+    id: 'ashraful',
+    category: 'quick',
+    isVoicePack: true,
+    defaultLabel: 'আশরাফুল ভাই!',
+    banglaHint: 'ভয়েস প্যাক [০] · কমেডি ভয়েস ক্লিপ',
+    shortKey: '0',
+    defaultAudioUrl: '/assets/memes/ashraful.mp3',
+    keywords: ['ashraful', 'bhai', '0'],
+  },
+  {
+    id: 'prank_call',
+    category: 'quick',
+    isVoicePack: true,
+    defaultLabel: 'চাঁটগাইয়া প্র্যাংক!',
+    banglaHint: 'ভয়েস প্যাক [-] · প্র্যাংক কল ভয়েস',
+    shortKey: '-',
+    defaultAudioUrl: '/assets/memes/file_clip.mp3',
+    keywords: ['prank', 'call', 'chittainga', 'file'],
+  },
 
   // Automatic Game Event Triggers
   {
     id: 'event_kill',
     category: 'event',
-    defaultLabel: 'গ্যাপে নাও! (হামলা)',
-    banglaHint: 'কেউ বাটপারের হাতে ধরা পড়লে নিজে থেকেই বাজবে',
-    keywords: ['kill', 'size', 'murder', 'khatam', 'marse'],
+    isVoicePack: true,
+    defaultLabel: 'রাগ করলা! (বাটপার কিল)',
+    banglaHint: 'বাটপার কাউকে ঘায়েল করলে নিজে থেকেই "রাগ করলা" ভয়েস বাজবে',
+    defaultAudioUrl: '/assets/memes/rag_korla.mp3',
+    keywords: ['kill', 'rag', 'korla', 'size', 'murder'],
   },
   {
     id: 'event_report',
@@ -111,9 +171,18 @@ export const MEME_SLOTS: MemeSlotMeta[] = [
   {
     id: 'event_eject',
     category: 'event',
-    defaultLabel: 'পুকুর চুবানি (বহিষ্কার)',
-    banglaHint: 'ভোটে সন্দেহভাজনকে পুকুরে ফেললে বাজবে',
+    defaultLabel: 'পুকুর চুবানি (সাধারণ)',
+    banglaHint: 'ভোটে পাড়াবাসীকে পুকুরে ফেললে বাজবে',
     keywords: ['eject', 'throw', 'out', 'bye'],
+  },
+  {
+    id: 'event_eject_vondo',
+    category: 'event',
+    isVoicePack: true,
+    defaultLabel: 'ভুল হইছে ক্ষমা দেন! (বাটপার চুবানি)',
+    banglaHint: 'আসল বাটপারকে পুকুরে চুবানি দিলে নিজে থেকেই বাজবে!',
+    defaultAudioUrl: '/assets/memes/amar_vul_hoyeche_khoma_kore_den.mp3',
+    keywords: ['vul', 'khoma', 'vondo', 'batpar', 'eject'],
   },
   {
     id: 'event_sabotage',

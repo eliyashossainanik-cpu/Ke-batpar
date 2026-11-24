@@ -74,9 +74,11 @@ export const DALAL_JAM_DURATION_MS = 10000;
 export const DALAL_DOOR_EXTEND_SEC = 8;
 export const CHAMCHA_RANGE = 6.5;
 export const CHAMCHA_COOLDOWN_SEC = 10;
-export const CHANDABAZ_RANGE = 3.6;
-export const CHANDABAZ_COOLDOWN_SEC = 14;
-export const CHANDABAZ_GOAL = 3;
+export const CHANDABAZ_RANGE = 2.6;
+export const CHANDABAZ_COOLDOWN_SEC = 30;
+export const CHANDABAZ_INITIAL_COOLDOWN_SEC = 20;
+export const CHANDABAZ_GOAL = 5;
+export const CHANDABAZ_WITNESS_RANGE = 7.0;
 export const TIKTOK_COOLDOWN_SEC = 16;
 export const TIKTOK_ZONE_GOAL = 3;
 export const TIKTOK_MAX_ALIVE_TO_WIN = 4;
@@ -1352,6 +1354,17 @@ export function findNearestChamchaPatron(chamcha: PlayerState, players: PlayerSt
   return best;
 }
 
+export function getChandabazGoal(chandabaz: PlayerState, players: PlayerState[]): number {
+  return players.filter((p) => p.alive && p.id !== chandabaz.id).length;
+}
+
+export function countAliveChandabazTargets(chandabaz: PlayerState, players: PlayerState[]): number {
+  const targets = chandabaz.chandabazTargets ?? [];
+  if (targets.length === 0) return 0;
+  const aliveIds = new Set(players.filter((p) => p.alive && p.id !== chandabaz.id).map((p) => p.id));
+  return targets.filter((id) => aliveIds.has(id)).length;
+}
+
 export function findNearestChandabazTarget(chandabaz: PlayerState, players: PlayerState[]): PlayerState | null {
   if (!chandabaz.alive || chandabaz.specialRole !== 'chandabaz' || chandabaz.inVent) return null;
   const collected = new Set(chandabaz.chandabazTargets ?? []);
@@ -1371,17 +1384,24 @@ export function findNearestChandabazTarget(chandabaz: PlayerState, players: Play
 export function collectChandaFromTarget(
   chandabaz: PlayerState,
   target: PlayerState,
+  players?: PlayerState[],
 ): { ok: boolean; count: number; reachedGoal: boolean } {
+  const goal = players ? getChandabazGoal(chandabaz, players) : CHANDABAZ_GOAL;
   if (!chandabaz.alive || chandabaz.specialRole !== 'chandabaz' || !target.alive || target.id === chandabaz.id) {
-    return { ok: false, count: chandabaz.chandabazTargets?.length ?? 0, reachedGoal: false };
+    const activeCount = players
+      ? countAliveChandabazTargets(chandabaz, players)
+      : (chandabaz.chandabazTargets?.length ?? 0);
+    return { ok: false, count: activeCount, reachedGoal: false };
   }
   const existing = chandabaz.chandabazTargets ?? [];
   if (existing.includes(target.id)) {
-    return { ok: false, count: existing.length, reachedGoal: existing.length >= CHANDABAZ_GOAL };
+    const activeCount = players ? countAliveChandabazTargets(chandabaz, players) : existing.length;
+    return { ok: false, count: activeCount, reachedGoal: goal >= 2 && activeCount >= goal };
   }
   const next = [...existing, target.id];
   chandabaz.chandabazTargets = next;
-  return { ok: true, count: next.length, reachedGoal: next.length >= CHANDABAZ_GOAL };
+  const activeCount = players ? countAliveChandabazTargets(chandabaz, players) : next.length;
+  return { ok: true, count: activeCount, reachedGoal: goal >= 2 && activeCount >= goal };
 }
 
 export function recordTiktokReelInZone(
@@ -1404,7 +1424,7 @@ export function recordTiktokReelInZone(
  * Single source of truth for win conditions.
  * Priority in the same tick:
  * 1. Pagol ejected -> Pagol wins
- * 2. Alive Chandabaz collected 3 unique Chanda -> Chandabaz wins
+ * 2. Alive Chandabaz has collected Chanda from all living other players (at least 2 alive) -> Chandabaz wins
  * 3. Alive TikTok Star filmed 3 distinct zones & <= 4 alive players -> TikTok Star wins
  * 4. All Batpar ejected/dead OR 100% tasks done -> Parabasi wins
  * 5. Critical sabotage (gas_leak) timer reaches 0 -> Batpar wins
@@ -1426,9 +1446,11 @@ export function evaluateMatchOutcome(
     };
   }
 
-  const chandabazWinner = players.find(
-    (p) => p.alive && p.specialRole === 'chandabaz' && (p.chandabazTargets?.length ?? 0) >= CHANDABAZ_GOAL,
-  );
+  const chandabazWinner = players.find((p) => {
+    if (!p.alive || p.specialRole !== 'chandabaz') return false;
+    const goal = getChandabazGoal(p, players);
+    return goal >= 2 && countAliveChandabazTargets(p, players) >= goal;
+  });
   if (chandabazWinner) {
     return {
       winner: 'chandabaz',

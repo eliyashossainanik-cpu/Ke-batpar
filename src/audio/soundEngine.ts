@@ -14,19 +14,26 @@ const BGM_STORAGE_KEY = 'ke_batpar_bgm_enabled';
 const BGM_NORMAL_VOLUME = 0.24;
 const BGM_DUCKED_VOLUME = 0.11;
 
-export function getQuickMemeList(): Array<{ id: MemeSoundId; label: string; shortKey: string }> {
+export function getQuickMemeList(): Array<{
+  id: MemeSoundId;
+  label: string;
+  shortKey: string;
+  isVoicePack?: boolean;
+}> {
   return MEME_SLOTS.filter((s) => s.category === 'quick').map((s) => ({
     id: s.id as MemeSoundId,
     label: getSlotDisplayLabel(s.id),
     shortKey: s.shortKey ?? '1',
+    isVoicePack: Boolean(s.isVoicePack),
   }));
 }
 
-export const MEME_SOUNDS: Array<{ id: MemeSoundId; label: string; shortKey: string }> =
+export const MEME_SOUNDS: Array<{ id: MemeSoundId; label: string; shortKey: string; isVoicePack?: boolean }> =
   MEME_SLOTS.filter((s) => s.category === 'quick').map((s) => ({
     id: s.id as MemeSoundId,
     label: s.defaultLabel,
     shortKey: s.shortKey ?? '1',
+    isVoicePack: Boolean(s.isVoicePack),
   }));
 
 class SoundEngine {
@@ -34,7 +41,10 @@ class SoundEngine {
   private muted = false;
   private noiseBuffer: AudioBuffer | null = null;
   private decodedCache = new Map<MemeSlotId, { refBuf: ArrayBuffer; audio: AudioBuffer }>();
+  private builtinRawCache = new Map<string, ArrayBuffer>();
+  private builtinFetchPromises = new Map<string, Promise<ArrayBuffer | null>>();
   private activeSources = new Map<MemeSlotId, AudioBufferSourceNode>();
+  private activeHtmlAudio = new Map<MemeSlotId, HTMLAudioElement>();
   private bgmAudio: HTMLAudioElement | null = null;
   private bgmEnabled = true;
   private bgmDucked = false;
@@ -52,12 +62,44 @@ class SoundEngine {
         // ignore storage access issues
       }
       const unlockBgm = () => {
+        this.preloadBuiltinClips();
         if (this.bgmEnabled && !this.muted) {
           this.startBgm();
         }
       };
       window.addEventListener('pointerdown', unlockBgm, { passive: true });
       window.addEventListener('keydown', unlockBgm, { passive: true });
+    }
+  }
+
+  private fetchBuiltinRaw(url: string): Promise<ArrayBuffer | null> {
+    const cached = this.builtinRawCache.get(url);
+    if (cached) return Promise.resolve(cached);
+    const existing = this.builtinFetchPromises.get(url);
+    if (existing) return existing;
+    if (typeof fetch !== 'function') return Promise.resolve(null);
+    const p = fetch(url)
+      .then((res) => (res.ok ? res.arrayBuffer() : null))
+      .then((buf) => {
+        if (buf && buf.byteLength > 0) {
+          this.builtinRawCache.set(url, buf);
+          return buf;
+        }
+        return null;
+      })
+      .catch(() => null)
+      .finally(() => {
+        this.builtinFetchPromises.delete(url);
+      });
+    this.builtinFetchPromises.set(url, p);
+    return p;
+  }
+
+  private preloadBuiltinClips(): void {
+    for (const slot of MEME_SLOTS) {
+      if (slot.defaultAudioUrl && !this.builtinRawCache.has(slot.defaultAudioUrl)) {
+        void this.fetchBuiltinRaw(slot.defaultAudioUrl);
+      }
     }
   }
 
@@ -214,15 +256,62 @@ class SoundEngine {
     src.start(0);
   }
 
+  private playHtmlFallbackUrl(slotId: MemeSlotId, url: string, fallbackSynth: () => void): void {
+    if (this.muted || typeof Audio === 'undefined') {
+      fallbackSynth();
+      return;
+    }
+    const prev = this.activeHtmlAudio.get(slotId);
+    if (prev) {
+      try {
+        prev.pause();
+        prev.currentTime = 0;
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      const audio = new Audio(url);
+      audio.volume = 0.88;
+      this.activeHtmlAudio.set(slotId, audio);
+      audio.onended = () => {
+        if (this.activeHtmlAudio.get(slotId) === audio) {
+          this.activeHtmlAudio.delete(slotId);
+        }
+      };
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => fallbackSynth());
+      }
+    } catch {
+      fallbackSynth();
+    }
+  }
+
   private tryPlayCustomSlot(slotId: MemeSlotId, fallbackSynth: () => void): void {
     if (this.muted) return;
-    const raw = getRawClipBuffer(slotId);
+    const customRaw = getRawClipBuffer(slotId);
+    const defaultUrl = MEME_SLOTS.find((s) => s.id === slotId)?.defaultAudioUrl;
+    const raw = customRaw ?? (defaultUrl ? this.builtinRawCache.get(defaultUrl) : undefined);
+
+    if (!raw && defaultUrl) {
+      // Lazy-fetch built-in clip while playing cleanly via HTML5 Audio immediately
+      void this.fetchBuiltinRaw(defaultUrl);
+      this.playHtmlFallbackUrl(slotId, defaultUrl, fallbackSynth);
+      return;
+    }
+
     if (!raw) {
       fallbackSynth();
       return;
     }
     const ctx = this.ensureContext();
-    if (!ctx) return;
+    if (!ctx) {
+      if (!customRaw && defaultUrl) {
+        this.playHtmlFallbackUrl(slotId, defaultUrl, fallbackSynth);
+      }
+      return;
+    }
 
     const cached = this.decodedCache.get(slotId);
     if (cached && cached.refBuf === raw) {
@@ -239,7 +328,11 @@ class SoundEngine {
         }
       })
       .catch(() => {
-        fallbackSynth();
+        if (!customRaw && defaultUrl) {
+          this.playHtmlFallbackUrl(slotId, defaultUrl, fallbackSynth);
+        } else {
+          fallbackSynth();
+        }
       });
   }
 
@@ -264,6 +357,13 @@ class SoundEngine {
         case 'chubani':
           this.playChubaniSplash();
           break;
+        case 'aaho_bhatija':
+        case 'helicopter_milon':
+        case 'gacher_pata':
+        case 'ashraful':
+        case 'prank_call':
+          this.playVineBoom();
+          break;
         case 'event_kill':
           this.playKillSynth();
           break;
@@ -272,6 +372,7 @@ class SoundEngine {
           this.playMeetingBellSynth();
           break;
         case 'event_eject':
+        case 'event_eject_vondo':
           this.playChubaniSplash();
           break;
         case 'event_sabotage':
@@ -351,6 +452,13 @@ class SoundEngine {
           break;
         case 'chubani':
           this.playChubaniSplash();
+          break;
+        case 'aaho_bhatija':
+        case 'helicopter_milon':
+        case 'gacher_pata':
+        case 'ashraful':
+        case 'prank_call':
+          this.playVineBoom();
           break;
       }
     });
@@ -780,7 +888,14 @@ class SoundEngine {
     osc.stop(t + 0.08);
   }
 
-  public playEject(): void {
+  public playEject(wasVondo = false): void {
+    if (wasVondo) {
+      this.playChubaniSplash();
+      window.setTimeout(() => {
+        this.tryPlayCustomSlot('event_eject_vondo', () => {});
+      }, 280);
+      return;
+    }
     this.tryPlayCustomSlot('event_eject', () => this.playChubaniSplash());
   }
 

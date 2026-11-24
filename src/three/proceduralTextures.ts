@@ -181,11 +181,14 @@ function makeSignTexture(
   bgHex: string,
   accentHex: string,
   maxAnisotropy: number,
+  compactMode = false,
 ): THREE.CanvasTexture {
+  const scale = compactMode ? 0.6667 : 1;
   const canvas = document.createElement('canvas');
-  canvas.width = 768;
-  canvas.height = 256;
+  canvas.width = Math.round(768 * scale);
+  canvas.height = Math.round(256 * scale);
   const ctx = canvas.getContext('2d')!;
+  if (scale !== 1) ctx.scale(scale, scale);
 
   const grad = ctx.createLinearGradient(0, 0, 768, 256);
   grad.addColorStop(0, bgHex);
@@ -307,11 +310,14 @@ function makeHoardingTexture(
   bgBottomHex: string,
   accentHex: string,
   maxAnisotropy: number,
+  compactMode = false,
 ): THREE.CanvasTexture {
+  const scale = compactMode ? 0.5 : 1;
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
+  canvas.width = Math.round(1024 * scale);
+  canvas.height = Math.round(512 * scale);
   const ctx = canvas.getContext('2d')!;
+  if (scale !== 1) ctx.scale(scale, scale);
 
   const grad = ctx.createLinearGradient(0, 0, 1024, 512);
   grad.addColorStop(0, bgTopHex);
@@ -391,11 +397,14 @@ function makeGantryBannerTexture(
   bgHex: string,
   accentHex: string,
   maxAnisotropy: number,
+  compactMode = false,
 ): THREE.CanvasTexture {
+  const scale = compactMode ? 0.5 : 1;
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 224;
+  canvas.width = Math.round(1024 * scale);
+  canvas.height = Math.round(224 * scale);
   const ctx = canvas.getContext('2d')!;
+  if (scale !== 1) ctx.scale(scale, scale);
 
   const grad = ctx.createLinearGradient(0, 0, 1024, 0);
   grad.addColorStop(0, '#090f1d');
@@ -453,21 +462,26 @@ function makeGantryBannerTexture(
 export function createProceduralTextures(
   renderer: THREE.WebGLRenderer,
   maxAnisotropyCap = 8,
+  compactMode = false,
 ): ProceduralTextureSet {
   const maxAniso = Math.max(1, Math.min(renderer.capabilities.getMaxAnisotropy(), maxAnisotropyCap));
+  const tileScale = compactMode ? 0.5 : 1;
+  const tilePx = Math.round(512 * tileScale);
 
   // 1. High-Detail Stone Cobble Albedo + Tangent Normal Map
   const cobbleCanvas = document.createElement('canvas');
-  cobbleCanvas.width = 512;
-  cobbleCanvas.height = 512;
+  cobbleCanvas.width = tilePx;
+  cobbleCanvas.height = tilePx;
   const cCtx = cobbleCanvas.getContext('2d')!;
+  if (tileScale !== 1) cCtx.scale(tileScale, tileScale);
   cCtx.fillStyle = '#202736';
   cCtx.fillRect(0, 0, 512, 512);
 
   const cobbleHeightCanvas = document.createElement('canvas');
-  cobbleHeightCanvas.width = 512;
-  cobbleHeightCanvas.height = 512;
+  cobbleHeightCanvas.width = tilePx;
+  cobbleHeightCanvas.height = tilePx;
   const cbCtx = cobbleHeightCanvas.getContext('2d')!;
+  if (tileScale !== 1) cbCtx.scale(tileScale, tileScale);
   cbCtx.fillStyle = '#242424';
   cbCtx.fillRect(0, 0, 512, 512);
 
@@ -500,23 +514,26 @@ export function createProceduralTextures(
 
   // 2. Seamless Monsoon Wet/Dry Tarmac Asphalt + Fine Micro-Normal + Soft Rain Sheen Map
   const aspCanvas = document.createElement('canvas');
-  aspCanvas.width = 512;
-  aspCanvas.height = 512;
+  aspCanvas.width = tilePx;
+  aspCanvas.height = tilePx;
   const aCtx = aspCanvas.getContext('2d')!;
+  if (tileScale !== 1) aCtx.scale(tileScale, tileScale);
   aCtx.fillStyle = '#1b2332';
   aCtx.fillRect(0, 0, 512, 512);
 
   const aspHeightCanvas = document.createElement('canvas');
-  aspHeightCanvas.width = 512;
-  aspHeightCanvas.height = 512;
+  aspHeightCanvas.width = tilePx;
+  aspHeightCanvas.height = tilePx;
   const ahCtx = aspHeightCanvas.getContext('2d')!;
+  if (tileScale !== 1) ahCtx.scale(tileScale, tileScale);
   ahCtx.fillStyle = '#808080';
   ahCtx.fillRect(0, 0, 512, 512);
 
   const aspRoughCanvas = document.createElement('canvas');
-  aspRoughCanvas.width = 512;
-  aspRoughCanvas.height = 512;
+  aspRoughCanvas.width = tilePx;
+  aspRoughCanvas.height = tilePx;
   const arCtx = aspRoughCanvas.getContext('2d')!;
+  if (tileScale !== 1) arCtx.scale(tileScale, tileScale);
   arCtx.fillStyle = '#dcdcdc';
   arCtx.fillRect(0, 0, 512, 512);
 
@@ -526,16 +543,18 @@ export function createProceduralTextures(
     return seed / 4294967296;
   };
 
-  for (let i = 0; i < 18000; i++) {
+  const speckleCount = compactMode ? 5000 : 18000;
+  const speckleSize = compactMode ? 2 : 1;
+  for (let i = 0; i < speckleCount; i++) {
     const x = Math.floor(nextRand() * 512);
     const y = Math.floor(nextRand() * 512);
     const v = 24 + Math.floor(nextRand() * 14);
     aCtx.fillStyle = `rgb(${v}, ${v + 5}, ${v + 14})`;
-    aCtx.fillRect(x, y, 1, 1);
+    aCtx.fillRect(x, y, speckleSize, speckleSize);
 
     const bv = 114 + Math.floor(nextRand() * 28);
     ahCtx.fillStyle = `rgb(${bv},${bv},${bv})`;
-    ahCtx.fillRect(x, y, 1, 1);
+    ahCtx.fillRect(x, y, speckleSize, speckleSize);
   }
 
   for (let p = 0; p < 4; p++) {
@@ -715,14 +734,16 @@ export function createProceduralTextures(
   grassMap.anisotropy = maxAniso;
 
   // 3. Corrugated Tin Roof Bump & Normal Map
+  const tinPx = Math.round(256 * tileScale);
   const tinCanvas = document.createElement('canvas');
-  tinCanvas.width = 256;
-  tinCanvas.height = 256;
+  tinCanvas.width = tinPx;
+  tinCanvas.height = tinPx;
   const tCtx = tinCanvas.getContext('2d')!;
-  for (let x = 0; x < 256; x++) {
+  if (tileScale !== 1) tCtx.scale(tileScale, tileScale);
+  for (let x = 0; x < 256; x += compactMode ? 2 : 1) {
     const v = Math.round(128 + 115 * Math.sin((x / 256) * Math.PI * 24));
     tCtx.fillStyle = `rgb(${v},${v},${v})`;
-    tCtx.fillRect(x, 0, 1, 256);
+    tCtx.fillRect(x, 0, compactMode ? 2 : 1, 256);
   }
   const tinBump = new THREE.CanvasTexture(tinCanvas);
   tinBump.wrapS = tinBump.wrapT = THREE.RepeatWrapping;
@@ -732,16 +753,18 @@ export function createProceduralTextures(
 
   // 4. Weathered Dhaka Brick Wall Albedo + Deep Mortar Normal Map
   const wallCanvas = document.createElement('canvas');
-  wallCanvas.width = 512;
-  wallCanvas.height = 512;
+  wallCanvas.width = tilePx;
+  wallCanvas.height = tilePx;
   const wCtx = wallCanvas.getContext('2d')!;
+  if (tileScale !== 1) wCtx.scale(tileScale, tileScale);
   wCtx.fillStyle = '#4e3127';
   wCtx.fillRect(0, 0, 512, 512);
 
   const wallHeightCanvas = document.createElement('canvas');
-  wallHeightCanvas.width = 512;
-  wallHeightCanvas.height = 512;
+  wallHeightCanvas.width = tilePx;
+  wallHeightCanvas.height = tilePx;
   const wbCtx = wallHeightCanvas.getContext('2d')!;
+  if (tileScale !== 1) wbCtx.scale(tileScale, tileScale);
   wbCtx.fillStyle = '#202020';
   wbCtx.fillRect(0, 0, 512, 512);
 
@@ -997,40 +1020,40 @@ export function createProceduralTextures(
   const contactShadowMap = new THREE.CanvasTexture(shCanvas);
 
   // 7. Pure Bangla Moholla Shop Signboards, Chalkboard Menus & Posters
-  const addaSignMap = makeSignTexture('আড্ডা চক', 'মহল্লার কেন্দ্রস্থল · প্রধান চত্বর', '#1e293b', '#fbbf24', maxAniso);
-  const pukurSignMap = makeSignTexture('পুকুর ঘাট', 'পশ্চিম পাড়ার শানবাঁধানো ঘাট', '#164e63', '#22d3ee', maxAniso);
-  const bazarSignMap = makeSignTexture('মহল্লা বাজার', 'টাটকা শাকসবজি ও মুদি দোকান', '#7c2d12', '#fbbf24', maxAniso);
-  const eidgahSignMap = makeSignTexture('ঈদগাহ মাঠ', 'উত্তর পাড়ার খোলা ময়দান', '#064e3b', '#34d399', maxAniso);
-  const wasaSignMap = makeSignTexture('পানির ট্যাংক', 'ওয়াসা পানি সরবরাহ কেন্দ্র', '#1e3a8a', '#38bdf8', maxAniso);
-  const chaSignMap = makeSignTexture('মামা টং ও চা', 'গরম দুধ চা ও সিঙ্গারা', '#451a03', '#fbbf24', maxAniso);
-  const rickshawSignMap = makeSignTexture('সোনার বাংলা গ্যারেজ', 'রিকশা ও সিএনজি মেরামত', '#064e3b', '#34d399', maxAniso);
-  const descoSignMap = makeSignTexture('ডেসকো পাওয়ার', 'বিদ্যুৎ সাব-স্টেশন · সতর্ক থাকুন', '#450a0a', '#f87171', maxAniso);
-  const dishSignMap = makeSignTexture('আকাশ ডিশ হাব', 'কেবল টিভি ও ওয়াইফাই কন্ট্রোল', '#172554', '#60a5fa', maxAniso);
-  const fuchkaSignMap = makeSignTexture('মামা ঝাল ফুচকা', 'স্পেশাল তেঁতুল ও চটপটি', '#7c2d12', '#fde047', maxAniso);
-  const saloonSignMap = makeSignTexture('হিরো সেলুন', 'স্টাইলিশ চুল কাটা ও শেভ', '#500724', '#f472b6', maxAniso);
-  const cricketSignMap = makeSignTexture('পাড়া ক্রিকেট মাঠ', 'টেপ টেনিস মহল্লা অ্যারেনা', '#052e16', '#4ade80', maxAniso);
-  const pharmacySignMap = makeSignTexture('দাদু ফার্মেসি', '২৪ ঘণ্টা জরুরি ওষুধ ও সেবা', '#0c4a6e', '#38bdf8', maxAniso);
-  const pandalSignMap = makeSignTexture('বিয়ে বাড়ি প্যান্ডেল', 'আলোকসজ্জা ও ডিজে সাউন্ড', '#881337', '#fbbf24', maxAniso);
-  const kakaSignMap = makeSignTexture('কাকার বাড়ি', 'উত্তর-পশ্চিম আবাসিক ভবন', '#78350f', '#fbbf24', maxAniso);
-  const masterSignMap = makeSignTexture('মাস্টার বাড়ি', 'হোম টিউশন ও পাঠশালা', '#451a03', '#fde047', maxAniso);
-  const chachaSignMap = makeSignTexture('চাচার বাড়ি', 'লাল দালান · পুরনো মহল্লা', '#881337', '#fda4af', maxAniso);
-  const khalaSignMap = makeSignTexture('খালার বাড়ি', 'ছাদবাগান ও বারান্দা মহল', '#115e59', '#5eead4', maxAniso);
-  const railStationSignMap = makeSignTexture('মহল্লা রেল স্টেশন', 'বাংলা রেল · ১নং প্ল্যাটফর্ম', '#0c4a6e', '#fde047', maxAniso);
-  const nanaSignMap = makeSignTexture('নানার বাড়ি', 'উঠানবাড়ি ও তেহারি ঘর', '#78350f', '#fde047', maxAniso);
-  const cinemaSignMap = makeSignTexture('বলাকা সিনেমা হল', 'মেগা শো ও পপকর্ন কর্নার', '#4c1d95', '#f472b6', maxAniso);
-  const bhaiSignMap = makeSignTexture('বড় ভাই ডুপ্লেক্স', 'ভিআইপি ডুপ্লেক্স ভিলা', '#1e3a8a', '#7dd3fc', maxAniso);
-  const coachingSignMap = makeSignTexture('জিপিএ-৫ কোচিং', 'সাফল্যের শতভাগ নিশ্চয়তা', '#064e3b', '#34d399', maxAniso);
-  const khaluSignMap = makeSignTexture('খালুর বাড়ি', 'বাগানবাড়ি · পূর্ব গলি', '#115e59', '#5eead4', maxAniso);
-  const jheelSignMap = makeSignTexture('ঝিল পাড় লেক', 'নৌকা ঘাট ও শাপলা পুকুর', '#0e7490', '#7dd3fc', maxAniso);
-  const parkSignMap = makeSignTexture('শিশু পার্ক', 'নাগরদোলা ও আনন্দ মেলা', '#831843', '#f472b6', maxAniso);
-  const kacchiSignMap = makeSignTexture('নবাব কাচ্চি ঘর', 'শাহী বাসমতি কাচ্চি ও বোরহানি', '#7f1d1d', '#fbbf24', maxAniso);
-  const cyberSignMap = makeSignTexture('সাইবার গেমিং আড্ডা', 'হাই-স্পিড গেমিং জোন', '#1e1b4b', '#22d3ee', maxAniso);
-  const dorjiSignMap = makeSignTexture('শিল্পী দর্জি বাড়ি', 'ঈদ পাঞ্জাবি ও ফ্যাশন টেইলার', '#701a75', '#f0abfc', maxAniso);
-  const gymSignMap = makeSignTexture('টাইগার পাড়া জিম', 'বডিবিল্ডিং ও ফিটনেস ক্লাব', '#7f1d1d', '#f87171', maxAniso);
-  const machSignMap = makeSignTexture('ওপার মাছ বাজার', 'পদ্মার তাজা ইলিশ ও রুই', '#075985', '#7dd3fc', maxAniso);
-  const colonySignMap = makeSignTexture('রেল কলোনি কোয়ার্টার', 'রেলওয়ে কর্মচারী আবাসন', '#334155', '#fde047', maxAniso);
-  const signalSignMap = makeSignTexture('সিগন্যাল টাওয়ার', 'দক্ষিণ রেল কন্ট্রোল ইয়ার্ড', '#713f12', '#facc15', maxAniso);
-  const fufuSignMap = makeSignTexture('ফুফুর বাড়ি', 'ওপার পাড়ার আতিথেয়তা', '#881337', '#fda4af', maxAniso);
+  const addaSignMap = makeSignTexture('আড্ডা চক', 'মহল্লার কেন্দ্রস্থল · প্রধান চত্বর', '#1e293b', '#fbbf24', maxAniso, compactMode);
+  const pukurSignMap = makeSignTexture('পুকুর ঘাট', 'পশ্চিম পাড়ার শানবাঁধানো ঘাট', '#164e63', '#22d3ee', maxAniso, compactMode);
+  const bazarSignMap = makeSignTexture('মহল্লা বাজার', 'টাটকা শাকসবজি ও মুদি দোকান', '#7c2d12', '#fbbf24', maxAniso, compactMode);
+  const eidgahSignMap = makeSignTexture('ঈদগাহ মাঠ', 'উত্তর পাড়ার খোলা ময়দান', '#064e3b', '#34d399', maxAniso, compactMode);
+  const wasaSignMap = makeSignTexture('পানির ট্যাংক', 'ওয়াসা পানি সরবরাহ কেন্দ্র', '#1e3a8a', '#38bdf8', maxAniso, compactMode);
+  const chaSignMap = makeSignTexture('মামা টং ও চা', 'গরম দুধ চা ও সিঙ্গারা', '#451a03', '#fbbf24', maxAniso, compactMode);
+  const rickshawSignMap = makeSignTexture('সোনার বাংলা গ্যারেজ', 'রিকশা ও সিএনজি মেরামত', '#064e3b', '#34d399', maxAniso, compactMode);
+  const descoSignMap = makeSignTexture('ডেসকো পাওয়ার', 'বিদ্যুৎ সাব-স্টেশন · সতর্ক থাকুন', '#450a0a', '#f87171', maxAniso, compactMode);
+  const dishSignMap = makeSignTexture('আকাশ ডিশ হাব', 'কেবল টিভি ও ওয়াইফাই কন্ট্রোল', '#172554', '#60a5fa', maxAniso, compactMode);
+  const fuchkaSignMap = makeSignTexture('মামা ঝাল ফুচকা', 'স্পেশাল তেঁতুল ও চটপটি', '#7c2d12', '#fde047', maxAniso, compactMode);
+  const saloonSignMap = makeSignTexture('হিরো সেলুন', 'স্টাইলিশ চুল কাটা ও শেভ', '#500724', '#f472b6', maxAniso, compactMode);
+  const cricketSignMap = makeSignTexture('পাড়া ক্রিকেট মাঠ', 'টেপ টেনিস মহল্লা অ্যারেনা', '#052e16', '#4ade80', maxAniso, compactMode);
+  const pharmacySignMap = makeSignTexture('দাদু ফার্মেসি', '২৪ ঘণ্টা জরুরি ওষুধ ও সেবা', '#0c4a6e', '#38bdf8', maxAniso, compactMode);
+  const pandalSignMap = makeSignTexture('বিয়ে বাড়ি প্যান্ডেল', 'আলোকসজ্জা ও ডিজে সাউন্ড', '#881337', '#fbbf24', maxAniso, compactMode);
+  const kakaSignMap = makeSignTexture('কাকার বাড়ি', 'উত্তর-পশ্চিম আবাসিক ভবন', '#78350f', '#fbbf24', maxAniso, compactMode);
+  const masterSignMap = makeSignTexture('মাস্টার বাড়ি', 'হোম টিউশন ও পাঠশালা', '#451a03', '#fde047', maxAniso, compactMode);
+  const chachaSignMap = makeSignTexture('চাচার বাড়ি', 'লাল দালান · পুরনো মহল্লা', '#881337', '#fda4af', maxAniso, compactMode);
+  const khalaSignMap = makeSignTexture('খালার বাড়ি', 'ছাদবাগান ও বারান্দা মহল', '#115e59', '#5eead4', maxAniso, compactMode);
+  const railStationSignMap = makeSignTexture('মহল্লা রেল স্টেশন', 'বাংলা রেল · ১নং প্ল্যাটফর্ম', '#0c4a6e', '#fde047', maxAniso, compactMode);
+  const nanaSignMap = makeSignTexture('নানার বাড়ি', 'উঠানবাড়ি ও তেহারি ঘর', '#78350f', '#fde047', maxAniso, compactMode);
+  const cinemaSignMap = makeSignTexture('বলাকা সিনেমা হল', 'মেগা শো ও পপকর্ন কর্নার', '#4c1d95', '#f472b6', maxAniso, compactMode);
+  const bhaiSignMap = makeSignTexture('বড় ভাই ডুপ্লেক্স', 'ভিআইপি ডুপ্লেক্স ভিলা', '#1e3a8a', '#7dd3fc', maxAniso, compactMode);
+  const coachingSignMap = makeSignTexture('জিপিএ-৫ কোচিং', 'সাফল্যের শতভাগ নিশ্চয়তা', '#064e3b', '#34d399', maxAniso, compactMode);
+  const khaluSignMap = makeSignTexture('খালুর বাড়ি', 'বাগানবাড়ি · পূর্ব গলি', '#115e59', '#5eead4', maxAniso, compactMode);
+  const jheelSignMap = makeSignTexture('ঝিল পাড় লেক', 'নৌকা ঘাট ও শাপলা পুকুর', '#0e7490', '#7dd3fc', maxAniso, compactMode);
+  const parkSignMap = makeSignTexture('শিশু পার্ক', 'নাগরদোলা ও আনন্দ মেলা', '#831843', '#f472b6', maxAniso, compactMode);
+  const kacchiSignMap = makeSignTexture('নবাব কাচ্চি ঘর', 'শাহী বাসমতি কাচ্চি ও বোরহানি', '#7f1d1d', '#fbbf24', maxAniso, compactMode);
+  const cyberSignMap = makeSignTexture('সাইবার গেমিং আড্ডা', 'হাই-স্পিড গেমিং জোন', '#1e1b4b', '#22d3ee', maxAniso, compactMode);
+  const dorjiSignMap = makeSignTexture('শিল্পী দর্জি বাড়ি', 'ঈদ পাঞ্জাবি ও ফ্যাশন টেইলার', '#701a75', '#f0abfc', maxAniso, compactMode);
+  const gymSignMap = makeSignTexture('টাইগার পাড়া জিম', 'বডিবিল্ডিং ও ফিটনেস ক্লাব', '#7f1d1d', '#f87171', maxAniso, compactMode);
+  const machSignMap = makeSignTexture('ওপার মাছ বাজার', 'পদ্মার তাজা ইলিশ ও রুই', '#075985', '#7dd3fc', maxAniso, compactMode);
+  const colonySignMap = makeSignTexture('রেল কলোনি কোয়ার্টার', 'রেলওয়ে কর্মচারী আবাসন', '#334155', '#fde047', maxAniso, compactMode);
+  const signalSignMap = makeSignTexture('সিগন্যাল টাওয়ার', 'দক্ষিণ রেল কন্ট্রোল ইয়ার্ড', '#713f12', '#facc15', maxAniso, compactMode);
+  const fufuSignMap = makeSignTexture('ফুফুর বাড়ি', 'ওপার পাড়ার আতিথেয়তা', '#881337', '#fda4af', maxAniso, compactMode);
 
   // Cha Menu Chalkboard
   const cmCanvas = document.createElement('canvas');
@@ -1124,6 +1147,7 @@ export function createProceduralTextures(
     '#312e81',
     '#22d3ee',
     maxAniso,
+    compactMode,
   );
   const hoardingKacchiMap = makeHoardingTexture(
     'নবাব কাচ্চি ও তেহারি',
@@ -1133,6 +1157,7 @@ export function createProceduralTextures(
     '#991b1b',
     '#fbbf24',
     maxAniso,
+    compactMode,
   );
   const hoardingRailMap = makeHoardingTexture(
     'বাংলা এক্সপ্রেস রেলওয়ে',
@@ -1142,6 +1167,7 @@ export function createProceduralTextures(
     '#0f172a',
     '#facc15',
     maxAniso,
+    compactMode,
   );
   const hoardingAdMap = makeHoardingTexture(
     'স্পেশাল এয়ারড্রপ জোন',
@@ -1151,6 +1177,7 @@ export function createProceduralTextures(
     '#7c2d12',
     '#fb923c',
     maxAniso,
+    compactMode,
   );
   const gantryNorthMap = makeGantryBannerTexture(
     'স্বাগতম · উত্তর মহল্লা অ্যাভিনিউ',
@@ -1158,6 +1185,7 @@ export function createProceduralTextures(
     '#0f172a',
     '#fbbf24',
     maxAniso,
+    compactMode,
   );
   const gantrySouthMap = makeGantryBannerTexture(
     'ওপার বাংলা · দক্ষিণ রেল ও বাজার',
@@ -1165,6 +1193,7 @@ export function createProceduralTextures(
     '#0c4a6e',
     '#fde047',
     maxAniso,
+    compactMode,
   );
 
   // 7b. Hand-Painted Dhaka Rickshaw Folk-Art Panel

@@ -143,3 +143,90 @@
   animation: amg-fade-in 0.35s ease-out forwards;
 }
 
+@keyframes kb-beam-sweep {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate3d(-4%, -2%, 0) rotate(-14deg) scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: translate3d(4%, 2%, 0) rotate(-10deg) scale(1.06);
+  }
+}
+
+@keyframes kb-ember-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.7);
+  }
+  20% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(14px, -78px, 0) scale(1.1);
+  }
+}
+
+@keyframes kb-emblem-hover {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0) rotate(1.5deg);
+  }
+}
+
+@keyframes kb-cta-sheen {
+  0% {
+    transform: translate3d(-140%, 0, 0) skewX(-22deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.45;
+  }
+  38% {
+    transform: translate3d(260%, 0, 0) skewX(-22deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate3d(260%, 0, 0) skewX(-22deg);
+    opacity: 0;
+  }
+}
+
+.kb-beam-sweep {
+  animation: kb-beam-sweep 11s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.kb-ember-drift {
+  animation: kb-ember-drift var(--ember-dur, 7s) ease-in-out var(--ember-delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+.kb-emblem-hover {
+  animation: kb-emblem-hover 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.kb-cta-sheen {
+  animation: kb-cta-sheen 4.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-beam-sweep,
+  .kb-ember-drift,
+  .kb-emblem-hover,
+  .kb-cta-sheen,
+  .animate-amg-runner,
+  .animate-amg-loading-bar {
+    animation: none !important;
+  }
+}

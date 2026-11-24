@@ -639,6 +639,23 @@ export const WALLS: WallAABB[] = [
   { id: 'airdrop_nw_park', minX: -101.2, maxX: -99.4, minZ: -18.8, maxZ: -17.0, height: 1.65 },
   { id: 'airdrop_ne_park', minX: 99.4, maxX: 101.2, minZ: 17.0, maxZ: 18.8, height: 1.65 },
   { id: 'airdrop_south_plaza', minX: -4.2, maxX: -2.4, minZ: 125.0, maxZ: 126.8, height: 1.65 },
+
+  // Outer Moholla & Opar Para Street Props (Tapri Stalls, Mini-Buses, Brick Depots, Motorbikes)
+  { id: 'tapri_nw', minX: -104.1, maxX: -99.9, minZ: -128.6, maxZ: -125.9, height: 2.55 },
+  { id: 'tapri_ne', minX: 99.9, maxX: 104.1, minZ: -128.6, maxZ: -125.9, height: 2.55 },
+  { id: 'minibus_north', minX: 132.0, maxX: 137.5, minZ: -132.2, maxZ: -129.8, height: 2.85 },
+  { id: 'brick_depot_sw', minX: -106.5, maxX: -101.8, minZ: 103.0, maxZ: 105.8, height: 1.6 },
+  { id: 'minibus_sw_1', minX: -98.0, maxX: -92.5, minZ: 118.8, maxZ: 121.2, height: 2.85 },
+  { id: 'tapri_sw_1', minX: -108.1, maxX: -103.9, minZ: 118.8, maxZ: 121.4, height: 2.55 },
+  { id: 'haat_stall_se_1', minX: 94.0, maxX: 98.2, minZ: 118.8, maxZ: 121.4, height: 2.55 },
+  { id: 'haat_stall_se_2', minX: 103.4, maxX: 107.6, minZ: 118.8, maxZ: 121.4, height: 2.55 },
+  { id: 'minibus_se_1', minX: 94.0, maxX: 99.5, minZ: 102.5, maxZ: 104.9, height: 2.85 },
+  { id: 'minibus_sw_far', minX: -136.75, maxX: -131.25, minZ: 124.8, maxZ: 127.2, height: 2.85 },
+  { id: 'tapri_se_far', minX: 131.9, maxX: 136.1, minZ: 124.7, maxZ: 127.3, height: 2.55 },
+  { id: 'moto_nw_park', minX: -96.9, maxX: -95.1, minZ: -34.5, maxZ: -33.5, height: 1.1 },
+  { id: 'moto_ne_park', minX: 95.1, maxX: 96.9, minZ: 33.5, maxZ: 34.5, height: 1.1 },
+  { id: 'moto_cyber', minX: -125.9, maxX: -124.1, minZ: 38.5, maxZ: 39.5, height: 1.1 },
+  { id: 'moto_gym', minX: 124.1, maxX: 125.9, minZ: -39.5, maxZ: -38.5, height: 1.1 },
 ];
 
 // Rolling Tin Shutters across building doorways when Vondo triggers Door Lock Sabotage
@@ -1977,7 +1994,7 @@ export const SABOTAGE_TARGETS: Record<
     label: 'গ্যাস পাইপ ভালভ (চা + গ্যারেজ)',
     banglaLabel: 'গ্যাস পাইপ ফেটে গেছে!',
     severity: 'critical',
-    durationSec: 45,
+    durationSec: 75,
   },
 };
 

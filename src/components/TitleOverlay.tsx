@@ -27,6 +27,9 @@ import {
   VolumeX,
   Shuffle,
   Pencil,
+  ChevronDown,
+  Shield,
+  Skull,
 } from 'lucide-react';
 import { pickAutoMultiplayerIdentity } from '../shared/banglaComedy';
 import {
@@ -76,6 +79,15 @@ const SOLO_SPECIAL_OPTIONS: Array<{ value: SpecialRole | 'random'; label: string
   { value: 'chamcha', label: 'চামচা (সহ-বিজয়ী)' },
   { value: 'chandabaz', label: 'চাঁদাবাজ (চাঁদাবাজি)' },
   { value: 'tiktok_star', label: 'টিকটক স্টার (ভাইরাল রিল)' },
+];
+
+const AMBIENT_EMBERS = [
+  { left: '9%', bottom: '18%', size: 6, color: '#fbbf24', dur: '7.4s', delay: '0s' },
+  { left: '22%', bottom: '28%', size: 4, color: '#fde68a', dur: '6.2s', delay: '1.6s' },
+  { left: '34%', bottom: '14%', size: 5, color: '#38bdf8', dur: '8.1s', delay: '0.8s' },
+  { left: '47%', bottom: '22%', size: 4, color: '#fb923c', dur: '6.9s', delay: '2.7s' },
+  { left: '16%', bottom: '52%', size: 5, color: '#fbbf24', dur: '7.8s', delay: '3.4s' },
+  { left: '41%', bottom: '62%', size: 4, color: '#7dd3fc', dur: '8.6s', delay: '1.1s' },
 ];
 
 export function TitleOverlay({
@@ -135,14 +147,30 @@ export function TitleOverlay({
     () => soundEngine.subscribeBgmState(() => setBgmEnabled(soundEngine.isBgmEnabled())),
     [],
   );
+
   const customMemeCount = getLoadedCustomCount();
   const career = loadCareerStats();
-
   const selectedSpec = PLAYER_COLORS.find((c) => c.id === playerColor) ?? PLAYER_COLORS[0];
+
+  const factionLabel =
+    soloSpecial === 'random'
+      ? null
+      : BATPAR_SPECIAL_ROLES.includes(soloSpecial)
+        ? 'বাটপার দল ·'
+        : isNeutralRole(soloSpecial)
+          ? 'নিরপেক্ষ ·'
+          : 'পাড়াবাসী ·';
+
+  const factionTextColor =
+    soloSpecial !== 'random' && BATPAR_SPECIAL_ROLES.includes(soloSpecial)
+      ? 'text-rose-300'
+      : soloSpecial !== 'random' && isNeutralRole(soloSpecial)
+        ? 'text-amber-300'
+        : 'text-emerald-300';
 
   return (
     <div
-      className="fixed inset-0 z-20 flex flex-col justify-between pointer-events-none overflow-y-auto"
+      className="fixed inset-0 z-20 flex flex-col justify-between pointer-events-none overflow-y-auto overflow-x-hidden"
       style={{
         paddingTop: 'env(safe-area-inset-top)',
         paddingBottom: 'env(safe-area-inset-bottom)',
@@ -150,8 +178,64 @@ export function TitleOverlay({
         paddingRight: 'env(safe-area-inset-right)',
       }}
     >
-      {/* Top-Right Quick BGM & Fullscreen Toggles */}
-      <div className="fixed top-3 right-3 sm:top-5 sm:right-5 z-30 pointer-events-auto flex items-center gap-2">
+      {/* Animated Twilight Atmospheric Backdrop (Left Launch Stage + Open Right 3D Flyover) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute inset-y-0 left-0 w-full max-w-4xl"
+          style={{
+            background:
+              'linear-gradient(95deg, rgba(5,9,18,0.95) 0%, rgba(7,12,24,0.84) 44%, rgba(8,14,28,0.34) 76%, rgba(8,14,28,0) 100%)',
+          }}
+        />
+
+        {/* Diagonal Dusk Spotlight Sweep (GPU transform/opacity only) */}
+        <div
+          className="kb-beam-sweep absolute -top-28 -left-24 w-[420px] sm:w-[540px] h-[140%] pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse at 32% 28%, rgba(251,191,36,0.16) 0%, rgba(56,189,248,0.08) 42%, rgba(0,0,0,0) 74%)',
+          }}
+        />
+
+        {/* Subtle Top & Bottom Horizon Vignettes */}
+        <div
+          className="absolute inset-x-0 top-0 h-28"
+          style={{
+            background: 'linear-gradient(180deg, rgba(4,7,15,0.68) 0%, rgba(4,7,15,0) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-x-0 bottom-0 h-24"
+          style={{
+            background: 'linear-gradient(0deg, rgba(4,7,15,0.72) 0%, rgba(4,7,15,0) 100%)',
+          }}
+        />
+
+        {/* Ambient Floating Dusk Embers */}
+        {AMBIENT_EMBERS.map((ember, idx) => (
+          <span
+            key={idx}
+            aria-hidden="true"
+            className="kb-ember-drift hidden sm:block absolute rounded-full pointer-events-none"
+            style={{
+              left: ember.left,
+              bottom: ember.bottom,
+              width: `${ember.size}px`,
+              height: `${ember.size}px`,
+              background: `radial-gradient(circle, ${ember.color} 0%, rgba(251,191,36,0) 72%)`,
+              ['--ember-dur' as string]: ember.dur,
+              ['--ember-delay' as string]: ember.delay,
+            }}
+          />
+        ))}
+
+        {/* Tactical Camera Viewfinder Corner Brackets on Desktop Showcase */}
+        <div className="hidden lg:block absolute top-20 right-8 w-8 h-8 border-t border-r border-amber-300/20" />
+        <div className="hidden lg:block absolute bottom-10 right-8 w-8 h-8 border-b border-r border-sky-300/20" />
+      </div>
+
+      {/* Top-Right Tactical Utility Rail */}
+      <div className="fixed top-3 right-3 sm:top-5 sm:right-6 z-30 pointer-events-auto flex items-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -159,13 +243,17 @@ export function TitleOverlay({
           }}
           aria-label={bgmEnabled ? 'মিউজিক বন্ধ করো' : 'মিউজিক চালু করো'}
           title="ব্যাকগ্রাউন্ড মিউজিক"
-          className={`px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-lg ${
+          className={`min-h-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
             bgmEnabled
-              ? 'border-emerald-400/40 bg-slate-950/85 hover:bg-slate-900 text-emerald-200'
-              : 'border-white/15 bg-slate-950/85 hover:bg-slate-900 text-slate-400'
+              ? 'border-emerald-400/40 bg-[#09111d]/88 hover:bg-[#0d1828] text-emerald-200'
+              : 'border-white/15 bg-[#090e1b]/88 hover:bg-[#11192c] text-slate-300'
           }`}
         >
-          {bgmEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-rose-400" />}
+          {bgmEnabled ? (
+            <Volume2 className="w-4 h-4 text-emerald-300 shrink-0" />
+          ) : (
+            <VolumeX className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
           <span>{bgmEnabled ? 'মিউজিক চালু' : 'মিউজিক বন্ধ'}</span>
         </button>
         <button
@@ -174,179 +262,145 @@ export function TitleOverlay({
             void toggleFullscreenMode(true);
           }}
           aria-label={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন চালু করো'}
-          className="px-3 py-2 rounded-xl border border-amber-400/40 bg-slate-950/85 hover:bg-slate-900 text-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-lg"
+          className="min-h-[42px] px-3.5 py-2 rounded-xl border border-amber-400/35 bg-[#090e1b]/88 hover:bg-[#121b30] text-amber-200 text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
         >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          {isFullscreen ? <Minimize2 className="w-4 h-4 shrink-0" /> : <Maximize2 className="w-4 h-4 shrink-0" />}
           <span>{isFullscreen ? 'ছোট স্ক্রিন' : 'ফুলস্ক্রিন'}</span>
         </button>
       </div>
 
-      {/* Subtle left-side scrim for crisp typography contrast over the live 3D Moholla flyover */}
-      <div
-        className="fixed inset-y-0 left-0 w-full max-w-2xl pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(90deg, rgba(10,15,25,0.92) 0%, rgba(10,15,25,0.72) 65%, rgba(10,15,25,0) 100%)',
-        }}
-      />
-
-      <main className="relative z-10 flex flex-col justify-center [@media(max-height:540px)]:justify-start flex-1 px-4 py-4 [@media(max-height:540px)]:py-2 sm:px-12 [@media(max-height:540px)]:px-5 max-w-xl [@media(max-height:540px)]:max-w-lg pointer-events-auto">
-        {/* Custom Inline SVG Emblem Lockup */}
-        <div className="mb-3 sm:mb-6 [@media(max-height:540px)]:mb-1.5">
-          <svg
-            viewBox="0 0 470 114"
-            className="w-full max-w-[300px] sm:max-w-[420px] [@media(max-height:540px)]:max-w-[235px] h-auto"
-            role="img"
-            aria-label="KE BATPAR? - বাংলার থ্রিডি সামাজিক ধাঁধা ও কমেডি খেলা"
-          >
-            <g transform="translate(8, 12)">
-              {/* Cute Chibi Moholla Crewmate with Sprout, Rosy Cheeks & Visor Sparkle */}
-              <path d="M33 14 L33 4 M33 7 Q22 1 20 8 Q26 11 33 7 M33 7 Q44 1 46 8 Q40 11 33 7" fill="#4ade80" stroke="#15803d" strokeWidth="2.2" strokeLinecap="round" />
-              <rect x="6" y="14" width="54" height="70" rx="26" fill={selectedSpec.hex} stroke="#fbbf24" strokeWidth="4" />
-              <rect x="26" y="27" width="32" height="19" rx="9.5" fill="#bae6fd" stroke="#0f172a" strokeWidth="3" />
-              <ellipse cx="48" cy="33" rx="4.5" ry="2.2" fill="#ffffff" />
-              <ellipse cx="23" cy="52" rx="4.5" ry="2.6" fill="#fb7185" opacity="0.8" />
-              <ellipse cx="52" cy="52" rx="4.5" ry="2.6" fill="#fb7185" opacity="0.8" />
-              <rect x="0" y="34" width="12" height="32" rx="5" fill="#cbd5e1" stroke="#0f172a" strokeWidth="2.5" />
-              <path d="M58 46 L68 46 L66 57 L60 57 Z" fill="#b45309" stroke="#fbbf24" strokeWidth="1.8" />
-              <path d="M16 82 L16 94 M46 82 L46 94" stroke="#fbbf24" strokeWidth="8" strokeLinecap="round" />
-            </g>
-            <text
-              x="82"
-              y="56"
-              fill="#f8fafc"
-              fontFamily="'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif"
-              fontWeight="800"
-              fontSize="44"
-              letterSpacing="-1"
+      {/* Main Left Launch Stage */}
+      <main className="relative z-10 flex flex-col justify-center [@media(max-height:540px)]:justify-start flex-1 px-4 pt-16 pb-4 sm:py-6 [@media(max-height:540px)]:pt-14 [@media(max-height:540px)]:pb-2 sm:px-10 lg:px-14 [@media(max-height:540px)]:px-5 max-w-[560px] [@media(max-height:540px)]:max-w-lg pointer-events-auto">
+        {/* Hero Brand Lockup with Dynamic Color-Reactive Character Pedestal */}
+        <header className="mb-4 sm:mb-5 [@media(max-height:540px)]:mb-2 flex items-center gap-4 sm:gap-5">
+          <div className="relative shrink-0 w-16 h-[74px] sm:w-[78px] sm:h-[90px] [@media(max-height:540px)]:w-12 [@media(max-height:540px)]:h-14 flex items-center justify-center">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 rounded-full opacity-55 transition-colors duration-300"
+              style={{
+                background: `radial-gradient(circle, ${selectedSpec.hex}55 0%, rgba(251,191,36,0.16) 45%, rgba(0,0,0,0) 74%)`,
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute bottom-0.5 inset-x-2 h-2.5 rounded-full bg-black/65"
+            />
+            <svg
+              viewBox="0 0 72 96"
+              className="kb-emblem-hover relative w-full h-full drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)]"
+              role="img"
+              aria-label="KE BATPAR? চরিত্র"
             >
-              KE BATPAR?
-            </text>
-            <text
-              x="84"
-              y="88"
-              fill="#fbbf24"
-              fontFamily="'Noto Sans Bengali', 'Plus Jakarta Sans', sans-serif"
-              fontWeight="700"
-              fontSize="20"
-            >
-              কে বাটপার? · Moholla Comedy
-            </text>
-          </svg>
-          <p className="hidden sm:block [@media(max-height:540px)]:hidden mt-2 text-sm sm:text-base text-slate-300 leading-relaxed max-w-md">
-            দুধ-চা খাও, লোডশেডিং সামলাও, আর পাড়া থেকে আসল বাটপারকে খুঁজে পুকুরে চুবানি দাও!
-          </p>
-        </div>
+              <path
+                d="M36 15 L36 5 M36 8 Q25 2 23 9 Q29 12 36 8 M36 8 Q47 2 49 9 Q43 12 36 8"
+                fill="#4ade80"
+                stroke="#15803d"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+              <rect
+                x="9"
+                y="15"
+                width="54"
+                height="68"
+                rx="26"
+                fill={selectedSpec.hex}
+                stroke="#fbbf24"
+                strokeWidth="3.5"
+              />
+              <rect
+                x="29"
+                y="28"
+                width="31"
+                height="18"
+                rx="9"
+                fill="#bae6fd"
+                stroke="#0f172a"
+                strokeWidth="2.8"
+              />
+              <ellipse cx="50" cy="34" rx="4.2" ry="2" fill="#ffffff" />
+              <ellipse cx="26" cy="52" rx="4.2" ry="2.4" fill="#fb7185" opacity="0.82" />
+              <ellipse cx="54" cy="52" rx="4.2" ry="2.4" fill="#fb7185" opacity="0.82" />
+              <rect
+                x="3"
+                y="34"
+                width="11"
+                height="31"
+                rx="5"
+                fill="#cbd5e1"
+                stroke="#0f172a"
+                strokeWidth="2.4"
+              />
+              <path
+                d="M60 46 L69 46 L67 57 L62 57 Z"
+                fill="#b45309"
+                stroke="#fbbf24"
+                strokeWidth="1.6"
+              />
+              <path
+                d="M20 82 L20 92 M49 82 L49 92"
+                stroke="#fbbf24"
+                strokeWidth="7.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
 
-        {/* Character Setup Card */}
+          <div className="min-w-0 flex-1">
+            <h1
+              className="text-[2.1rem] sm:text-[2.9rem] [@media(max-height:540px)]:text-2xl font-black tracking-tight leading-[0.98] text-slate-50 drop-shadow-[0_6px_18px_rgba(0,0,0,0.8)]"
+              style={{ fontFamily: "'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif", textWrap: 'balance' }}
+            >
+              KE{' '}
+              <span className="bg-gradient-to-b from-amber-200 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+                BATPAR?
+              </span>
+            </h1>
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:text-sm font-bold text-amber-300">
+              <span>কে বাটপার?</span>
+              <span aria-hidden="true" className="text-slate-500">·</span>
+              <span className="text-slate-200 font-medium">৩ডি মহল্লা রহস্য ও কমেডি</span>
+              {career.matchesPlayed > 0 && (
+                <>
+                  <span aria-hidden="true" className="text-slate-600">·</span>
+                  <span className="inline-flex items-center gap-1 font-mono-tabular text-xs font-semibold text-emerald-300">
+                    <Trophy className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    {career.wins} জয় · {career.matchesPlayed} ম্যাচ
+                  </span>
+                </>
+              )}
+            </div>
+
+            <p className="hidden sm:block [@media(max-height:540px)]:hidden mt-1.5 text-[13px] text-slate-300/90 leading-snug max-w-md">
+              দুধ-চা খাও, লোডশেডিং সামলাও, আর পাড়া থেকে আসল বাটপারকে ধরে পুকুরে চুবানি দাও।
+            </p>
+          </div>
+        </header>
+
+        {/* Tactical Game-Lobby Launch Console */}
         <section
-          aria-label="খেলোয়াড়ের পরিচয়"
-          className="rounded-2xl p-4 sm:p-5 [@media(max-height:540px)]:p-3 border border-white/12 shadow-2xl"
-          style={{ backgroundColor: 'rgba(15, 23, 42, 0.92)' }}
+          aria-label="খেলোয়াড়ের পরিচয় ও ম্যাচ শুরু"
+          className="relative overflow-hidden rounded-2xl p-4 sm:p-5 [@media(max-height:540px)]:p-3 bg-[#090e1b]/88 border border-white/15 shadow-[0_28px_72px_-16px_rgba(0,0,0,0.92)]"
         >
-          {modeTab === 'solo' || editingMultiIdentity ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [@media(max-height:540px)]:gap-2.5 mb-4 [@media(max-height:540px)]:mb-2.5">
-              <div>
-                <div className="flex items-center justify-between mb-1.5 [@media(max-height:540px)]:mb-1">
-                  <label htmlFor="player-name-input" className="block text-xs font-semibold text-slate-300">
-                    পাড়ার ডাকনাম
-                  </label>
-                  {modeTab === 'multi' && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingMultiIdentity(false)}
-                      className="text-[11px] font-semibold text-amber-300 hover:text-amber-200"
-                    >
-                      সম্পন্ন
-                    </button>
-                  )}
-                </div>
-                <input
-                  id="player-name-input"
-                  type="text"
-                  maxLength={16}
-                  value={playerName}
-                  onChange={(e) => onChangeName(e.target.value)}
-                  placeholder="যেমন: Lal Mia"
-                  className="w-full px-3.5 py-2.5 [@media(max-height:540px)]:py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-medium focus:outline-none focus:border-amber-400"
-                />
-              </div>
+          {/* Specular Top Hairline Highlight */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent"
+          />
 
-              <div>
-                <span className="block text-xs font-semibold text-slate-300 mb-1.5 [@media(max-height:540px)]:mb-1">
-                  রঙ · {selectedSpec.label}
-                </span>
-                <div className="grid grid-cols-5 gap-1.5 w-fit [@media(max-height:540px)]:gap-1" role="radiogroup" aria-label="চরিত্রের রঙ বেছে নাও">
-                  {PLAYER_COLORS.map((c) => {
-                    const active = c.id === playerColor;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => onChangeColor(c.id)}
-                        aria-label={`রঙ ${c.label}`}
-                        aria-checked={active}
-                        role="radio"
-                        className={`w-6 h-6 [@media(max-height:540px)]:w-5 [@media(max-height:540px)]:h-5 rounded-full border-2 transition-transform ${
-                          active ? 'border-amber-300 scale-110' : 'border-white/25 hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: c.hex }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mb-3 px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className="w-8 h-8 rounded-full border-2 border-amber-300 shrink-0"
-                  style={{ backgroundColor: selectedSpec.hex }}
-                />
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-bold text-white truncate">
-                    {playerName.trim() || 'Para Hero'}
-                  </div>
-                  <div className="text-[11px] text-slate-400 truncate">
-                    রঙ: {selectedSpec.label} · নাম: অটো
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={applyAutoIdentity}
-                  aria-label="অটো নাম ও রঙ বদলাও"
-                  title="মজার আরেকটি নাম ও রঙ নাও"
-                  className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold flex items-center gap-1"
-                >
-                  <Shuffle className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">অটো</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditingMultiIdentity(true)}
-                  aria-label="নাম বা রঙ পরিবর্তন করো"
-                  className="min-h-[36px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">বদলাও</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Mode Segmented Toggle */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900 border border-slate-800 mb-4 [@media(max-height:540px)]:mb-2.5">
+          {/* Tactical Mode Segmented Switcher */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-white/10 mb-4 [@media(max-height:540px)]:mb-2.5">
             <button
               type="button"
               onClick={() => {
                 setModeTab('solo');
                 setEditingMultiIdentity(false);
               }}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                modeTab === 'solo' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
+              className={`min-h-[40px] py-2 px-3 rounded-lg text-xs font-bold tracking-wide transition-all whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                modeTab === 'solo'
+                  ? 'bg-gradient-to-b from-amber-300 to-amber-400 text-slate-950 shadow-[0_6px_16px_-4px_rgba(251,191,36,0.5)]'
+                  : 'text-slate-300 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               সলো ম্যাচ (বট)
@@ -360,74 +414,192 @@ export function TitleOverlay({
                 }
                 onRefreshRooms();
               }}
-              className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
-                modeTab === 'multi' ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
+              className={`min-h-[40px] py-2 px-3 rounded-lg text-xs font-bold tracking-wide transition-all whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                modeTab === 'multi'
+                  ? 'bg-gradient-to-b from-amber-300 to-amber-400 text-slate-950 shadow-[0_6px_16px_-4px_rgba(251,191,36,0.5)]'
+                  : 'text-slate-300 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
               অনলাইন রুম
             </button>
           </div>
 
+          {/* Player Identity Block */}
+          {modeTab === 'solo' || editingMultiIdentity ? (
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3.5 sm:gap-5 [@media(max-height:540px)]:gap-2.5 mb-4 [@media(max-height:540px)]:mb-2.5 pb-4 [@media(max-height:540px)]:pb-2.5 border-b border-white/10">
+              <div>
+                <div className="flex items-center justify-between mb-1.5 [@media(max-height:540px)]:mb-1">
+                  <label htmlFor="player-name-input" className="block text-xs font-semibold text-slate-300">
+                    পাড়ার ডাকনাম
+                  </label>
+                  {modeTab === 'multi' && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingMultiIdentity(false)}
+                      className="text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer"
+                    >
+                      সম্পন্ন
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className="w-9 h-9 rounded-xl ring-2 ring-amber-300/65 shrink-0 shadow-inner transition-colors"
+                    style={{ backgroundColor: selectedSpec.hex }}
+                  />
+                  <input
+                    id="player-name-input"
+                    type="text"
+                    maxLength={16}
+                    value={playerName}
+                    onChange={(e) => onChangeName(e.target.value)}
+                    placeholder="যেমন: Lal Mia"
+                    className="w-full min-h-[42px] px-3.5 py-2 [@media(max-height:540px)]:min-h-[36px] [@media(max-height:540px)]:py-1.5 rounded-xl bg-slate-900/95 border border-white/15 text-white text-sm font-semibold focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/25 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 mb-1.5 [@media(max-height:540px)]:mb-1">
+                  <span>রঙ</span>
+                  <span aria-hidden="true" className="text-slate-500">·</span>
+                  <span className="text-amber-200 font-semibold">{selectedSpec.label}</span>
+                </div>
+                <div
+                  className="grid grid-cols-5 gap-2 [@media(max-height:540px)]:gap-1.5 w-fit"
+                  role="radiogroup"
+                  aria-label="চরিত্রের রঙ বেছে নাও"
+                >
+                  {PLAYER_COLORS.map((c) => {
+                    const active = c.id === playerColor;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => onChangeColor(c.id)}
+                        aria-label={`রঙ ${c.label}`}
+                        aria-checked={active}
+                        role="radio"
+                        className={`w-7 h-7 sm:w-6 sm:h-6 [@media(max-height:540px)]:w-5 [@media(max-height:540px)]:h-5 rounded-full transition-transform cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                          active
+                            ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-[#090e1b] scale-110'
+                            : 'ring-1 ring-white/25 hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-3.5 pb-3.5 border-b border-white/10 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className="w-10 h-10 rounded-xl ring-2 ring-amber-300/80 ring-offset-2 ring-offset-[#090e1b] shrink-0"
+                  style={{ backgroundColor: selectedSpec.hex }}
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-white truncate">
+                    {playerName.trim() || 'Para Hero'}
+                  </div>
+                  <div className="text-xs text-slate-400 truncate">
+                    {selectedSpec.label} · অটো নাম
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={applyAutoIdentity}
+                  aria-label="অটো নাম ও রঙ বদলাও"
+                  title="মজার আরেকটি নাম ও রঙ নাও"
+                  className="min-h-[40px] px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                >
+                  <Shuffle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">অটো</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingMultiIdentity(true)}
+                  aria-label="নাম বা রঙ পরিবর্তন করো"
+                  className="min-h-[40px] px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                >
+                  <Pencil className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">বদলাও</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {errorMsg && (
-            <div role="alert" className="mb-3 px-3 py-2 rounded-lg bg-rose-950/90 border border-rose-500/40 text-xs text-rose-200">
+            <div role="alert" className="mb-3 px-3.5 py-2.5 rounded-xl bg-rose-950/90 border border-rose-500/45 text-xs font-medium text-rose-200">
               {errorMsg}
             </div>
           )}
 
           {modeTab === 'solo' ? (
-            <div className="space-y-2.5 [@media(max-height:540px)]:space-y-1.5">
-              <div className="flex items-center justify-between gap-2 px-3 py-2 [@media(max-height:540px)]:py-1.5 rounded-xl bg-slate-900 border border-slate-800">
-                <label
-                  htmlFor="solo-role-select"
-                  className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 shrink-0"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  স্পেশাল রোল
-                </label>
-                <select
-                  id="solo-role-select"
-                  value={soloSpecial}
-                  onChange={(e) => setSoloSpecial(e.target.value as SpecialRole | 'random')}
-                  className="flex-1 max-w-[230px] px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-semibold text-amber-200 focus:outline-none focus:border-amber-400"
-                >
-                  {SOLO_SPECIAL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-3 [@media(max-height:540px)]:space-y-2">
+              {/* Special Role Selector */}
+              <div className="rounded-xl bg-slate-900/75 border border-white/10 p-2.5 sm:px-3 sm:py-2.5">
+                <div className="flex items-center justify-between gap-2.5">
+                  <label
+                    htmlFor="solo-role-select"
+                    className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 shrink-0"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                    স্পেশাল রোল
+                  </label>
+                  <select
+                    id="solo-role-select"
+                    value={soloSpecial}
+                    onChange={(e) => setSoloSpecial(e.target.value as SpecialRole | 'random')}
+                    className="flex-1 min-w-0 max-w-[260px] min-h-[38px] px-3 py-1.5 rounded-lg bg-slate-950/95 border border-white/15 text-xs font-semibold text-amber-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+                  >
+                    {SOLO_SPECIAL_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {soloSpecial !== 'random' && (
+                  <p className="mt-2 pt-2 border-t border-white/8 text-xs text-slate-300 leading-snug">
+                    <span className={`font-bold mr-1.5 ${factionTextColor}`}>{factionLabel}</span>
+                    {SPECIAL_ROLES[soloSpecial].shortDesc}
+                  </p>
+                )}
               </div>
-              {soloSpecial !== 'random' && (
-                <p className="text-[11px] text-slate-300/90 px-1 leading-snug">
-                  {SPECIAL_ROLES[soloSpecial].shortDesc}
-                </p>
-              )}
-              <div className="flex items-center justify-between gap-2">
+
+              {/* Match Summary & Collapsible Rules Trigger */}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setShowSoloSettings((v) => !v)}
                   aria-expanded={showSoloSettings}
-                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-colors"
+                  className="min-h-[40px] px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/12 font-semibold text-slate-200 flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
                 >
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300" />
-                  ম্যাচের নিয়ম ({soloPlayerCount} জন · {soloSettings.vondoCount} বাটপার · {soloSettings.tasksPerPlayer} কাজ)
-                </button>
-                {career.matchesPlayed > 0 && (
-                  <span className="text-[11px] font-mono-tabular font-semibold text-emerald-300 flex items-center gap-1">
-                    <Trophy className="w-3.5 h-3.5 text-amber-300" />
-                    {career.wins} জয় / {career.matchesPlayed} ম্যাচ
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span>নিয়ম বদলাও</span>
+                  <span aria-hidden="true" className="text-slate-500">·</span>
+                  <span className="font-mono-tabular text-amber-200/95">
+                    {soloPlayerCount} জন / {soloSettings.vondoCount} বাটপার / {soloSettings.tasksPerPlayer} কাজ
                   </span>
-                )}
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showSoloSettings ? 'rotate-180' : ''}`}
+                  />
+                </button>
               </div>
 
               {showSoloSettings && (
-                <div className="rounded-xl p-3 bg-slate-900/95 border border-slate-700/80 grid grid-cols-2 gap-2 text-xs text-slate-200">
+                <div className="p-3 rounded-xl bg-slate-900/70 border border-white/10 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs text-slate-200">
                   <label className="flex items-center justify-between gap-1.5">
                     <span className="text-slate-400">খেলোয়াড়</span>
                     <select
                       value={soloPlayerCount}
                       onChange={(e) => onChangeSoloPlayerCount(Number(e.target.value))}
-                      className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
+                      className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
                     >
                       {[5, 6, 7, 8, 9, 10, 12, 15].map((cnt) => (
                         <option key={cnt} value={cnt}>
@@ -441,7 +613,7 @@ export function TitleOverlay({
                     <select
                       value={soloSettings.vondoCount}
                       onChange={(e) => onUpdateSoloSettings({ vondoCount: Number(e.target.value) })}
-                      className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
+                      className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white"
                     >
                       <option value={1}>১ জন বাটপার</option>
                       <option value={2} disabled={soloPlayerCount < 6}>
@@ -457,7 +629,7 @@ export function TitleOverlay({
                     <select
                       value={soloSettings.killCooldownSec}
                       onChange={(e) => onUpdateSoloSettings({ killCooldownSec: Number(e.target.value) })}
-                      className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
+                      className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
                     >
                       <option value={12}>১২ সে.</option>
                       <option value={18}>১৮ সে.</option>
@@ -469,7 +641,7 @@ export function TitleOverlay({
                     <select
                       value={soloSettings.tasksPerPlayer}
                       onChange={(e) => onUpdateSoloSettings({ tasksPerPlayer: Number(e.target.value) })}
-                      className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-white"
+                      className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
                     >
                       <option value={4}>৪টি কাজ</option>
                       <option value={5}>৫টি কাজ</option>
@@ -477,7 +649,7 @@ export function TitleOverlay({
                       <option value={8}>৮টি কাজ</option>
                     </select>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={soloSettings.confirmEjects}
@@ -486,7 +658,7 @@ export function TitleOverlay({
                     />
                     <span>আসল পরিচয় দেখাও</span>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={soloSettings.anonymousVotes}
@@ -495,7 +667,7 @@ export function TitleOverlay({
                     />
                     <span>গোপন ভোট</span>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={soloSettings.visualTasks}
@@ -504,7 +676,7 @@ export function TitleOverlay({
                     />
                     <span>লাইভ কাজের দৃশ্য</span>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={soloSettings.enableSpecialRoles}
@@ -516,18 +688,25 @@ export function TitleOverlay({
                 </div>
               )}
 
+              {/* Primary 3D-Beveled Launch CTA with Specular Sheen */}
               <button
                 type="button"
                 data-start="true"
                 onClick={() =>
                   onStartSolo(undefined, soloSpecial === 'random' ? undefined : soloSpecial)
                 }
-                className="w-full py-3.5 [@media(max-height:540px)]:py-2.5 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-bold text-base [@media(max-height:540px)]:text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="relative overflow-hidden w-full min-h-[50px] py-3.5 [@media(max-height:540px)]:min-h-[42px] [@media(max-height:540px)]:py-2.5 px-6 rounded-xl bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 hover:from-amber-200 hover:via-amber-300 hover:to-amber-400 active:translate-y-[1px] border-b-[3px] border-amber-700/90 text-slate-950 font-display font-extrabold text-base [@media(max-height:540px)]:text-sm flex items-center justify-center gap-2 shadow-[0_14px_34px_-8px_rgba(251,191,36,0.58)] transition-all whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
               >
-                <Play className="w-5 h-5 fill-current" />
-                সলো ম্যাচ শুরু করো
+                <span
+                  aria-hidden="true"
+                  className="kb-cta-sheen pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-transparent via-white/55 to-transparent"
+                />
+                <Play className="w-5 h-5 fill-current shrink-0 relative z-10" />
+                <span className="relative z-10">সলো ম্যাচ শুরু করো</span>
               </button>
-              <div className="flex items-center gap-2">
+
+              {/* Practice Mode Quick Row */}
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -540,9 +719,10 @@ export function TitleOverlay({
                         : undefined,
                     )
                   }
-                  className="flex-1 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+                  className="min-h-[42px] py-2 px-3 rounded-xl bg-emerald-950/55 hover:bg-emerald-900/75 border border-emerald-400/25 text-emerald-100 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                 >
-                  পাড়াবাসী প্র্যাকটিস
+                  <Shield className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                  <span>পাড়াবাসী প্র্যাকটিস</span>
                 </button>
                 <button
                   type="button"
@@ -554,16 +734,17 @@ export function TitleOverlay({
                         : undefined,
                     )
                   }
-                  className="flex-1 py-2 px-3 rounded-lg bg-rose-950/90 hover:bg-rose-900 border border-rose-500/30 text-rose-200 text-xs font-semibold transition-colors"
+                  className="min-h-[42px] py-2 px-3 rounded-xl bg-rose-950/65 hover:bg-rose-900/85 border border-rose-500/35 text-rose-100 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
                 >
-                  বাটপার প্র্যাকটিস
+                  <Skull className="w-3.5 h-3.5 text-rose-300 shrink-0" />
+                  <span>বাটপার প্র্যাকটিস</span>
                 </button>
               </div>
             </div>
           ) : (
             <div className="space-y-3">
               {initialJoinCode && (
-                <div className="px-3 py-2 rounded-lg bg-emerald-950/80 border border-emerald-400/40 text-xs text-emerald-200 font-semibold">
+                <div className="px-3 py-2 rounded-xl bg-emerald-950/85 border border-emerald-400/40 text-xs text-emerald-200 font-semibold">
                   আমন্ত্রণ লিংক প্রস্তুত — রুম <span className="font-mono-tabular text-amber-300">{initialJoinCode.toUpperCase()}</span> বসানো আছে! নাম লিখে যোগ দাও।
                 </div>
               )}
@@ -572,9 +753,9 @@ export function TitleOverlay({
                   type="button"
                   disabled={connecting}
                   onClick={onCreateRoom}
-                  className="py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-display font-bold text-sm flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
+                  className="min-h-[46px] py-3 px-4 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 border-b-[3px] border-emerald-700 disabled:opacity-50 text-slate-950 font-display font-extrabold text-sm flex items-center justify-center gap-2 transition-all whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 shrink-0" />
                   {connecting ? 'কানেক্ট হচ্ছে...' : 'রুম বানাও'}
                 </button>
                 <div className="flex items-center gap-1.5 flex-1">
@@ -590,51 +771,51 @@ export function TitleOverlay({
                         onJoinRoom(joinCode.trim());
                       }
                     }}
-                    className="flex-1 min-w-0 px-3 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono-tabular uppercase tracking-widest focus:outline-none focus:border-amber-400"
+                    className="flex-1 min-w-0 min-h-[46px] px-3 py-2.5 rounded-xl bg-slate-900/95 border border-white/15 text-white text-sm font-mono-tabular uppercase tracking-widest focus:outline-none focus:border-amber-400"
                   />
                   <button
                     type="button"
                     aria-label="রুম কোড দিয়ে জয়েন করো"
                     disabled={connecting || joinCode.trim().length < 3}
                     onClick={() => onJoinRoom(joinCode.trim())}
-                    className="px-4 py-3 rounded-xl bg-amber-400 disabled:opacity-40 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-colors whitespace-nowrap"
+                    className="min-h-[46px] px-4 py-2.5 rounded-xl bg-gradient-to-b from-amber-300 to-amber-400 border-b-[3px] border-amber-700 disabled:opacity-40 hover:from-amber-200 hover:to-amber-300 text-slate-950 font-extrabold text-sm transition-all whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200"
                   >
                     জয়েন করো
                   </button>
                 </div>
               </div>
-              <p className="text-[11px] text-slate-400 leading-snug">
-                <strong className="text-slate-200">রুম বানাও</strong> দিয়ে বন্ধুদের কোড দাও, অথবা বন্ধুর <strong className="text-amber-300">রুম কোড</strong> লিখে জয়েন করো!
+              <p className="text-xs text-slate-400 leading-snug">
+                <strong className="text-slate-200">রুম বানাও</strong> দিয়ে বন্ধুদের কোড দাও, অথবা বন্ধুর <strong className="text-amber-300">রুম কোড</strong> লিখে যোগ দাও।
               </p>
 
-              <div className="pt-2 border-t border-slate-800">
+              <div className="pt-3 border-t border-white/10">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-400">সচল পাবলিক রুম</span>
+                  <span className="text-xs font-semibold text-slate-300">সচল পাবলিক রুম</span>
                   <button
                     type="button"
                     onClick={onRefreshRooms}
                     aria-label="পাবলিক রুম রিফ্রেশ করো"
-                    className="text-xs text-amber-300 hover:text-amber-200 flex items-center gap-1"
+                    className="min-h-[36px] px-2 text-xs text-amber-300 hover:text-amber-200 flex items-center gap-1 font-semibold cursor-pointer"
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     রিফ্রেশ
                   </button>
                 </div>
                 {publicRooms.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-1">নতুন রুম খুলে বন্ধুদের রুম কোড শেয়ার করো!</p>
+                  <p className="text-xs text-slate-400 py-1">নতুন রুম খুলে বন্ধুদের রুম কোড শেয়ার করো।</p>
                 ) : (
                   <div className="space-y-1.5 max-h-28 overflow-y-auto">
                     {publicRooms.map((r) => (
                       <div
                         key={r.roomCode}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-900 border border-slate-800"
+                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10"
                       >
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-2 text-xs min-w-0">
                           <span className="font-mono-tabular font-bold text-amber-300">{r.roomCode}</span>
-                          <span className="text-slate-400">·</span>
-                          <span className="text-slate-200">{r.hostName}</span>
+                          <span className="text-slate-500">·</span>
+                          <span className="text-slate-200 truncate">{r.hostName}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5 shrink-0">
                           <span className="text-xs font-mono-tabular text-slate-400 flex items-center gap-1">
                             <Users className="w-3.5 h-3.5" />
                             {r.playerCount}/{r.maxPlayers}
@@ -642,7 +823,7 @@ export function TitleOverlay({
                           <button
                             type="button"
                             onClick={() => onJoinRoom(r.roomCode)}
-                            className="px-2.5 py-1 rounded bg-amber-400 text-slate-950 text-xs font-bold hover:bg-amber-300"
+                            className="min-h-[34px] px-3 py-1 rounded-lg bg-amber-400 text-slate-950 text-xs font-bold hover:bg-amber-300 whitespace-nowrap cursor-pointer"
                           >
                             যোগ দাও
                           </button>
@@ -655,27 +836,27 @@ export function TitleOverlay({
             </div>
           )}
 
-          {/* Original Meme Pack (Admin only) & Rules Guide Bar */}
-          <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center gap-2">
+          {/* Meme Sound Pack & Rules Guide Footer */}
+          <div className="mt-4 [@media(max-height:540px)]:mt-2.5 pt-3 [@media(max-height:540px)]:pt-2 border-t border-white/10 flex items-center gap-2">
             {onOpenMemePack && (
               <button
                 type="button"
                 onClick={onOpenMemePack}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-400/35 text-amber-200 text-xs font-bold flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                className="flex-1 min-h-[42px] py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-amber-400/25 text-amber-200 text-xs font-semibold flex items-center justify-between gap-2 transition-colors whitespace-nowrap cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
               >
                 <span className="flex items-center gap-2 truncate">
                   <Music2 className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span className="truncate">মিম প্যাক</span>
+                  <span className="truncate">মিম ও ভয়েস প্যাক</span>
                 </span>
-                <span className="px-2 py-0.5 rounded bg-amber-400/15 text-amber-300 font-mono-tabular text-[11px] shrink-0">
-                  {customMemeCount > 0 ? `${customMemeCount} ক্লিপ` : 'আপলোড'}
+                <span className="text-amber-300 font-mono-tabular text-xs shrink-0">
+                  {customMemeCount > 0 ? `${customMemeCount} ক্লিপ` : 'কাস্টমাইজ'}
                 </span>
               </button>
             )}
             <button
               type="button"
               onClick={onOpenGuide}
-              className={`${onOpenMemePack ? '' : 'flex-1 justify-center '}py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-sky-400/35 text-sky-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0`}
+              className={`${onOpenMemePack ? '' : 'flex-1 justify-center '}min-h-[42px] py-2 px-4 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-sky-400/25 text-sky-200 text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300`}
             >
               <BookOpen className="w-4 h-4 text-sky-300 shrink-0" />
               নিয়ম ও চরিত্র
@@ -684,10 +865,10 @@ export function TitleOverlay({
         </section>
       </main>
 
-      {/* Clean Single-Line Bottom Control Hint (hidden on small/touch mobile) */}
-      <footer className="hidden md:block relative z-10 px-6 sm:px-12 pb-5">
-        <p className="text-xs text-slate-300/85 font-medium tracking-wide">
-          WASD হাঁটা · Space লাফ · Shift দৌড় · ড্র্যাগ ৩৬০° · হুইল জুম · ১–৬ মিম সাউন্ড · E কাজ · R রিপোর্ট · F সালিশ
+      {/* Clean Single-Line Bottom Control Hint (desktop/tablet) */}
+      <footer className="hidden md:block relative z-10 px-6 sm:px-10 lg:px-14 pb-5 [@media(max-height:540px)]:hidden">
+        <p className="inline-block px-4 py-1.5 rounded-xl bg-[#090e1b]/75 border border-white/10 text-xs text-slate-300 font-medium tracking-wide shadow-lg">
+          WASD হাঁটা · Space লাফ · Shift দৌড় · ড্র্যাগ ৩৬০° · ১–০ ভয়েস ও মিম · E কাজ · R রিপোর্ট · F সালিশ
         </p>
       </footer>
     </div>

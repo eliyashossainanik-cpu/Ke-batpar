@@ -26,11 +26,13 @@ import {
   getZoneIdAt,
 } from '../shared/mapData';
 import {
+  CHANDABAZ_COOLDOWN_SEC,
   MISTRI_FIX_RANGE,
   SABOTAGE_FIX_RANGE,
   VENT_RANGE,
   canCompleteTasks,
   canUseVent,
+  countAliveChandabazTargets,
   findGhotokPairCandidates,
   findNearestChamchaPatron,
   findNearestChandabazTarget,
@@ -44,6 +46,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getConnectedVents,
   getDirectionCompass,
   isCriticalSabotage,
@@ -83,6 +86,7 @@ import {
   ChevronDown,
   ChevronUp,
   Smartphone,
+  Settings,
   X,
   Gavel,
   HeartPulse,
@@ -214,17 +218,20 @@ function PubgCompassStrip({
     <div
       aria-label={`কম্পাস দিক ${Math.round(centerDeg)} ডিগ্রি`}
       className={`pointer-events-none flex flex-col items-center select-none ${
-        compact ? 'w-[172px]' : 'w-[220px] sm:w-[270px]'
+        compact ? 'w-[172px]' : 'w-[228px] sm:w-[276px]'
       }`}
     >
       <div className="flex items-center gap-1.5 mb-0.5">
-        <span className="px-1.5 py-[1px] rounded bg-slate-950/90 border border-amber-400/50 font-mono-tabular text-[10px] font-black text-amber-300 tracking-wider shadow">
+        <span className="px-2 py-[1px] rounded-full bg-slate-950/85 backdrop-blur-md border border-amber-400/40 font-mono-tabular text-[10px] font-black text-amber-300 tracking-wider shadow">
           {String(Math.round(centerDeg)).padStart(3, '0')}°
         </span>
       </div>
       <div
-        className="relative w-full h-5 rounded-lg border border-white/15 overflow-hidden shadow-md"
-        style={{ backgroundColor: 'rgba(10, 16, 28, 0.82)' }}
+        className="relative w-full h-5 rounded-full border border-white/10 overflow-hidden shadow-md backdrop-blur-md"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(10,16,28,0.2) 0%, rgba(10,16,28,0.82) 18%, rgba(10,16,28,0.82) 82%, rgba(10,16,28,0.2) 100%)',
+        }}
       >
         <div
           aria-hidden="true"
@@ -255,10 +262,11 @@ function PubgCompassStrip({
   );
 }
 
-interface MobileArcSlot {
+interface TacticalActionSlot {
   id: string;
   label: string;
   subLabel?: string;
+  hotkey?: string;
   icon: React.ReactNode;
   accentHex: string;
   bgClass: string;
@@ -269,15 +277,19 @@ interface MobileArcSlot {
   onHold?: (holding: boolean) => void;
 }
 
-function MobileThumbArcButton({
+function TacticalCircleButton({
   slot,
   hero = false,
+  compact = false,
+  showHotkey = false,
 }: {
-  slot: MobileArcSlot;
+  slot: TacticalActionSlot;
   hero?: boolean;
+  compact?: boolean;
+  showHotkey?: boolean;
 }) {
-  const sizePx = hero ? 62 : 50;
-  const r = sizePx / 2 - 3;
+  const sizePx = hero ? (compact ? 64 : 76) : compact ? 50 : 58;
+  const r = sizePx / 2 - 3.5;
   const circumference = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(1, slot.progress01 ?? 0));
   const dashOffset = circumference * (1 - pct);
@@ -309,9 +321,14 @@ function MobileThumbArcButton({
       onPointerCancel={() => {
         slot.onHold?.(false);
       }}
-      aria-label={slot.subLabel ? `${slot.label} ${slot.subLabel}` : slot.label}
-      className={`relative rounded-full flex flex-col items-center justify-center select-none active:scale-90 transition-transform shadow-[0_6px_20px_rgba(0,0,0,0.68)] disabled:opacity-35 ${slot.bgClass} ${
-        slot.pulse ? 'animate-pulse' : ''
+      aria-label={
+        slot.subLabel
+          ? `${slot.label} ${slot.subLabel}${slot.hotkey ? ` [${slot.hotkey}]` : ''}`
+          : `${slot.label}${slot.hotkey ? ` [${slot.hotkey}]` : ''}`
+      }
+      title={slot.subLabel ? `${slot.label} (${slot.subLabel})` : slot.label}
+      className={`group relative rounded-full flex flex-col items-center justify-center select-none backdrop-blur-md active:scale-90 hover:scale-[1.04] transition-all duration-150 shadow-[0_8px_24px_rgba(0,0,0,0.65)] disabled:opacity-40 disabled:hover:scale-100 ${slot.bgClass} ${
+        slot.pulse ? 'ring-2 ring-white/40' : ''
       }`}
       style={{
         width: `${sizePx}px`,
@@ -319,6 +336,11 @@ function MobileThumbArcButton({
         touchAction: 'none',
       }}
     >
+      {/* Inner tactical ring bevel */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[5px] rounded-full border border-white/10"
+      />
       <svg
         width={sizePx}
         height={sizePx}
@@ -331,8 +353,8 @@ function MobileThumbArcButton({
           cy={sizePx / 2}
           r={r}
           fill="none"
-          stroke="rgba(255,255,255,0.16)"
-          strokeWidth={hero ? 2.5 : 2}
+          stroke="rgba(255,255,255,0.14)"
+          strokeWidth={hero ? 3 : 2.25}
         />
         {pct > 0 && (
           <circle
@@ -341,24 +363,35 @@ function MobileThumbArcButton({
             r={r}
             fill="none"
             stroke={slot.accentHex}
-            strokeWidth={hero ? 3 : 2.5}
+            strokeWidth={hero ? 3.25 : 2.5}
             strokeDasharray={circumference}
             strokeDashoffset={dashOffset}
             strokeLinecap="round"
           />
         )}
       </svg>
-      <span className="relative z-10 flex flex-col items-center justify-center leading-none">
+
+      {showHotkey && slot.hotkey && (
+        <kbd className="pointer-events-none absolute -top-1 -right-1 z-20 min-w-[19px] h-[19px] px-1 rounded-full bg-slate-950/95 border border-white/25 text-amber-300 font-mono-tabular text-[10px] font-black flex items-center justify-center shadow">
+          {slot.hotkey}
+        </kbd>
+      )}
+
+      <span className="relative z-10 flex flex-col items-center justify-center leading-none px-1">
         {slot.icon}
         <span
-          className={`font-display font-black tracking-wide mt-0.5 ${
-            hero ? 'text-[9px]' : 'text-[8px]'
+          className={`font-display font-black tracking-wide mt-0.5 truncate max-w-[92%] ${
+            hero ? (compact ? 'text-[9.5px]' : 'text-[10.5px]') : compact ? 'text-[8px]' : 'text-[9px]'
           }`}
         >
           {slot.label}
         </span>
         {slot.subLabel && (
-          <span className="font-mono-tabular text-[8px] font-bold opacity-90 mt-[1px] max-w-[44px] truncate">
+          <span
+            className={`font-mono-tabular font-bold opacity-95 mt-[1px] truncate ${
+              hero ? 'text-[9px] max-w-[56px]' : 'text-[8px] max-w-[44px]'
+            }`}
+          >
             {slot.subLabel}
           </span>
         )}
@@ -823,6 +856,7 @@ export function GameHud({
   const [showSabotageMenu, setShowSabotageMenu] = useState(false);
   const [showDisguiseMenu, setShowDisguiseMenu] = useState(false);
   const [showMemeDrawer, setShowMemeDrawer] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [bgmEnabled, setBgmEnabled] = useState(() => soundEngine.isBgmEnabled());
   const [, setPackVer] = useState(0);
 
@@ -911,6 +945,14 @@ export function GameHud({
   const haturTarget = findNearestHaturTarget(localPlayer, snapshot.players);
   const chamchaTarget = findNearestChamchaPatron(localPlayer, snapshot.players);
   const chandabazTarget = findNearestChandabazTarget(localPlayer, snapshot.players);
+  const chandabazAliveCount =
+    localPlayer.specialRole === 'chandabaz'
+      ? countAliveChandabazTargets(localPlayer, snapshot.players)
+      : 0;
+  const chandabazGoal =
+    localPlayer.specialRole === 'chandabaz'
+      ? getChandabazGoal(localPlayer, snapshot.players)
+      : 0;
   const supariTarget = localPlayer.supariTargetId
     ? snapshot.players.find((p) => p.id === localPlayer.supariTargetId && p.alive) ?? null
     : null;
@@ -1123,16 +1165,15 @@ export function GameHud({
 
         <div
           className={`flex flex-col gap-1.5 shrink-0 w-full ${
-            isLandscapeCompact ? 'max-w-[178px]' : isNarrowMobile ? 'max-w-[186px]' : 'max-w-[235px] lg:max-w-[258px]'
+            isLandscapeCompact ? 'max-w-[178px]' : isNarrowMobile ? 'max-w-[186px]' : 'max-w-[228px] lg:max-w-[244px]'
           }`}
         >
           <div
-            className={`pointer-events-auto rounded-xl border border-white/12 shadow-lg ${
-              isLandscapeCompact ? 'px-2.5 py-1.5' : 'px-3 py-2 sm:px-3.5 sm:py-2.5'
+            className={`pointer-events-auto rounded-xl border border-white/10 backdrop-blur-md shadow-lg bg-slate-950/76 ${
+              isLandscapeCompact ? 'px-2.5 py-1.5' : 'px-3 py-2'
             }`}
-            style={{ backgroundColor: 'rgba(12, 18, 30, 0.86)' }}
           >
-            <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+            <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold mb-1.5">
               <span className="text-slate-300">পাড়ার কাজ</span>
               <span className="font-mono-tabular text-amber-300">
                 {wifiHidden
@@ -1140,10 +1181,10 @@ export function GameHud({
                   : `${snapshot.completedTasks}/${snapshot.totalTasks} · ${taskPct}%`}
               </span>
             </div>
-            <div className="w-full h-2 sm:h-2.5 rounded-full bg-slate-800 overflow-hidden">
+            <div className="w-full h-1.5 sm:h-2 rounded-full bg-slate-800/90 overflow-hidden">
               <div
-                className={`h-full transition-all duration-300 ${
-                  wifiHidden ? 'bg-indigo-500/70 animate-pulse' : 'bg-emerald-400'
+                className={`h-full rounded-full transition-all duration-300 ${
+                  wifiHidden ? 'bg-indigo-500/80' : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.45)]'
                 }`}
                 style={{ width: wifiHidden ? '100%' : `${taskPct}%` }}
               />
@@ -1242,7 +1283,7 @@ export function GameHud({
                 )}
                 {localPlayer.specialRole === 'chandabaz' && (
                   <span className="text-amber-300 font-mono-tabular">
-                    চাঁদা: {localPlayer.chandabazTargets?.length ?? 0}/৩
+                    চাঁদা (জীবিত): {chandabazAliveCount}/{chandabazGoal}
                   </span>
                 )}
                 {localPlayer.specialRole === 'tiktok_star' && (
@@ -1327,12 +1368,9 @@ export function GameHud({
               )}
             </div>
           ) : (
-            <div
-              className="rounded-xl px-3.5 py-2.5 border border-white/15 shadow-lg text-xs space-y-1"
-              style={{ backgroundColor: 'rgba(10, 15, 28, 0.92)' }}
-            >
+            <div className="rounded-xl px-3 py-2 border border-white/10 backdrop-blur-md bg-slate-950/74 shadow-lg text-[11px] space-y-1">
               {isVondo && (
-                <div className="text-[11px] font-bold text-rose-300 pb-1 border-b border-slate-800">
+                <div className="text-[10.5px] font-bold text-rose-300 pb-1 border-b border-white/10">
                   ভুয়া কাজের তালিকা (দলের অগ্রগতি ০%)
                 </div>
               )}
@@ -1343,11 +1381,11 @@ export function GameHud({
                   <div
                     key={t.taskId}
                     className={`flex items-center justify-between gap-2 ${
-                      t.completed ? 'text-emerald-400 line-through opacity-75' : 'text-slate-100 font-medium'
+                      t.completed ? 'text-emerald-400 line-through opacity-65' : 'text-slate-100 font-medium'
                     }`}
                   >
                     <span className="truncate">{st.title}</span>
-                    <span className="text-[11px] text-slate-300 shrink-0">{st.zoneName}</span>
+                    <span className="text-[10px] text-slate-400 shrink-0">{st.zoneName}</span>
                   </div>
                 );
               })}
@@ -1442,120 +1480,9 @@ export function GameHud({
           </div>
         )}
 
-        {/* Top-Right Cluster: Utility Buttons & Meme Drawer */}
-        <div className="flex flex-col items-end gap-1.5 sm:gap-2 shrink-0">
-          <div
-            className={`pointer-events-auto ${
-              isLandscapeCompact
-                ? 'flex items-center justify-end gap-1'
-                : 'grid grid-cols-4 sm:flex sm:flex-wrap items-center justify-end gap-1.5'
-            }`}
-          >
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                void toggleFullscreenMode(true);
-              }}
-              aria-label={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন চালু করো'}
-              title={isFullscreen ? 'ফুলস্ক্রিন বন্ধ করো' : 'ফুলস্ক্রিন মোড'}
-              className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[42px] sm:min-h-[42px]'
-              } rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold ${
-                isFullscreen
-                  ? 'border-emerald-400/60 text-emerald-300'
-                  : 'border-amber-400/45 text-amber-200 hover:text-white'
-              }`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                setShowMemeDrawer((v) => !v);
-              }}
-              aria-label="মিম সাউন্ডবোর্ড [1-6]"
-              aria-expanded={showMemeDrawer}
-              title="বাংলা মিম সাউন্ড [1-6]"
-              className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[42px] sm:min-h-[42px] 2xl:px-2.5'
-              } rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold ${
-                showMemeDrawer
-                  ? 'border-amber-400 text-amber-300'
-                  : 'border-white/12 text-amber-200 hover:text-amber-100'
-              }`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-            >
-              <Smile className="w-4 h-4" />
-              {!isLandscapeCompact && <span className="hidden 2xl:inline">মিম</span>}
-            </button>
-            {!isMobileHud && (
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.currentTarget.blur();
-                  onTogglePointerLook();
-                }}
-                aria-label="মাউস দিয়ে চারপাশ দেখা [C]"
-                title="মাউস দিয়ে চারপাশ দেখা [C]"
-                className={`hidden sm:flex min-w-[42px] min-h-[42px] 2xl:px-2.5 rounded-xl border items-center justify-center gap-1.5 text-xs font-semibold ${
-                  pointerLookEnabled
-                    ? 'border-amber-400 text-amber-300'
-                    : 'border-white/12 text-slate-200 hover:text-white'
-                }`}
-                style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-              >
-                <Crosshair className="w-4 h-4" />
-                <span className="hidden 2xl:inline">{pointerLookEnabled ? 'লুক চালু' : 'লুক'}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                onResetCamera();
-              }}
-              aria-label="ক্যামেরা ঠিক করো [Y]"
-              title="ক্যামেরা রিসেট [Y]"
-              className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]'
-              } rounded-xl border border-white/12 flex items-center justify-center text-slate-200 hover:text-white`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            {!isLandscapeCompact && (
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.currentTarget.blur();
-                  onToggleTouchControls();
-                }}
-                aria-label="টাচ জয়স্টিক চালু/বন্ধ"
-                title="টাচ কন্ট্রোল"
-                className={`min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] rounded-xl border flex items-center justify-center ${
-                  touchControlsEnabled
-                    ? 'border-amber-400/60 text-amber-300'
-                    : 'border-white/12 text-slate-200 hover:text-white'
-                }`}
-                style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-              >
-                <Gamepad2 className="w-4 h-4" />
-              </button>
-            )}
+        {/* Top-Right Cluster: Compact Tactical Quick Bar + Settings Popover */}
+        <div className="relative flex flex-col items-end gap-1.5 sm:gap-2 shrink-0">
+          <div className="pointer-events-auto flex items-center justify-end gap-1.5 rounded-2xl p-1 bg-slate-950/72 backdrop-blur-md border border-white/12 shadow-lg">
             <button
               type="button"
               tabIndex={-1}
@@ -1566,54 +1493,33 @@ export function GameHud({
               aria-label="সম্পূর্ণ ম্যাপ খোলো [Tab]"
               title="মহল্লার ম্যাপ [Tab]"
               className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[42px] sm:min-h-[42px] 2xl:px-2.5'
-              } rounded-xl border border-white/12 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-200 hover:text-amber-300`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
+                isLandscapeCompact ? 'w-8 h-8' : 'w-9 h-9 sm:w-10 sm:h-10 xl:w-auto xl:px-2.5'
+              } rounded-xl border border-white/10 bg-slate-900/75 hover:bg-slate-800 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-200 hover:text-amber-300 transition-colors`}
             >
               <MapIcon className="w-4 h-4" />
-              {!isLandscapeCompact && <span className="hidden 2xl:inline">ম্যাপ</span>}
+              {!isLandscapeCompact && <span className="hidden xl:inline">ম্যাপ</span>}
             </button>
             <button
               type="button"
               tabIndex={-1}
               onClick={(e) => {
                 e.currentTarget.blur();
-                onOpenGuide();
+                setShowSettingsMenu(false);
+                setShowMemeDrawer((v) => !v);
               }}
-              aria-label="নিয়ম ও চরিত্র গাইড খোলো [H]"
-              title="নিয়ম ও চরিত্রসমূহ [H]"
+              aria-label="মিম ও ভয়েস প্যাক [1-9, 0, -]"
+              aria-expanded={showMemeDrawer}
+              title="বাংলা মিম ও ভয়েস প্যাক [1-9, 0, -]"
               className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]'
-              } rounded-xl border border-white/12 flex items-center justify-center text-slate-200 hover:text-amber-300`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              tabIndex={-1}
-              onClick={(e) => {
-                e.currentTarget.blur();
-                soundEngine.toggleBgm();
-              }}
-              aria-label={bgmEnabled ? 'মিউজিক বন্ধ করো' : 'মিউজিক চালু করো'}
-              title={bgmEnabled ? 'মিউজিক চালু (বন্ধ করতে চাপ দাও)' : 'মিউজিক বন্ধ (চালু করতে চাপ দাও)'}
-              className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]'
-              } rounded-xl border flex items-center justify-center ${
-                bgmEnabled
-                  ? 'border-emerald-400/50 text-emerald-300 hover:text-emerald-200'
-                  : 'border-white/12 text-slate-400 hover:text-white'
+                isLandscapeCompact ? 'w-8 h-8' : 'w-9 h-9 sm:w-10 sm:h-10 xl:w-auto xl:px-2.5'
+              } rounded-xl border flex items-center justify-center gap-1.5 text-xs font-semibold transition-colors ${
+                showMemeDrawer
+                  ? 'bg-amber-400/20 border-amber-400 text-amber-300'
+                  : 'bg-slate-900/75 border-white/10 text-amber-200 hover:bg-slate-800 hover:text-amber-100'
               }`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
             >
-              <Music className="w-4 h-4" />
+              <Smile className="w-4 h-4" />
+              {!isLandscapeCompact && <span className="hidden xl:inline">ভয়েস</span>}
             </button>
             <button
               type="button"
@@ -1625,13 +1531,31 @@ export function GameHud({
               aria-label={muted ? 'সাউন্ড চালু করো [M]' : 'সাউন্ড মিউট করো [M]'}
               title="সব সাউন্ড মিউট [M]"
               className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]'
-              } rounded-xl border border-white/12 flex items-center justify-center text-slate-200 hover:text-white`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
+                isLandscapeCompact ? 'w-8 h-8' : 'w-9 h-9 sm:w-10 sm:h-10'
+              } rounded-xl border border-white/10 bg-slate-900/75 hover:bg-slate-800 flex items-center justify-center text-slate-200 hover:text-white transition-colors`}
             >
               {muted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={(e) => {
+                e.currentTarget.blur();
+                setShowMemeDrawer(false);
+                setShowSettingsMenu((v) => !v);
+              }}
+              aria-label="কন্ট্রোল ও সেটিংস"
+              aria-expanded={showSettingsMenu}
+              title="কন্ট্রোল, ক্যামেরা ও গাইড"
+              className={`${
+                isLandscapeCompact ? 'w-8 h-8' : 'w-9 h-9 sm:w-10 sm:h-10'
+              } rounded-xl border flex items-center justify-center transition-colors ${
+                showSettingsMenu
+                  ? 'bg-sky-400/20 border-sky-400 text-sky-300'
+                  : 'bg-slate-900/75 border-white/10 text-slate-200 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
             </button>
             <button
               type="button"
@@ -1643,38 +1567,168 @@ export function GameHud({
               aria-label="গেম বিরতি [P]"
               title="বিরতি [P]"
               className={`${
-                isLandscapeCompact
-                  ? 'min-w-[34px] min-h-[34px]'
-                  : 'min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px]'
-              } rounded-xl border border-white/12 flex items-center justify-center text-slate-200 hover:text-white`}
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.88)' }}
+                isLandscapeCompact ? 'w-8 h-8' : 'w-9 h-9 sm:w-10 sm:h-10'
+              } rounded-xl border border-white/10 bg-slate-900/75 hover:bg-rose-500/25 hover:border-rose-400/50 flex items-center justify-center text-slate-200 hover:text-white transition-colors`}
             >
               <Pause className="w-4 h-4" />
             </button>
           </div>
 
-          {showMemeDrawer && (
+          {showSettingsMenu && (
             <div
               role="region"
-              aria-label="বাংলা মিম সাউন্ডবোর্ড"
-              className="pointer-events-auto rounded-xl p-2.5 border border-amber-400/40 shadow-2xl grid grid-cols-1 sm:grid-cols-2 gap-1.5 w-[210px] sm:w-[376px]"
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.96)' }}
+              aria-label="সেটিংস ও দ্রুত নিয়ন্ত্রণ"
+              className="pointer-events-auto rounded-xl p-2 border border-white/15 bg-slate-950/92 backdrop-blur-md shadow-2xl w-[224px] space-y-1 text-xs"
             >
-              {quickMemes.map((m) => (
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  void toggleFullscreenMode(true);
+                }}
+                className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-slate-200 font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-emerald-300" /> : <Maximize2 className="w-3.5 h-3.5 text-amber-300" />}
+                  {isFullscreen ? 'ফুলস্ক্রিন বন্ধ' : 'ফুলস্ক্রিন মোড'}
+                </span>
+              </button>
+              {!isMobileHud && (
                 <button
-                  key={m.id}
                   type="button"
                   tabIndex={-1}
                   onClick={(e) => {
                     e.currentTarget.blur();
-                    onPlayMeme(m.id);
+                    onTogglePointerLook();
                   }}
-                  className="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-[11px] font-bold text-amber-200 text-left flex items-center justify-between gap-2 transition-colors"
+                  className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-slate-200 font-semibold"
                 >
-                  <span className="truncate">{m.label}</span>
-                  <span className="font-mono-tabular text-[10px] opacity-75 shrink-0">[{m.shortKey}]</span>
+                  <span className="flex items-center gap-2">
+                    <Crosshair className={`w-3.5 h-3.5 ${pointerLookEnabled ? 'text-amber-300' : 'text-slate-400'}`} />
+                    মাউস লুক {pointerLookEnabled ? '(চালু)' : ''}
+                  </span>
+                  <kbd className="text-[10px] font-mono-tabular text-slate-400">[C]</kbd>
                 </button>
-              ))}
+              )}
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onResetCamera();
+                  setShowSettingsMenu(false);
+                }}
+                className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-slate-200 font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  <RotateCcw className="w-3.5 h-3.5 text-sky-300" />
+                  ক্যামেরা রিসেট
+                </span>
+                <kbd className="text-[10px] font-mono-tabular text-slate-400">[Y]</kbd>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onToggleTouchControls();
+                }}
+                className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-slate-200 font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  <Gamepad2 className={`w-3.5 h-3.5 ${touchControlsEnabled ? 'text-amber-300' : 'text-slate-400'}`} />
+                  টাচ জয়স্টিক {touchControlsEnabled ? '(চালু)' : '(বন্ধ)'}
+                </span>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  soundEngine.toggleBgm();
+                }}
+                className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-slate-200 font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  <Music className={`w-3.5 h-3.5 ${bgmEnabled ? 'text-emerald-300' : 'text-slate-500'}`} />
+                  আবহ সংগীত {bgmEnabled ? '(চালু)' : '(বন্ধ)'}
+                </span>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  setShowSettingsMenu(false);
+                  onOpenGuide();
+                }}
+                className="w-full px-2.5 py-2 rounded-lg hover:bg-slate-800/90 flex items-center justify-between text-amber-200 font-semibold"
+              >
+                <span className="flex items-center gap-2">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-300" />
+                  নিয়ম ও চরিত্র গাইড
+                </span>
+                <kbd className="text-[10px] font-mono-tabular text-slate-400">[H]</kbd>
+              </button>
+            </div>
+          )}
+
+          {showMemeDrawer && (
+            <div
+              role="region"
+              aria-label="বাংলা মিম ও ভয়েস প্যাক"
+              className="pointer-events-auto rounded-xl p-2.5 border border-amber-400/40 shadow-2xl space-y-2 w-[235px] sm:w-[396px] max-h-[65vh] overflow-y-auto"
+              style={{ backgroundColor: 'rgba(12, 18, 30, 0.96)' }}
+            >
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-emerald-300 mb-1 px-0.5">
+                  ভয়েস প্যাক (কুইক মেসেজ)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {quickMemes
+                    .filter((m) => m.isVoicePack)
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          onPlayMeme(m.id);
+                        }}
+                        className="px-2.5 py-2 rounded-lg bg-emerald-950/75 hover:bg-emerald-400 hover:text-slate-950 border border-emerald-500/35 text-[11px] font-bold text-emerald-200 text-left flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <span className="truncate">{m.label}</span>
+                        <span className="font-mono-tabular text-[10px] opacity-75 shrink-0">[{m.shortKey}]</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold tracking-wider text-amber-300/90 mb-1 px-0.5">
+                  সাউন্ড এফেক্ট
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {quickMemes
+                    .filter((m) => !m.isVoicePack)
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        tabIndex={-1}
+                        onClick={(e) => {
+                          e.currentTarget.blur();
+                          onPlayMeme(m.id);
+                        }}
+                        className="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-[11px] font-bold text-amber-200 text-left flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <span className="truncate">{m.label}</span>
+                        <span className="font-mono-tabular text-[10px] opacity-75 shrink-0">[{m.shortKey}]</span>
+                      </button>
+                    ))}
+                </div>
+              </div>
               {onOpenMemePack && (
                 <button
                   type="button"
@@ -1684,7 +1738,7 @@ export function GameHud({
                     setShowMemeDrawer(false);
                     onOpenMemePack();
                   }}
-                  className="sm:col-span-2 mt-1 px-3 py-2 rounded-lg bg-amber-400/15 hover:bg-amber-400 hover:text-slate-950 border border-amber-400/40 text-[11px] font-bold text-amber-300 flex items-center justify-center gap-1.5 transition-colors"
+                  className="w-full px-3 py-2 rounded-lg bg-amber-400/15 hover:bg-amber-400 hover:text-slate-950 border border-amber-400/40 text-[11px] font-bold text-amber-300 flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <Music2 className="w-3.5 h-3.5" />
                   নিজের মিম অডিও আপলোড ও সেট করো
@@ -1709,26 +1763,33 @@ export function GameHud({
         </div>
       )}
 
-      {/* Bottom Row: Vent/Sabotage/Disguise Drawers + Thumb-Friendly Action Buttons */}
+      {/* Bottom Row: Compact Hint Strip + PUBG/Free Fire Circular Tactical Controls */}
       <div className="flex items-end justify-between gap-2 sm:gap-4">
         {!isMobileHud && (
-          <div
-            className="text-xs text-slate-200 hidden md:block px-3 py-1.5 rounded-lg border border-slate-700/50"
-            style={{ backgroundColor: 'rgba(10, 15, 25, 0.84)' }}
-          >
-            WASD হাঁটা · Space লাফ · Shift দৌড় · ড্র্যাগ ৩৬০° · Tab মানচিত্র · E ব্যবহার · R রিপোর্ট · F সালিশ · H গাইড
+          <div className="hidden lg:flex items-center gap-2 text-[11px] text-slate-300/90 px-3 py-1.5 rounded-full border border-white/10 bg-slate-950/65 backdrop-blur-md whitespace-nowrap shadow">
+            <span>WASD হাঁটা</span>
+            <span className="text-slate-500">·</span>
+            <span>Space লাফ</span>
+            <span className="text-slate-500">·</span>
+            <span>Shift দৌড়</span>
+            <span className="text-slate-500">·</span>
+            <span>E কাজ</span>
+            <span className="text-slate-500">·</span>
+            <span>R রিপোর্ট</span>
+            <span className="text-slate-500">·</span>
+            <span>F সালিশ</span>
           </div>
         )}
 
         <div
-          className={`flex flex-col items-end gap-2 ml-auto ${
-            isMobileHud ? 'pointer-events-none' : 'pointer-events-auto max-w-[54vw] sm:max-w-none'
+          className={`flex flex-col items-end gap-2.5 ml-auto ${
+            isMobileHud ? 'pointer-events-none' : 'pointer-events-auto'
           }`}
         >
           {localPlayer.inVent && (
             <div
-              className="pointer-events-auto rounded-xl p-2.5 border border-emerald-500/40 flex flex-wrap items-center justify-end gap-2"
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.94)' }}
+              className="pointer-events-auto rounded-xl p-2.5 border border-emerald-500/40 flex flex-wrap items-center justify-end gap-2 backdrop-blur-md"
+              style={{ backgroundColor: 'rgba(12, 18, 30, 0.92)' }}
             >
               <span className="text-xs font-bold text-emerald-300 mr-1">
                 {ventGraph.currentVent ? `${ventGraph.currentVent.label}-এর ভেতরে:` : 'গোপন ড্রেন:'}
@@ -1738,7 +1799,7 @@ export function GameHud({
                   key={v.id}
                   type="button"
                   onClick={() => onVentToggle(v.id)}
-                  className="min-h-[40px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs font-semibold text-white"
+                  className="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-emerald-600 text-xs font-semibold text-white"
                 >
                   → {v.label}
                 </button>
@@ -1746,7 +1807,7 @@ export function GameHud({
               <button
                 type="button"
                 onClick={() => onVentToggle()}
-                className="min-h-[40px] px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-bold"
+                className="min-h-[38px] px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 text-xs font-bold"
               >
                 বাইরে এসো! [V]
               </button>
@@ -1755,8 +1816,8 @@ export function GameHud({
 
           {showSabotageMenu && isVondo && (
             <div
-              className="pointer-events-auto rounded-xl p-3 border border-rose-500/40 flex flex-col gap-2"
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.95)' }}
+              className="pointer-events-auto rounded-xl p-3 border border-rose-500/40 flex flex-col gap-2 backdrop-blur-md shadow-2xl"
+              style={{ backgroundColor: 'rgba(12, 18, 30, 0.94)' }}
             >
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
@@ -1766,7 +1827,7 @@ export function GameHud({
                     onSabotage('gas_leak');
                     setShowSabotageMenu(false);
                   }}
-                  className="min-h-[42px] px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white"
+                  className="min-h-[40px] px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white"
                 >
                   গ্যাস লিক! (জরুরি ৪৫সে.)
                 </button>
@@ -1777,7 +1838,7 @@ export function GameHud({
                     onSabotage('loadshedding');
                     setShowSabotageMenu(false);
                   }}
-                  className="min-h-[42px] px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-xs font-bold text-white"
+                  className="min-h-[40px] px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-xs font-bold text-white"
                 >
                   লোডশেডিং দাও! (৯০সে. অন্ধকার)
                 </button>
@@ -1788,7 +1849,7 @@ export function GameHud({
                     onSabotage('wifi_down');
                     setShowSabotageMenu(false);
                   }}
-                  className="min-h-[42px] px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 text-xs font-bold text-white"
+                  className="min-h-[40px] px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 text-xs font-bold text-white"
                 >
                   ওয়াই-ফাই লাইন কাটো!
                 </button>
@@ -1807,7 +1868,7 @@ export function GameHud({
                       onLockDoors(d.zoneId);
                       setShowSabotageMenu(false);
                     }}
-                    className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-amber-600 disabled:opacity-40 text-[11px] font-semibold text-white"
+                    className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-amber-600 disabled:opacity-40 text-[11px] font-semibold text-white"
                   >
                     {d.label}
                   </button>
@@ -1818,8 +1879,8 @@ export function GameHud({
 
           {showDisguiseMenu && localPlayer.specialRole === 'bohurupi' && !localPlayer.disguiseColor && (
             <div
-              className="pointer-events-auto rounded-xl p-2.5 border border-rose-500/40 flex flex-wrap items-center justify-end gap-1.5 max-w-md"
-              style={{ backgroundColor: 'rgba(12, 18, 30, 0.95)' }}
+              className="pointer-events-auto rounded-xl p-2.5 border border-rose-500/40 flex flex-wrap items-center justify-end gap-1.5 max-w-md backdrop-blur-md shadow-2xl"
+              style={{ backgroundColor: 'rgba(12, 18, 30, 0.94)' }}
             >
               <span className="text-[11px] font-bold text-rose-300 mr-1">ছদ্মবেশ বাছো:</span>
               {disguiseTargets.map((target) => {
@@ -1832,7 +1893,7 @@ export function GameHud({
                       onUseAbility(target.id);
                       setShowDisguiseMenu(false);
                     }}
-                    className="min-h-[38px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5"
+                    className="min-h-[36px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-700 text-xs font-semibold text-white flex items-center gap-1.5"
                   >
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.hex }} />
                     {target.name}
@@ -1843,935 +1904,505 @@ export function GameHud({
           )}
 
           {(() => {
-            if (isMobileHud) {
-              const abilitySlot: MobileArcSlot | null = (() => {
-                if (!localPlayer.alive) {
+            const abilitySlot: TacticalActionSlot | null = (() => {
+              if (!localPlayer.alive) {
+                return {
+                  id: 'prank',
+                  label: 'মজা',
+                  hotkey: 'G',
+                  subLabel: `${localPlayer.pranksLeft ?? 0}বার`,
+                  icon: <Sparkles className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                  accentHex: '#38bdf8',
+                  bgClass: 'bg-sky-500/85 border-2 border-sky-200/80 text-slate-950',
+                  disabled: (localPlayer.pranksLeft ?? 0) <= 0,
+                  onClick: () => onUseAbility(),
+                };
+              }
+              switch (localPlayer.specialRole) {
+                case 'goyenda':
                   return {
-                    id: 'prank',
-                    label: 'মজা',
-                    subLabel: `${localPlayer.pranksLeft ?? 0}বার`,
-                    icon: <Sparkles className="w-4 h-4" />,
-                    accentHex: '#38bdf8',
-                    bgClass: 'bg-sky-600/90 border-2 border-sky-300 text-slate-950',
-                    disabled: (localPlayer.pranksLeft ?? 0) <= 0,
+                    id: 'goyenda',
+                    label: inspectableBody ? 'স্ক্যান' : 'সূত্র',
+                    hotkey: 'G',
+                    subLabel: `${localPlayer.scansLeft ?? 2}বার`,
+                    icon: <Search className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#22d3ee',
+                    bgClass: 'bg-cyan-500/88 border-2 border-cyan-200/80 text-slate-950',
+                    disabled: !inspectableBody || (localPlayer.scansLeft ?? 2) <= 0,
+                    onClick: () => onUseAbility(),
+                  };
+                case 'kobiraj': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'kobiraj',
+                    label: 'তাবিজ',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : shieldTarget ? shieldTarget.name : 'নিজে',
+                    icon: <Shield className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#34d399',
+                    bgClass: 'bg-emerald-500/88 border-2 border-emerald-200/80 text-slate-950',
+                    disabled: cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 25) : 1,
                     onClick: () => onUseAbility(),
                   };
                 }
-                switch (localPlayer.specialRole) {
-                  case 'goyenda':
-                    return {
-                      id: 'goyenda',
-                      label: inspectableBody ? 'স্ক্যান' : 'সূত্র',
-                      subLabel: `${localPlayer.scansLeft ?? 2}বার`,
-                      icon: <Search className="w-4 h-4" />,
-                      accentHex: '#22d3ee',
-                      bgClass: 'bg-cyan-500/92 border-2 border-cyan-200 text-slate-950',
-                      disabled: !inspectableBody || (localPlayer.scansLeft ?? 2) <= 0,
-                      onClick: () => onUseAbility(),
-                    };
-                  case 'kobiraj': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'kobiraj',
-                      label: 'তাবিজ',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : shieldTarget ? shieldTarget.name : 'নিজে',
-                      icon: <Shield className="w-4 h-4" />,
-                      accentHex: '#34d399',
-                      bgClass: 'bg-emerald-500/92 border-2 border-emerald-200 text-slate-950',
-                      disabled: cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 25) : 1,
-                      onClick: () => onUseAbility(),
-                    };
-                  }
-                  case 'daroga': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'daroga',
-                      label: 'গ্রেপ্তার',
-                      subLabel:
-                        (localPlayer.shotsLeft ?? 1) <= 0
-                          ? 'শেষ'
-                          : cd > 0.05
-                            ? `${Math.ceil(cd)}সে.`
-                            : darogaTarget?.name ?? 'গুলি',
-                      icon: <Gavel className="w-4 h-4" />,
-                      accentHex: '#fb923c',
-                      bgClass: 'bg-orange-500/92 border-2 border-orange-200 text-slate-950',
-                      disabled: (localPlayer.shotsLeft ?? 1) <= 0 || !darogaTarget || cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 20) : 1,
-                      onClick: () => darogaTarget && onUseAbility(darogaTarget.id),
-                    };
-                  }
-                  case 'daktar':
-                    return {
-                      id: 'daktar',
-                      label: 'বাঁচাও',
-                      subLabel:
-                        (localPlayer.revivesLeft ?? 0) <= 0
-                          ? 'শেষ'
-                          : revivableBody?.victimName ?? `${localPlayer.revivesLeft ?? 0}বার`,
-                      icon: <HeartPulse className="w-4 h-4" />,
-                      accentHex: '#2dd4bf',
-                      bgClass: 'bg-teal-400/92 border-2 border-teal-100 text-slate-950',
-                      disabled: !revivableBody || (localPlayer.revivesLeft ?? 0) <= 0,
-                      onClick: () => revivableBody && onUseAbility(revivableBody.id),
-                    };
-                  case 'jharudar': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'jharudar',
-                      label: 'সাফাই',
-                      subLabel: localPlayer.jharuTargetBodyId
-                        ? `${(localPlayer.jharuTimer ?? 0).toFixed(1)}সে.`
+                case 'daroga': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'daroga',
+                    label: 'গ্রেপ্তার',
+                    hotkey: 'G',
+                    subLabel:
+                      (localPlayer.shotsLeft ?? 1) <= 0
+                        ? 'শেষ'
                         : cd > 0.05
                           ? `${Math.ceil(cd)}সে.`
-                          : cleanableBody?.victimName ?? `${localPlayer.cleansLeft ?? 3}বার`,
-                      icon: <Sparkle className="w-4 h-4" />,
-                      accentHex: '#fb7185',
-                      bgClass: 'bg-rose-500/92 border-2 border-rose-200 text-white',
-                      disabled:
-                        Boolean(localPlayer.jharuTargetBodyId) ||
-                        (localPlayer.cleansLeft ?? 3) <= 0 ||
-                        !cleanableBody ||
-                        cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 18) : 1,
-                      onClick: () => cleanableBody && onUseAbility(cleanableBody.id),
-                    };
-                  }
-                  case 'bohurupi': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'bohurupi',
-                      label: localPlayer.disguiseColor ? 'আসল রূপ' : 'বদলাও',
-                      subLabel: localPlayer.disguiseColor
-                        ? `${Math.ceil(localPlayer.disguiseTimer)}সে.`
-                        : cd > 0.05
-                          ? `${Math.ceil(cd)}সে.`
-                          : undefined,
-                      icon: <Sparkles className="w-4 h-4" />,
-                      accentHex: '#e879f9',
-                      bgClass: 'bg-fuchsia-600/92 border-2 border-fuchsia-200 text-white',
-                      disabled: !localPlayer.disguiseColor && cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 25) : 1,
-                      onClick: () => {
-                        if (localPlayer.disguiseColor) {
-                          onUseAbility();
-                          setShowDisguiseMenu(false);
-                        } else {
-                          setShowDisguiseMenu((s) => !s);
-                        }
-                      },
-                    };
-                  }
-                  case 'ghotok_khala':
-                    return {
-                      id: 'ghotok',
-                      label: 'বন্ধন',
-                      subLabel: snapshot.ghotokLinkedIds ? 'সেট ✓' : ghotokPair?.[0].name,
-                      icon: <Heart className="w-4 h-4" />,
-                      accentHex: '#f472b6',
-                      bgClass: 'bg-pink-500/92 border-2 border-pink-100 text-slate-950',
-                      disabled: Boolean(snapshot.ghotokLinkedIds) || !ghotokPair,
-                      onClick: () => onUseAbility(),
-                    };
-                  case 'master_moshai': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'master',
-                      label: 'খাতা',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : masterTarget?.name,
-                      icon: <BookOpen className="w-4 h-4" />,
-                      accentHex: '#60a5fa',
-                      bgClass: 'bg-blue-500/92 border-2 border-blue-200 text-slate-950',
-                      disabled: !masterTarget || cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 24) : 1,
-                      onClick: () => masterTarget && onUseAbility(masterTarget.id),
-                    };
-                  }
-                  case 'cctv_kaku': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'cctv_kaku',
-                      label: 'সিসিটিভি',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'ক্যামেরা',
-                      icon: <Video className="w-4 h-4" />,
-                      accentHex: '#fb923c',
-                      bgClass: 'bg-orange-400/92 border-2 border-orange-100 text-slate-950',
-                      disabled: cd > 0.05 || localPlayer.inVent,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 18) : 1,
-                      onClick: () => {
-                        onUseAbility();
-                        onOpenStation('cams');
-                      },
-                    };
-                  }
-                  case 'hatur_daktar': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'hatur',
-                      label: 'ইনজেকশন',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : haturTarget?.name ?? 'নিজে',
-                      icon: <HeartPulse className="w-4 h-4" />,
-                      accentHex: '#a3e635',
-                      bgClass: 'bg-lime-400/92 border-2 border-lime-100 text-slate-950',
-                      disabled: cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 22) : 1,
-                      onClick: () => onUseAbility(haturTarget?.id),
-                    };
-                  }
-                  case 'supari_killer': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'supari',
-                      label: 'সুপারি',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : supariTarget?.name,
-                      icon: <Crosshair className="w-4 h-4" />,
-                      accentHex: '#f87171',
-                      bgClass: 'bg-red-600/92 border-2 border-red-200 text-white',
-                      disabled: cd > 0.05,
-                      onClick: () => onUseAbility(),
-                    };
-                  }
-                  case 'dalal': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'dalal',
-                      label: 'জ্যাম',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'নেট',
-                      icon: <Radio className="w-4 h-4" />,
-                      accentHex: '#fb7185',
-                      bgClass: 'bg-rose-700/92 border-2 border-rose-200 text-white',
-                      disabled: cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 26) : 1,
-                      onClick: () => onUseAbility(),
-                    };
-                  }
-                  case 'chamcha': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'chamcha',
-                      label: 'বস',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : chamchaTarget?.name,
-                      icon: <UserCheck className="w-4 h-4" />,
-                      accentHex: '#c084fc',
-                      bgClass: 'bg-purple-500/92 border-2 border-purple-100 text-white',
-                      disabled: !chamchaTarget || cd > 0.05,
-                      onClick: () => chamchaTarget && onUseAbility(chamchaTarget.id),
-                    };
-                  }
-                  case 'chandabaz': {
-                    const cd = localPlayer.abilityCooldown;
-                    return {
-                      id: 'chandabaz',
-                      label: 'চাঁদা',
-                      subLabel:
-                        cd > 0.05
-                          ? `${Math.ceil(cd)}সে.`
-                          : chandabazTarget?.name ?? `${localPlayer.chandabazTargets?.length ?? 0}/৩`,
-                      icon: <DollarSign className="w-4 h-4" />,
-                      accentHex: '#fbbf24',
-                      bgClass: 'bg-amber-400/92 border-2 border-amber-100 text-slate-950',
-                      disabled: !chandabazTarget || cd > 0.05,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 18) : 1,
-                      onClick: () => chandabazTarget && onUseAbility(chandabazTarget.id),
-                    };
-                  }
-                  case 'tiktok_star': {
-                    const cd = localPlayer.abilityCooldown;
-                    const filmedHere = Boolean(currentZoneId && localPlayer.tiktokZones?.includes(currentZoneId));
-                    return {
-                      id: 'tiktok',
-                      label: filmedHere ? 'শুটিং শেষ' : 'রিল',
-                      subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : `${localPlayer.tiktokZones?.length ?? 0}/৩`,
-                      icon: <Camera className="w-4 h-4" />,
-                      accentHex: '#f472b6',
-                      bgClass: 'bg-pink-500/92 border-2 border-pink-100 text-white',
-                      disabled: !currentZoneId || cd > 0.05 || filmedHere,
-                      progress01: cd > 0.05 ? Math.min(1, cd / 16) : 1,
-                      onClick: () => onUseAbility(),
-                    };
-                  }
-                  default:
-                    return null;
+                          : darogaTarget?.name ?? 'গুলি',
+                    icon: <Gavel className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#fb923c',
+                    bgClass: 'bg-orange-500/88 border-2 border-orange-200/80 text-slate-950',
+                    disabled: (localPlayer.shotsLeft ?? 1) <= 0 || !darogaTarget || cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 20) : 1,
+                    onClick: () => darogaTarget && onUseAbility(darogaTarget.id),
+                  };
                 }
-              })();
-
-              const interactSlot: MobileArcSlot | null = nearSabotageFix
-                ? {
-                    id: 'fix',
-                    label: 'মেরামত',
-                    subLabel: `${Math.round(snapshot.sabotage.fixProgress * 100)}%`,
-                    icon: <Wrench className="w-5 h-5" />,
-                    accentHex: '#fde047',
-                    bgClass: 'bg-amber-400 border-2 border-amber-100 text-slate-950',
-                    progress01: snapshot.sabotage.fixProgress,
-                    pulse: true,
-                    onHold: (holding) => onFixSabotageHold(holding, nearGasValve?.id),
-                  }
-                : nearbyTask
-                  ? {
-                      id: 'task',
-                      label: nearbyTaskLocked ? 'নেট নেই' : isVondo ? 'ভুয়া' : 'কাজ',
-                      subLabel: nearbyTask.zoneName,
-                      icon: <Wrench className="w-5 h-5" />,
-                      accentHex: '#fbbf24',
-                      bgClass: nearbyTaskLocked
-                        ? 'bg-indigo-900/95 border-2 border-indigo-400/50 text-indigo-200'
-                        : 'bg-amber-400 border-2 border-amber-100 text-slate-950',
-                      disabled: nearbyTaskLocked,
-                      onClick: () => !nearbyTaskLocked && onOpenTask(nearbyTask.id),
-                    }
-                  : nearCams
-                    ? {
-                        id: 'cams',
-                        label: 'সিসিটিভি',
-                        icon: <Video className="w-5 h-5" />,
-                        accentHex: '#fb7185',
-                        bgClass: 'bg-rose-500 border-2 border-rose-200 text-white',
-                        onClick: () => onOpenStation('cams'),
-                      }
-                    : nearAdmin
-                      ? {
-                          id: 'admin',
-                          label: 'অ্যাডমিন',
-                          icon: <Radar className="w-5 h-5" />,
-                          accentHex: '#38bdf8',
-                          bgClass: 'bg-sky-500 border-2 border-sky-200 text-slate-950',
-                          onClick: () => onOpenStation('admin'),
-                        }
-                      : nearVitals
-                        ? {
-                            id: 'vitals',
-                            label: 'ভাইটালস',
-                            icon: <Activity className="w-5 h-5" />,
-                            accentHex: '#34d399',
-                            bgClass: 'bg-emerald-500 border-2 border-emerald-200 text-slate-950',
-                            onClick: () => onOpenStation('vitals'),
-                          }
-                        : null;
-
-              const heroSlot: MobileArcSlot =
-                isVondo && localPlayer.alive
-                  ? {
-                      id: 'kill',
-                      label:
-                        localPlayer.killCooldownRemaining > 0.05
-                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}সে.`
-                          : 'ঘায়েল',
-                      subLabel: killTarget ? killTarget.name : undefined,
-                      icon: <Skull className="w-5 h-5" />,
-                      accentHex: '#fda4af',
-                      bgClass: killTarget && localPlayer.killCooldownRemaining <= 0.05
-                        ? 'bg-rose-600 border-2 border-rose-200 text-white'
-                        : 'bg-rose-950/90 border-2 border-rose-500/45 text-rose-200',
-                      disabled: !killTarget || localPlayer.killCooldownRemaining > 0.05,
-                      progress01:
-                        localPlayer.killCooldownRemaining > 0.05
-                          ? Math.min(1, localPlayer.killCooldownRemaining / Math.max(10, snapshot.settings.killCooldownSec))
-                          : 1,
-                      pulse: Boolean(killTarget && localPlayer.killCooldownRemaining <= 0.05),
-                      onClick: () => killTarget && onKill(killTarget.id),
-                    }
-                  : interactSlot ?? {
-                      id: 'use_idle',
-                      label: 'ব্যবহার',
-                      icon: <Wrench className="w-5 h-5" />,
-                      accentHex: '#94a3b8',
-                      bgClass: 'bg-slate-900/90 border-2 border-slate-600/60 text-slate-400',
-                      disabled: true,
-                    };
-
-              const arcQueue: MobileArcSlot[] = [];
-              if (isVondo && localPlayer.alive && interactSlot) {
-                arcQueue.push(interactSlot);
-              }
-              if (nearbyBody) {
-                arcQueue.push({
-                  id: 'report',
-                  label: 'রিপোর্ট',
-                  subLabel: nearbyBody.victimName,
-                  icon: <Bell className="w-4 h-4" />,
-                  accentHex: '#fed7aa',
-                  bgClass: 'bg-orange-500 border-2 border-orange-100 text-slate-950',
-                  pulse: true,
-                  onClick: () => onReportBody(nearbyBody.id),
-                });
-              }
-              if (abilitySlot) {
-                arcQueue.push(abilitySlot);
-              }
-              if (nearBell) {
-                arcQueue.push({
-                  id: 'bell',
-                  label: 'সালিশ',
-                  subLabel:
-                    localPlayer.emergencyMeetingsLeft <= 0
-                      ? '০বার'
-                      : emergencyCd > 0
-                        ? `${emergencyCd}সে.`
-                        : `${localPlayer.emergencyMeetingsLeft}বার`,
-                  icon: <Bell className="w-4 h-4" />,
-                  accentHex: '#7dd3fc',
-                  bgClass: 'bg-sky-500 border-2 border-sky-100 text-slate-950',
-                  disabled: !canCallEmergency,
-                  onClick: onEmergencyMeeting,
-                });
-              }
-              if (localPlayer.alive && (isVondo || localPlayer.specialRole === 'mistri')) {
-                arcQueue.push({
-                  id: 'vent',
-                  label: 'ড্রেন',
-                  subLabel:
-                    localPlayer.specialRole === 'mistri' && !localPlayer.inVent && localPlayer.abilityCooldown > 0.05
-                      ? `${Math.ceil(localPlayer.abilityCooldown)}সে.`
-                      : localPlayer.inVent
-                        ? 'বের হও'
-                        : undefined,
-                  icon: <DoorOpen className="w-4 h-4" />,
-                  accentHex: '#6ee7b7',
-                  bgClass: 'bg-emerald-600 border-2 border-emerald-200 text-white',
-                  disabled: (!nearVent && !localPlayer.inVent) || !playerCanVent,
-                  onClick: () => onVentToggle(),
-                });
-              }
-              if (isVondo && localPlayer.alive) {
-                arcQueue.push({
-                  id: 'sabo',
-                  label: 'নাশকতা',
-                  subLabel:
-                    snapshot.sabotage.cooldownRemaining > 0
-                      ? `${Math.ceil(snapshot.sabotage.cooldownRemaining)}সে.`
-                      : undefined,
-                  icon: <Zap className="w-4 h-4" />,
-                  accentHex: '#fcd34d',
-                  bgClass: 'bg-amber-600 border-2 border-amber-200 text-white',
-                  onClick: () => setShowSabotageMenu((s) => !s),
-                });
-              }
-
-              const arcPositions: Array<{ right: number; bottom: number }> = [
-                { right: 72, bottom: 4 },
-                { right: 64, bottom: 64 },
-                { right: 130, bottom: 10 },
-                { right: 124, bottom: 70 },
-                { right: 188, bottom: 16 },
-              ];
-              const maxSlots = viewport.w < 440 ? 4 : 5;
-              const visibleArcSlots = arcQueue.slice(0, maxSlots);
-
-              return (
-                <div
-                  className="relative pointer-events-none shrink-0"
-                  style={{ width: viewport.w < 440 ? '196px' : '244px', height: '126px' }}
-                >
-                  <div className="absolute right-0 bottom-0 pointer-events-auto">
-                    <MobileThumbArcButton slot={heroSlot} hero />
-                  </div>
-                  {visibleArcSlots.map((slot, idx) => {
-                    const pos = arcPositions[idx];
-                    if (!pos) return null;
-                    return (
-                      <div
-                        key={slot.id}
-                        className="absolute pointer-events-auto"
-                        style={{ right: `${pos.right}px`, bottom: `${pos.bottom}px` }}
-                      >
-                        <MobileThumbArcButton slot={slot} />
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            }
-
-            return (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {nearSabotageFix && (
-                  <button
-                    type="button"
-                    onPointerDown={() => onFixSabotageHold(true, nearGasValve?.id)}
-                    onPointerUp={() => onFixSabotageHold(false)}
-                    onPointerLeave={() => onFixSabotageHold(false)}
-                    onPointerCancel={() => onFixSabotageHold(false)}
-                    className="relative min-h-[48px] px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg font-mono-tabular select-none border-2 border-amber-200"
-                  >
-                    <Wrench className="w-4 h-4" />
-                    <span>
-                      {nearGasValve
-                        ? `ভালভ চেপে ধরো (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`
-                        : `মেরামতে চেপে ধরো (${Math.round(snapshot.sabotage.fixProgress * 100)}%)`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 text-[10px] font-black">E</kbd>
-                  </button>
-                )}
-
-                {nearbyTask && (
-                  <button
-                    type="button"
-                    disabled={nearbyTaskLocked}
-                    onClick={() => !nearbyTaskLocked && onOpenTask(nearbyTask.id)}
-                    className={`min-h-[48px] px-4 py-2 rounded-xl font-display font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-transform border-2 ${
-                      nearbyTaskLocked
-                        ? 'bg-indigo-950/95 text-indigo-200 border-indigo-400/50 cursor-not-allowed'
-                        : 'bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 border-amber-200'
-                    }`}
-                  >
-                    <Wrench className="w-4 h-4" />
-                    <span>
-                      {nearbyTaskLocked
-                        ? `${nearbyTask.title} (ওয়াই-ফাই নেই!)`
-                        : isVondo
-                          ? `ভুয়া কাজ: ${nearbyTask.title}`
-                          : nearbyTask.title}
-                    </span>
-                    {!nearbyTaskLocked && (
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 text-[10px] font-black">E</kbd>
-                    )}
-                  </button>
-                )}
-
-                {nearCams && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenStation('cams')}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 transition-transform text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-rose-300/60"
-                  >
-                    <Video className="w-4 h-4" />
-                    <span>সিসিটিভি</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">E</kbd>
-                  </button>
-                )}
-
-                {nearAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenStation('admin')}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-sky-200/70"
-                  >
-                    <Radar className="w-4 h-4" />
-                    <span>অ্যাডমিন ম্যাপ</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">E</kbd>
-                  </button>
-                )}
-
-                {nearVitals && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenStation('vitals')}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg border-2 border-emerald-200/70"
-                  >
-                    <Activity className="w-4 h-4" />
-                    <span>ভাইটালস</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-emerald-300 text-[10px] font-black">E</kbd>
-                  </button>
-                )}
-
-                {nearBell && (
-                  <button
-                    type="button"
-                    disabled={!canCallEmergency}
-                    onClick={onEmergencyMeeting}
-                    className="min-h-[48px] px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition-transform disabled:opacity-45 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg font-mono-tabular border-2 border-sky-200/70"
-                  >
-                    <Bell className="w-4 h-4" />
-                    <span>
-                      {localPlayer.emergencyMeetingsLeft <= 0
-                        ? 'ঘণ্টা শেষ!'
-                        : emergencyCd > 0
-                          ? `সালিশ অপেক্ষা ${emergencyCd}সে.`
-                          : `সালিশ ডাকো! (${localPlayer.emergencyMeetingsLeft})`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">F</kbd>
-                  </button>
-                )}
-
-                {nearbyBody && (
-                  <button
-                    type="button"
-                    onClick={() => onReportBody(nearbyBody.id)}
-                    className="min-h-[48px] px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-transform text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg border-2 border-orange-200"
-                  >
-                    <Bell className="w-4 h-4" />
-                    <span>লাশ: {nearbyBody.victimName}! রিপোর্ট করো</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">R</kbd>
-                  </button>
-                )}
-
-                {/* Ghost Harmless Prank [G] */}
-                {!localPlayer.alive && (
-                  <button
-                    type="button"
-                    disabled={(localPlayer.pranksLeft ?? 0) <= 0}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-sky-200/70"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>{(localPlayer.pranksLeft ?? 0) <= 0 ? 'মজা শেষ' : 'বাতি নিভাও!'}</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-sky-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {/* Special Role Active Ability [G] */}
-                {localPlayer.alive && localPlayer.specialRole === 'goyenda' && (
-                  <button
-                    type="button"
-                    disabled={!inspectableBody || (localPlayer.scansLeft ?? 2) <= 0}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-cyan-200/70"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>
-                      {(localPlayer.scansLeft ?? 2) <= 0
-                        ? 'স্ক্যান শেষ'
-                        : inspectableBody
-                          ? `স্ক্যান (${localPlayer.scansLeft ?? 2})`
-                          : `সূত্র (${localPlayer.scansLeft ?? 2})`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-cyan-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'kobiraj' && (
-                  <button
-                    type="button"
-                    disabled={localPlayer.abilityCooldown > 0.05}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-emerald-200/70"
-                  >
-                    <Shield className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `তাবিজ (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : shieldTarget
-                          ? `তাবিজ দাও: ${shieldTarget.name}`
-                          : 'নিজেকে তাবিজ'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-emerald-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'daroga' && (
-                  <button
-                    type="button"
-                    disabled={(localPlayer.shotsLeft ?? 1) <= 0 || !darogaTarget || localPlayer.abilityCooldown > 0.05}
-                    onClick={() => darogaTarget && onUseAbility(darogaTarget.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-orange-200/70"
-                  >
-                    <Gavel className="w-4 h-4" />
-                    <span>
-                      {(localPlayer.shotsLeft ?? 1) <= 0
-                        ? 'গুলি শেষ'
-                        : localPlayer.abilityCooldown > 0.05
-                          ? `দারোগা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                          : darogaTarget
-                            ? `গ্রেপ্তার ${darogaTarget.name}`
-                            : 'গ্রেপ্তার গুলি'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'daktar' && (
-                  <button
-                    type="button"
-                    disabled={!revivableBody || (localPlayer.revivesLeft ?? 0) <= 0}
-                    onClick={() => revivableBody && onUseAbility(revivableBody.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-teal-400 hover:bg-teal-300 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-teal-100/70"
-                  >
-                    <HeartPulse className="w-4 h-4" />
-                    <span>
-                      {(localPlayer.revivesLeft ?? 0) <= 0
-                        ? 'স্যালাইন শেষ'
-                        : revivableBody
-                          ? `বাঁচাও: ${revivableBody.victimName}`
-                          : `স্যালাইন দিয়ে বাঁচাও (${localPlayer.revivesLeft ?? 0})`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-teal-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'jharudar' && (
-                  <button
-                    type="button"
-                    disabled={
+                case 'daktar':
+                  return {
+                    id: 'daktar',
+                    label: 'বাঁচাও',
+                    hotkey: 'G',
+                    subLabel:
+                      (localPlayer.revivesLeft ?? 0) <= 0
+                        ? 'শেষ'
+                        : revivableBody?.victimName ?? `${localPlayer.revivesLeft ?? 0}বার`,
+                    icon: <HeartPulse className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#2dd4bf',
+                    bgClass: 'bg-teal-400/90 border-2 border-teal-100/80 text-slate-950',
+                    disabled: !revivableBody || (localPlayer.revivesLeft ?? 0) <= 0,
+                    onClick: () => revivableBody && onUseAbility(revivableBody.id),
+                  };
+                case 'jharudar': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'jharudar',
+                    label: 'সাফাই',
+                    hotkey: 'G',
+                    subLabel: localPlayer.jharuTargetBodyId
+                      ? `${(localPlayer.jharuTimer ?? 0).toFixed(1)}সে.`
+                      : cd > 0.05
+                        ? `${Math.ceil(cd)}সে.`
+                        : cleanableBody?.victimName ?? `${localPlayer.cleansLeft ?? 3}বার`,
+                    icon: <Sparkle className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#fb7185',
+                    bgClass: 'bg-slate-950/88 border-2 border-rose-400/65 text-rose-200',
+                    disabled:
                       Boolean(localPlayer.jharuTargetBodyId) ||
                       (localPlayer.cleansLeft ?? 3) <= 0 ||
                       !cleanableBody ||
-                      localPlayer.abilityCooldown > 0.05
-                    }
-                    onClick={() => cleanableBody && onUseAbility(cleanableBody.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-rose-200/70"
-                  >
-                    <Sparkle className="w-4 h-4" />
-                    <span>
-                      {localPlayer.jharuTargetBodyId
-                        ? `সাফ হচ্ছে... ${(localPlayer.jharuTimer ?? 0).toFixed(1)}সে.`
-                        : (localPlayer.cleansLeft ?? 3) <= 0
-                          ? 'সাফাই শেষ'
-                          : localPlayer.abilityCooldown > 0.05
-                            ? `সাফাই (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                            : cleanableBody
-                              ? `সাফ করো: ${cleanableBody.victimName} (${localPlayer.cleansLeft ?? 3})`
-                              : `লাশ সাফ (${localPlayer.cleansLeft ?? 3})`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'bohurupi' && (
-                  <button
-                    type="button"
-                    disabled={!localPlayer.disguiseColor && localPlayer.abilityCooldown > 0.05}
-                    onClick={() => {
+                      cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 18) : 1,
+                    onClick: () => cleanableBody && onUseAbility(cleanableBody.id),
+                  };
+                }
+                case 'bohurupi': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'bohurupi',
+                    label: localPlayer.disguiseColor ? 'আসল' : 'ছদ্মবেশ',
+                    hotkey: 'G',
+                    subLabel: localPlayer.disguiseColor
+                      ? `${Math.ceil(localPlayer.disguiseTimer)}সে.`
+                      : cd > 0.05
+                        ? `${Math.ceil(cd)}সে.`
+                        : 'রূপ',
+                    icon: <Sparkles className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#e879f9',
+                    bgClass: 'bg-fuchsia-900/88 border-2 border-fuchsia-300/70 text-fuchsia-100',
+                    disabled: !localPlayer.disguiseColor && cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 25) : 1,
+                    onClick: () => {
                       if (localPlayer.disguiseColor) {
                         onUseAbility();
                         setShowDisguiseMenu(false);
                       } else {
                         setShowDisguiseMenu((s) => !s);
                       }
-                    }}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-fuchsia-300/70"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>
-                      {localPlayer.disguiseColor
-                        ? `আসল রূপে ফেরো (${Math.ceil(localPlayer.disguiseTimer)}সে.)`
-                        : localPlayer.abilityCooldown > 0.05
-                          ? `ছদ্মবেশ (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                          : 'রূপ বদলাও'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-fuchsia-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'ghotok_khala' && (
-                  <button
-                    type="button"
-                    disabled={Boolean(snapshot.ghotokLinkedIds) || !ghotokPair}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-pink-500 hover:bg-pink-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-pink-200/70"
-                  >
-                    <Heart className="w-4 h-4" />
-                    <span>
-                      {snapshot.ghotokLinkedIds
-                        ? 'বন্ধন তৈরি ✓'
-                        : ghotokPair
-                          ? `বন্ধন: ${ghotokPair[0].name}`
-                          : 'মহল্লা বন্ধন'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-pink-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'master_moshai' && (
-                  <button
-                    type="button"
-                    disabled={!masterTarget || localPlayer.abilityCooldown > 0.05}
-                    onClick={() => masterTarget && onUseAbility(masterTarget.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-blue-200/70"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `খাতা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : masterTarget
-                          ? `চেক: ${masterTarget.name}`
-                          : 'খাতা চেক'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-blue-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'cctv_kaku' && (
-                  <button
-                    type="button"
-                    disabled={localPlayer.abilityCooldown > 0.05 || localPlayer.inVent}
-                    onClick={() => {
+                    },
+                  };
+                }
+                case 'ghotok_khala':
+                  return {
+                    id: 'ghotok',
+                    label: 'বন্ধন',
+                    hotkey: 'G',
+                    subLabel: snapshot.ghotokLinkedIds ? 'সেট ✓' : ghotokPair?.[0].name,
+                    icon: <Heart className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#f472b6',
+                    bgClass: 'bg-pink-500/88 border-2 border-pink-100/80 text-slate-950',
+                    disabled: Boolean(snapshot.ghotokLinkedIds) || !ghotokPair,
+                    onClick: () => onUseAbility(),
+                  };
+                case 'master_moshai': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'master',
+                    label: 'খাতা',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : masterTarget?.name,
+                    icon: <BookOpen className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#60a5fa',
+                    bgClass: 'bg-blue-500/88 border-2 border-blue-200/80 text-slate-950',
+                    disabled: !masterTarget || cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 24) : 1,
+                    onClick: () => masterTarget && onUseAbility(masterTarget.id),
+                  };
+                }
+                case 'cctv_kaku': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'cctv_kaku',
+                    label: 'সিসিটিভি',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'ক্যামেরা',
+                    icon: <Video className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#fb923c',
+                    bgClass: 'bg-orange-400/90 border-2 border-orange-100/80 text-slate-950',
+                    disabled: cd > 0.05 || localPlayer.inVent,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 18) : 1,
+                    onClick: () => {
                       onUseAbility();
                       onOpenStation('cams');
-                    }}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-orange-400 hover:bg-orange-300 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-orange-100/70"
-                  >
-                    <Video className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `সিসিটিভি (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : 'পকেট সিসিটিভি'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-orange-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
+                    },
+                  };
+                }
+                case 'hatur_daktar': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'hatur',
+                    label: 'ইনজেকশন',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : haturTarget?.name ?? 'নিজে',
+                    icon: <HeartPulse className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#a3e635',
+                    bgClass: 'bg-lime-400/90 border-2 border-lime-100/80 text-slate-950',
+                    disabled: cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 22) : 1,
+                    onClick: () => onUseAbility(haturTarget?.id),
+                  };
+                }
+                case 'supari_killer': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'supari',
+                    label: 'সুপারি',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : supariTarget?.name ?? 'টার্গেট',
+                    icon: <Crosshair className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#f87171',
+                    bgClass: 'bg-red-900/88 border-2 border-red-300/70 text-red-100',
+                    disabled: cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 20) : 1,
+                    onClick: () => onUseAbility(),
+                  };
+                }
+                case 'dalal': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'dalal',
+                    label: 'জ্যাম',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : 'নেট',
+                    icon: <Radio className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#fb7185',
+                    bgClass: 'bg-rose-900/88 border-2 border-rose-300/70 text-rose-100',
+                    disabled: cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 28) : 1,
+                    onClick: () => onUseAbility(),
+                  };
+                }
+                case 'chamcha': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'chamcha',
+                    label: 'বস',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : chamchaTarget?.name,
+                    icon: <UserCheck className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#c084fc',
+                    bgClass: 'bg-purple-600/88 border-2 border-purple-200/80 text-white',
+                    disabled: !chamchaTarget || cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 10) : 1,
+                    onClick: () => chamchaTarget && onUseAbility(chamchaTarget.id),
+                  };
+                }
+                case 'chandabaz': {
+                  const cd = localPlayer.abilityCooldown;
+                  return {
+                    id: 'chandabaz',
+                    label: 'চাঁদা',
+                    hotkey: 'G',
+                    subLabel:
+                      cd > 0.05
+                        ? `${Math.ceil(cd)}সে.`
+                        : chandabazTarget?.name ?? `${chandabazAliveCount}/${chandabazGoal}`,
+                    icon: <DollarSign className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#fbbf24',
+                    bgClass: 'bg-amber-400/92 border-2 border-amber-100/85 text-slate-950',
+                    disabled: !chandabazTarget || cd > 0.05,
+                    progress01: cd > 0.05 ? Math.min(1, cd / CHANDABAZ_COOLDOWN_SEC) : 1,
+                    onClick: () => chandabazTarget && onUseAbility(chandabazTarget.id),
+                  };
+                }
+                case 'tiktok_star': {
+                  const cd = localPlayer.abilityCooldown;
+                  const filmedHere = Boolean(currentZoneId && localPlayer.tiktokZones?.includes(currentZoneId));
+                  return {
+                    id: 'tiktok',
+                    label: filmedHere ? 'শেষ' : 'রিল',
+                    hotkey: 'G',
+                    subLabel: cd > 0.05 ? `${Math.ceil(cd)}সে.` : `${localPlayer.tiktokZones?.length ?? 0}/৩`,
+                    icon: <Camera className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                    accentHex: '#f472b6',
+                    bgClass: 'bg-pink-500/88 border-2 border-pink-100/80 text-white',
+                    disabled: !currentZoneId || cd > 0.05 || filmedHere,
+                    progress01: cd > 0.05 ? Math.min(1, cd / 16) : 1,
+                    onClick: () => onUseAbility(),
+                  };
+                }
+                default:
+                  return null;
+              }
+            })();
 
-                {localPlayer.alive && localPlayer.specialRole === 'hatur_daktar' && (
-                  <button
-                    type="button"
-                    disabled={localPlayer.abilityCooldown > 0.05}
-                    onClick={() => onUseAbility(haturTarget?.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-lime-400 hover:bg-lime-300 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-lime-100/70"
-                  >
-                    <HeartPulse className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `ইনজেকশন (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : haturTarget
-                          ? `ইনজেকশন: ${haturTarget.name}`
-                          : 'নিজেকে ইনজেকশন'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-lime-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'supari_killer' && (
-                  <button
-                    type="button"
-                    disabled={localPlayer.abilityCooldown > 0.05}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-red-300/70"
-                  >
-                    <Crosshair className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `সুপারি (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : supariTarget
-                          ? `বদলাও (${supariTarget.name})`
-                          : 'সুপারি বাছাই'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-red-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'dalal' && (
-                  <button
-                    type="button"
-                    disabled={localPlayer.abilityCooldown > 0.05}
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-rose-700 hover:bg-rose-600 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-rose-300/60"
-                  >
-                    <Radio className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `জ্যাম (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : 'যোগাযোগ জ্যাম'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'chamcha' && (
-                  <button
-                    type="button"
-                    disabled={!chamchaTarget || localPlayer.abilityCooldown > 0.05}
-                    onClick={() => chamchaTarget && onUseAbility(chamchaTarget.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-purple-500 hover:bg-purple-400 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-purple-200/70"
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `বস (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : chamchaTarget
-                          ? `বস: ${chamchaTarget.name}`
-                          : 'বস বাছাই'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-purple-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'chandabaz' && (
-                  <button
-                    type="button"
-                    disabled={!chandabazTarget || localPlayer.abilityCooldown > 0.05}
-                    onClick={() => chandabazTarget && onUseAbility(chandabazTarget.id)}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 active:scale-95 transition-transform disabled:opacity-35 text-slate-950 font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-amber-100/70"
-                  >
-                    <DollarSign className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `চাঁদা (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : chandabazTarget
-                          ? `চাঁদা তোলো: ${chandabazTarget.name} (${localPlayer.chandabazTargets?.length ?? 0}/৩)`
-                          : `চাঁদা (${localPlayer.chandabazTargets?.length ?? 0}/৩)`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950 text-amber-300 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
-
-                {localPlayer.alive && localPlayer.specialRole === 'tiktok_star' && (
-                  <button
-                    type="button"
-                    disabled={
-                      !currentZoneId ||
-                      localPlayer.abilityCooldown > 0.05 ||
-                      Boolean(localPlayer.tiktokZones?.includes(currentZoneId))
+            const interactSlot: TacticalActionSlot | null = nearSabotageFix
+              ? {
+                  id: 'fix',
+                  label: nearGasValve ? 'ভালভ' : 'মেরামত',
+                  hotkey: 'E',
+                  subLabel: `${Math.round(snapshot.sabotage.fixProgress * 100)}%`,
+                  icon: <Wrench className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                  accentHex: '#fde047',
+                  bgClass: 'bg-amber-400/95 border-2 border-amber-100 text-slate-950',
+                  progress01: snapshot.sabotage.fixProgress,
+                  pulse: true,
+                  onHold: (holding) => onFixSabotageHold(holding, nearGasValve?.id),
+                }
+              : nearbyTask
+                ? {
+                    id: 'task',
+                    label: nearbyTaskLocked ? 'নেট নেই' : isVondo ? 'ভুয়া' : 'কাজ',
+                    hotkey: nearbyTaskLocked ? undefined : 'E',
+                    subLabel: nearbyTask.zoneName,
+                    icon: <Wrench className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                    accentHex: '#fbbf24',
+                    bgClass: nearbyTaskLocked
+                      ? 'bg-indigo-950/90 border-2 border-indigo-400/50 text-indigo-200'
+                      : 'bg-amber-400/95 border-2 border-amber-100 text-slate-950',
+                    disabled: nearbyTaskLocked,
+                    pulse: !nearbyTaskLocked,
+                    onClick: () => !nearbyTaskLocked && onOpenTask(nearbyTask.id),
+                  }
+                : nearCams
+                  ? {
+                      id: 'cams',
+                      label: 'সিসিটিভি',
+                      hotkey: 'E',
+                      icon: <Video className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                      accentHex: '#fb7185',
+                      bgClass: 'bg-rose-600/92 border-2 border-rose-200/80 text-white',
+                      onClick: () => onOpenStation('cams'),
                     }
-                    onClick={() => onUseAbility()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-pink-500 hover:bg-pink-400 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-pink-200/70"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>
-                      {localPlayer.abilityCooldown > 0.05
-                        ? `রিল (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : !currentZoneId
-                          ? 'এলাকায় ঢোকো'
-                          : localPlayer.tiktokZones?.includes(currentZoneId)
-                            ? `শুটিং শেষ (${localPlayer.tiktokZones.length}/৩)`
-                            : `রিল বানাও (${localPlayer.tiktokZones?.length ?? 0}/৩)`}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-pink-200 text-[10px] font-black">G</kbd>
-                  </button>
-                )}
+                  : nearAdmin
+                    ? {
+                        id: 'admin',
+                        label: 'অ্যাডমিন',
+                        hotkey: 'E',
+                        icon: <Radar className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                        accentHex: '#38bdf8',
+                        bgClass: 'bg-sky-500/92 border-2 border-sky-200/80 text-slate-950',
+                        onClick: () => onOpenStation('admin'),
+                      }
+                    : nearVitals
+                      ? {
+                          id: 'vitals',
+                          label: 'ভাইটালস',
+                          hotkey: 'E',
+                          icon: <Activity className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                          accentHex: '#34d399',
+                          bgClass: 'bg-emerald-500/92 border-2 border-emerald-200/80 text-slate-950',
+                          onClick: () => onOpenStation('vitals'),
+                        }
+                      : null;
 
-                {/* Drain Vent Button (Batpar OR Current Babu) */}
-                {localPlayer.alive && (isVondo || localPlayer.specialRole === 'mistri') && (
-                  <button
-                    type="button"
-                    disabled={(!nearVent && !localPlayer.inVent) || !playerCanVent}
-                    onClick={() => onVentToggle()}
-                    className="min-h-[48px] px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-emerald-300/60"
-                  >
-                    <DoorOpen className="w-4 h-4" />
-                    <span>
-                      {localPlayer.specialRole === 'mistri' && !localPlayer.inVent && localPlayer.abilityCooldown > 0.05
-                        ? `ড্রেন (${Math.ceil(localPlayer.abilityCooldown)}সে.)`
-                        : 'ড্রেনে ঢোকো'}
-                    </span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-emerald-200 text-[10px] font-black">V</kbd>
-                  </button>
-                )}
+            const heroSlot: TacticalActionSlot =
+              isVondo && localPlayer.alive
+                ? {
+                    id: 'kill',
+                    label: 'ঘায়েল',
+                    hotkey: 'Q',
+                    subLabel:
+                      localPlayer.killCooldownRemaining > 0.05
+                        ? `${Math.ceil(localPlayer.killCooldownRemaining)}সে.`
+                        : killTarget?.name ?? 'কাছে যাও',
+                    icon: <Skull className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                    accentHex: '#fb7185',
+                    bgClass:
+                      killTarget && localPlayer.killCooldownRemaining <= 0.05
+                        ? 'bg-rose-600/95 border-2 border-rose-200 text-white shadow-[0_0_24px_rgba(244,63,94,0.6)]'
+                        : 'bg-slate-950/88 border-2 border-rose-500/50 text-rose-200',
+                    disabled: !killTarget || localPlayer.killCooldownRemaining > 0.05,
+                    progress01:
+                      localPlayer.killCooldownRemaining > 0.05
+                        ? Math.min(
+                            1,
+                            localPlayer.killCooldownRemaining / Math.max(10, snapshot.settings.killCooldownSec),
+                          )
+                        : 1,
+                    pulse: Boolean(killTarget && localPlayer.killCooldownRemaining <= 0.05),
+                    onClick: () => killTarget && onKill(killTarget.id),
+                  }
+                : interactSlot ?? {
+                    id: 'use_idle',
+                    label: 'ব্যবহার',
+                    hotkey: 'E',
+                    icon: <Wrench className={isMobileHud ? 'w-5 h-5' : 'w-6 h-6'} />,
+                    accentHex: '#64748b',
+                    bgClass: 'bg-slate-950/78 border-2 border-white/15 text-slate-400',
+                    disabled: true,
+                  };
 
-                {isVondo && localPlayer.alive && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setShowSabotageMenu((s) => !s)}
-                      className="min-h-[48px] px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 active:scale-95 transition-transform text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-amber-300/60"
+            const arcQueue: TacticalActionSlot[] = [];
+            if (isVondo && localPlayer.alive && interactSlot) {
+              arcQueue.push(interactSlot);
+            }
+            if (nearbyBody) {
+              arcQueue.push({
+                id: 'report',
+                label: 'রিপোর্ট',
+                hotkey: 'R',
+                subLabel: nearbyBody.victimName,
+                icon: <Bell className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#fed7aa',
+                bgClass: 'bg-orange-500/95 border-2 border-orange-100 text-slate-950',
+                pulse: true,
+                onClick: () => onReportBody(nearbyBody.id),
+              });
+            }
+            if (abilitySlot) {
+              arcQueue.push(abilitySlot);
+            }
+            if (nearBell) {
+              arcQueue.push({
+                id: 'bell',
+                label: 'সালিশ',
+                hotkey: 'F',
+                subLabel:
+                  localPlayer.emergencyMeetingsLeft <= 0
+                    ? '০বার'
+                    : emergencyCd > 0
+                      ? `${emergencyCd}সে.`
+                      : `${localPlayer.emergencyMeetingsLeft}বার`,
+                icon: <Bell className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#7dd3fc',
+                bgClass: 'bg-sky-500/92 border-2 border-sky-100 text-slate-950',
+                disabled: !canCallEmergency,
+                onClick: onEmergencyMeeting,
+              });
+            }
+            if (localPlayer.alive && (isVondo || localPlayer.specialRole === 'mistri')) {
+              arcQueue.push({
+                id: 'vent',
+                label: localPlayer.inVent ? 'বের হও' : 'ড্রেন',
+                hotkey: 'V',
+                subLabel:
+                  localPlayer.specialRole === 'mistri' && !localPlayer.inVent && localPlayer.abilityCooldown > 0.05
+                    ? `${Math.ceil(localPlayer.abilityCooldown)}সে.`
+                    : undefined,
+                icon: <DoorOpen className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#34d399',
+                bgClass:
+                  (nearVent || localPlayer.inVent) && playerCanVent
+                    ? 'bg-emerald-600/92 border-2 border-emerald-200 text-white'
+                    : 'bg-slate-950/85 border-2 border-emerald-500/45 text-emerald-200',
+                disabled: (!nearVent && !localPlayer.inVent) || !playerCanVent,
+                onClick: () => onVentToggle(),
+              });
+            }
+            if (isVondo && localPlayer.alive) {
+              arcQueue.push({
+                id: 'sabo',
+                label: 'নাশকতা',
+                hotkey: 'X',
+                subLabel:
+                  snapshot.sabotage.cooldownRemaining > 0
+                    ? `${Math.ceil(snapshot.sabotage.cooldownRemaining)}সে.`
+                    : undefined,
+                icon: <Zap className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#fbbf24',
+                bgClass:
+                  snapshot.sabotage.cooldownRemaining > 0
+                    ? 'bg-slate-950/85 border-2 border-amber-500/45 text-amber-200'
+                    : 'bg-amber-500/92 border-2 border-amber-100 text-slate-950',
+                progress01:
+                  snapshot.sabotage.cooldownRemaining > 0
+                    ? Math.min(1, snapshot.sabotage.cooldownRemaining / 30)
+                    : 1,
+                onClick: () => setShowSabotageMenu((s) => !s),
+              });
+            }
+
+            const arcPositions: Array<{ right: number; bottom: number }> = isMobileHud
+              ? [
+                  { right: 74, bottom: 2 },
+                  { right: 64, bottom: 64 },
+                  { right: 2, bottom: 74 },
+                  { right: 132, bottom: 8 },
+                  { right: 122, bottom: 70 },
+                  { right: 186, bottom: 16 },
+                ]
+              : [
+                  { right: 88, bottom: 4 },
+                  { right: 74, bottom: 74 },
+                  { right: 4, bottom: 88 },
+                  { right: 154, bottom: 8 },
+                  { right: 140, bottom: 76 },
+                  { right: 68, bottom: 140 },
+                ];
+            const maxSlots = isMobileHud && viewport.w < 440 ? 4 : 6;
+            const visibleArcSlots = arcQueue.slice(0, maxSlots);
+            const clusterWidth = isMobileHud ? (viewport.w < 440 ? 196 : 246) : 228;
+            const clusterHeight = isMobileHud ? 132 : visibleArcSlots.length >= 6 ? 204 : 154;
+
+            return (
+              <div
+                className="relative pointer-events-none shrink-0"
+                style={{ width: `${clusterWidth}px`, height: `${clusterHeight}px` }}
+              >
+                <div className="absolute right-0 bottom-0 pointer-events-auto">
+                  <TacticalCircleButton
+                    slot={heroSlot}
+                    hero
+                    compact={isMobileHud}
+                    showHotkey={!isMobileHud}
+                  />
+                </div>
+                {visibleArcSlots.map((slot, idx) => {
+                  const pos = arcPositions[idx];
+                  if (!pos) return null;
+                  return (
+                    <div
+                      key={slot.id}
+                      className="absolute pointer-events-auto"
+                      style={{ right: `${pos.right}px`, bottom: `${pos.bottom}px` }}
                     >
-                      <Zap className="w-4 h-4" />
-                      <span>
-                        {snapshot.sabotage.cooldownRemaining > 0
-                          ? `নাশকতা (${Math.ceil(snapshot.sabotage.cooldownRemaining)}সে.)`
-                          : 'নাশকতা করো'}
-                      </span>
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-amber-200 text-[10px] font-black">X</kbd>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={!killTarget || localPlayer.killCooldownRemaining > 0.05}
-                      onClick={() => killTarget && onKill(killTarget.id)}
-                      className="min-h-[48px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 transition-transform disabled:opacity-35 text-white font-display font-bold text-xs sm:text-sm flex items-center gap-1.5 font-mono-tabular shadow-lg border-2 border-rose-300/70"
-                    >
-                      <Skull className="w-4 h-4" />
-                      <span>
-                        {localPlayer.killCooldownRemaining > 0.05
-                          ? `${Math.ceil(localPlayer.killCooldownRemaining)}সে.`
-                          : killTarget
-                            ? `ঘায়েল করো: ${killTarget.name}`
-                            : 'কাছে যাও!'}
-                      </span>
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-950/80 text-rose-200 text-[10px] font-black">Q</kbd>
-                    </button>
-                  </>
-                )}
+                      <TacticalCircleButton
+                        slot={slot}
+                        compact={isMobileHud}
+                        showHotkey={!isMobileHud}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             );
           })()}

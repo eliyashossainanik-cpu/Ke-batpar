@@ -570,13 +570,17 @@ export default function App() {
         return;
       }
 
-      if (
-        (derivedPhase === 'playing' || derivedPhase === 'lobby') &&
-        e.code.startsWith('Digit')
-      ) {
-        const idx = Number(e.code.replace('Digit', '')) - 1;
-        if (idx >= 0 && idx < MEME_SOUNDS.length) {
-          handlePlayMeme(MEME_SOUNDS[idx].id);
+      if (derivedPhase === 'playing' || derivedPhase === 'lobby') {
+        const memeList = MEME_SOUNDS;
+        let idx = -1;
+        if (e.code.startsWith('Digit')) {
+          const digit = Number(e.code.replace('Digit', ''));
+          idx = digit === 0 ? 9 : digit - 1;
+        } else if (e.code === 'Minus') {
+          idx = 10;
+        }
+        if (idx >= 0 && idx < memeList.length) {
+          handlePlayMeme(memeList[idx].id);
           return;
         }
       }
@@ -1132,7 +1136,7 @@ export default function App() {
                   : activeSnapshot.outcome.reason === 'critical_sabotage_timeout'
                     ? 'গ্যাস ফেটে পুরো পাড়া উড়ে গেছে!'
                     : activeSnapshot.outcome.reason === 'chandabaz_extorted'
-                      ? `${activeSnapshot.outcome.winnerPlayerName ?? 'চাঁদাবাজ'} ৩ জন থেকে চাঁদা তুলে জিতে গেছে!`
+                      ? `${activeSnapshot.outcome.winnerPlayerName ?? 'চাঁদাবাজ'} জীবিত সব প্রতিবেশীর কাছ থেকে চাঁদা তুলে জিতে গেছে!`
                       : activeSnapshot.outcome.reason === 'tiktok_viral'
                         ? `${activeSnapshot.outcome.winnerPlayerName ?? 'টিকটক স্টার'} ৩টা ভাইরাল রিল ছেড়ে কাপ নিয়ে নিল!`
                         : `${activeSnapshot.outcome.winnerPlayerName ?? 'পাগলা বাবা'} সবাইকে উল্লু বানিয়ে কাপ নিয়ে গেল!`}

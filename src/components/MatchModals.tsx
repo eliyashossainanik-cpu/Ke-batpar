@@ -222,8 +222,8 @@ function getRoleHowToPlay(isVondo: boolean, specialRole: SpecialRole): string[] 
   }
   if (specialRole === 'chandabaz') {
     return [
-      '৩ জন আলাদা প্রতিবেশীর কাছে গিয়ে [G] চেপে চাঁদা আদায় করো — ৩/৩ হলেই একক জয়!',
-      'ধরা না খেয়ে চুপিসারে আলাদা আলাদা পাড়াবাসীর কাছ থেকে চাঁদা তুলে ফেলো!',
+      'ম্যাচে যতজন জীবিত প্রতিবেশী আছে সবার কাছে গিয়ে [G] চেপে চাঁদা আদায় করো — সবাই জীবিত থাকা অবস্থায় পূর্ণ হলে জয়!',
+      'প্রতিবার ৩০ সেকেন্ড কুলডাউন থাকে; শিকার ও আশপাশের মানুষ সাথে সাথে জেনে যায়, আর কেউ মারা গেলে হিসাব বদলায় — খুব সাবধান!',
     ];
   }
   if (specialRole === 'tiktok_star') {
@@ -665,9 +665,9 @@ export function EjectionModal({
   useEffect(() => {
     if (ejection.reason === 'voted' && ejection.ejectedName && elapsedMs >= 2250 && !splashPlayedRef.current) {
       splashPlayedRef.current = true;
-      soundEngine.playEject();
+      soundEngine.playEject(Boolean(ejection.confirmEjects && ejection.wasVondo));
     }
-  }, [ejection.reason, ejection.ejectedName, elapsedMs]);
+  }, [ejection.reason, ejection.ejectedName, ejection.confirmEjects, ejection.wasVondo, elapsedMs]);
 
   const c = ejection.ejectedColor
     ? PLAYER_COLORS.find((col) => col.id === ejection.ejectedColor) ?? PLAYER_COLORS[0]
@@ -989,7 +989,7 @@ export function OutcomeModal({
     batpars_outnumber: 'বাটপাররা পুরো মহল্লা দখল করে নিয়েছে — চায়ের দোকানও বন্ধ!',
     critical_sabotage_timeout: 'গ্যাস ফেটে পুরো পাড়া উড়ে গেছে! চুলা আর ট্যাংকি দুই-ই শেষ!',
     pagol_ejected: `${outcome.winnerPlayerName ?? 'পাগলা বাবা'} সবাইকে বোকা বানিয়ে কাপ নিয়ে গেল!`,
-    chandabaz_extorted: `${outcome.winnerPlayerName ?? 'চাঁদাবাজ'} ৩ জনের কাছ থেকে চাঁদা তুলে কাপ নিয়ে গেল!`,
+    chandabaz_extorted: `${outcome.winnerPlayerName ?? 'চাঁদাবাজ'} জীবিত সব প্রতিবেশীর কাছ থেকে চাঁদা তুলে কাপ নিয়ে গেল!`,
     tiktok_viral: `${outcome.winnerPlayerName ?? 'টিকটক স্টার'} ৩টি ভাইরাল রিল ছেড়ে কাপ জিতে নিল!`,
   };
 

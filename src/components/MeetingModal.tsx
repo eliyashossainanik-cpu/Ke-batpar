@@ -692,14 +692,22 @@ export function MeetingModal({
             </div>
 
             {onPlayMeme && (
-              <div className="px-2.5 py-1.5 border-t border-slate-800 bg-slate-950/70 flex items-center gap-1.5 overflow-x-auto shrink-0">
+              <div
+                role="region"
+                aria-label="কুইক ভয়েস ও মিম সাউন্ড"
+                className="px-2.5 py-1.5 border-t border-slate-800 bg-slate-950/70 flex items-center gap-1.5 overflow-x-auto shrink-0"
+              >
                 <Volume2 className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                 {quickMemes.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => onPlayMeme(m.id)}
-                    className="min-h-[32px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-[11px] font-semibold text-amber-200 whitespace-nowrap transition-colors shrink-0"
+                    className={`min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                      m.isVoicePack
+                        ? 'bg-emerald-950/85 border border-emerald-500/40 text-emerald-200 hover:bg-emerald-400 hover:text-slate-950'
+                        : 'bg-slate-800 hover:bg-amber-400 hover:text-slate-950 text-amber-200'
+                    }`}
                   >
                     {m.label}
                   </button>

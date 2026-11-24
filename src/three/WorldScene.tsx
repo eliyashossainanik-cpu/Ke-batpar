@@ -40,16 +40,21 @@ import {
   createBillboardHoarding,
   createBodyMarkerMesh,
   createBoulevardWelcomeArch,
+  createBrickDepotCluster,
+  createBushCluster,
   createBusStopShelterModel,
   createCharacterRig,
   createClotheslineProp,
   createCngModel,
   createAlleyProps,
+  createDhakaMiniBusModel,
   createDrainVent,
+  createHedgeRow,
   createInstancedGrassTufts,
   createJhalmuriCartModel,
   createKrishnachuraTree,
   createMoricbattiGarlands,
+  createMotorbikeModel,
   createOverheadWires,
   createPalmTree,
   createParkedCarModel,
@@ -58,6 +63,7 @@ import {
   createRailCrossingGate,
   createRickshawModel,
   createRoadDividerCluster,
+  createRoadsideTapriStall,
   createRooftopChhilekotha,
   createRooftopMachanProp,
   createSandbagBarricade,
@@ -113,11 +119,62 @@ export interface WorldSceneProps {
   onCompassYawChange?: (yawRad: number) => void;
 }
 
+interface OccluderAabb {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+}
+
 const _desiredCamPos = new THREE.Vector3();
 const _desiredLook = new THREE.Vector3();
 const _rayOrigin = new THREE.Vector3();
 const _rayDir = new THREE.Vector3();
-const _raycaster = new THREE.Raycaster();
+
+function raycastWallsDistance(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  maxDist: number,
+  walls: OccluderAabb[],
+): number {
+  let closest = maxDist;
+  const invX = Math.abs(dx) > 1e-6 ? 1 / dx : 1e9;
+  const invY = Math.abs(dy) > 1e-6 ? 1 / dy : 1e9;
+  const invZ = Math.abs(dz) > 1e-6 ? 1 / dz : 1e9;
+  for (let i = 0; i < walls.length; i++) {
+    const w = walls[i];
+    const tx1 = (w.minX - ox) * invX;
+    const tx2 = (w.maxX - ox) * invX;
+    let tmin = tx1 < tx2 ? tx1 : tx2;
+    let tmax = tx1 > tx2 ? tx1 : tx2;
+
+    const ty1 = (w.minY - oy) * invY;
+    const ty2 = (w.maxY - oy) * invY;
+    const tyn = ty1 < ty2 ? ty1 : ty2;
+    const tyx = ty1 > ty2 ? ty1 : ty2;
+    if (tyn > tmin) tmin = tyn;
+    if (tyx < tmax) tmax = tyx;
+    if (tmax < tmin) continue;
+
+    const tz1 = (w.minZ - oz) * invZ;
+    const tz2 = (w.maxZ - oz) * invZ;
+    const tzn = tz1 < tz2 ? tz1 : tz2;
+    const tzx = tz1 > tz2 ? tz1 : tz2;
+    if (tzn > tmin) tmin = tzn;
+    if (tzx < tmax) tmax = tzx;
+
+    if (tmax >= Math.max(0, tmin) && tmin > 0 && tmin < closest) {
+      closest = tmin;
+    }
+  }
+  return closest;
+}
 
 function getColorSpec(colorId: PlayerColorId) {
   return PLAYER_COLORS.find((c) => c.id === colorId) ?? PLAYER_COLORS[0];
@@ -190,7 +247,7 @@ export function WorldScene({
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = isMobileGpu ? 1.04 : 0.96;
+    renderer.toneMappingExposure = isMobileGpu ? 1.08 : 1.04;
     renderer.setPixelRatio(currentDpr);
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = !isSoftwareGl;
@@ -216,29 +273,40 @@ export function WorldScene({
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.26;
+    scene.environmentIntensity = 0.32;
     pmremGenerator.dispose();
 
     const camera = new THREE.PerspectiveCamera(54, width / height, 0.2, 640);
     camera.position.set(0, 18, 34);
 
-    // Desktop-GPU HDR Post-Processing (high threshold 1.45 so only true emissives bloom, never characters/roads)
-    // Mobile GPUs skip multi-pass UnrealBloomPass to maintain locked 60fps.
+    // Desktop-GPU HDR Post-Processing at half-res bloom (4x faster fragment pass; auto-disables if FPS dips)
     let composer: EffectComposer | null = null;
+    let bloomPass: UnrealBloomPass | null = null;
+    let useComposer = false;
     if (!isSoftwareGl && !isMobileGpu) {
       composer = new EffectComposer(renderer);
       composer.setPixelRatio(currentDpr);
       composer.setSize(width, height);
       composer.addPass(new RenderPass(scene, camera));
-      composer.addPass(new UnrealBloomPass(new THREE.Vector2(width, height), 0.14, 0.3, 1.45));
+      bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2))),
+        0.16,
+        0.35,
+        1.38,
+      );
+      composer.addPass(bloomPass);
       composer.addPass(new OutputPass());
+      useComposer = true;
     }
 
-    // 3-Point Warm/Cool Lighting Rig + Dynamic Player-Tracking Shadow Frustum
-    const hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x0f172a, isMobileGpu ? 0.54 : 0.45);
+    // 3-Point Warm/Cool Lighting Rig + Horizon Warm Bounce Fill + Player-Tracking Shadow Frustum
+    const baseHemiIntensity = isMobileGpu ? 0.58 : 0.48;
+    const baseKeyIntensity = 1.26;
+    const baseBounceIntensity = 0.2;
+    const hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x0f172a, baseHemiIntensity);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffdca8, 1.18);
+    const keyLight = new THREE.DirectionalLight(0xffe1b0, baseKeyIntensity);
     keyLight.position.set(34, 48, 28);
     keyLight.castShadow = !isSoftwareGl;
     const shadowRes = isSoftwareGl || isMobileGpu ? 1024 : 2048;
@@ -256,7 +324,11 @@ export function WorldScene({
     scene.add(keyLight);
     scene.add(keyLight.target);
 
-    const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.36);
+    const bounceLight = new THREE.DirectionalLight(0xffb36b, baseBounceIntensity);
+    bounceLight.position.set(-28, 12, 30);
+    scene.add(bounceLight);
+
+    const rimLight = new THREE.DirectionalLight(0x60a5fa, 0.42);
     rimLight.position.set(-34, 24, -34);
     scene.add(rimLight);
 
@@ -265,7 +337,7 @@ export function WorldScene({
     lanternLight.position.set(0, 2.9, 0);
     scene.add(lanternLight);
 
-    const textures = createProceduralTextures(renderer, isMobileGpu ? 2 : 8);
+    const textures = createProceduralTextures(renderer, isMobileGpu ? 2 : 8, isMobileGpu || isSoftwareGl);
 
     // Distant Multi-Tier Skyline, Sunset Atmospheric Sky Shader & Moon
     const skyline = createTwilightSkyline();
@@ -327,6 +399,7 @@ export function WorldScene({
       roughness: 1.0,
       metalness: 0.08,
     });
+    const roadsGroup = new THREE.Group();
     const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 316.0), roadSurfaceMatNS);
     roadNS.rotation.x = -Math.PI / 2;
     roadNS.position.y = 0.008;
@@ -335,7 +408,7 @@ export function WorldScene({
     roadEW.rotation.x = -Math.PI / 2;
     roadEW.position.y = 0.009;
     roadEW.receiveShadow = true;
-    scene.add(roadNS, roadEW);
+    roadsGroup.add(roadNS, roadEW);
 
     // Inner Ring Boulevard (x = ±52, z = ±52) extending to North Para & South Opar Para
     for (const rx of [-52, 52]) {
@@ -343,14 +416,14 @@ export function WorldScene({
       ringNS.rotation.x = -Math.PI / 2;
       ringNS.position.set(rx, 0.006, 0);
       ringNS.receiveShadow = true;
-      scene.add(ringNS);
+      roadsGroup.add(ringNS);
     }
     for (const rz of [-52, 52]) {
       const ringEW = new THREE.Mesh(new THREE.PlaneGeometry(310.0, 8.5), roadSurfaceMatEW);
       ringEW.rotation.x = -Math.PI / 2;
       ringEW.position.set(0, 0.007, rz);
       ringEW.receiveShadow = true;
-      scene.add(ringEW);
+      roadsGroup.add(ringEW);
     }
 
     // Outer Para Avenues (North Colony z=-114, North Houses z=-72, Rail Station z=72, South Bypass z=96, Opar Main z=112, Opar Ring z=144, Outer W/E x=±86,±118)
@@ -366,7 +439,7 @@ export function WorldScene({
       aveEW.rotation.x = -Math.PI / 2;
       aveEW.position.set(0, 0.007, rz);
       aveEW.receiveShadow = true;
-      scene.add(aveEW);
+      roadsGroup.add(aveEW);
     }
     for (const [rx, wid] of [
       [-118, 8.0],
@@ -378,8 +451,9 @@ export function WorldScene({
       aveNS.rotation.x = -Math.PI / 2;
       aveNS.position.set(rx, 0.006, 0);
       aveNS.receiveShadow = true;
-      scene.add(aveNS);
+      roadsGroup.add(aveNS);
     }
+    scene.add(optimizeStaticGroup(roadsGroup));
 
     const dashMat = new THREE.MeshStandardMaterial({
       color: '#94a3b8',
@@ -420,12 +494,12 @@ export function WorldScene({
         dashPlacements.push({ x: rx, y: 0.014, z: d, sx: 0.22, sz: 1.8 });
       }
     }
-    // Zebra Crossings approaching Adda Chowk + Outer Ring Boulevard intersections
+    // Zebra Crossings approaching Adda Chowk + Inner/Outer Ring Boulevard intersections
     for (let s = -4; s <= 4; s += 1.3) {
-      for (const zPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2]) {
+      for (const zPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2, -108.8, -119.2, 106.8, 117.2]) {
         dashPlacements.push({ x: s, y: 0.018, z: zPos, sx: 0.55, sz: 2.2 });
       }
-      for (const xPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2]) {
+      for (const xPos of [-10.8, 10.8, -46.8, -57.2, 46.8, 57.2, -112.8, -123.2, 112.8, 123.2]) {
         dashPlacements.push({ x: xPos, y: 0.018, z: s, sx: 2.2, sz: 0.55 });
       }
     }
@@ -444,6 +518,41 @@ export function WorldScene({
     dashInst.computeBoundingSphere();
     scene.add(dashInst);
 
+    // Yellow Railway Level-Crossing Hazard Bars across all 7 N-S road crossings (x = 0, ±52, ±86, ±118)
+    const hazardMat = new THREE.MeshStandardMaterial({
+      color: '#eab308',
+      roughness: 0.7,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    const hazardSpots: Array<{ x: number; z: number; sx: number; sz: number }> = [];
+    for (const [cx, wid] of [
+      [-118, 7.6],
+      [-86, 7.0],
+      [-52, 8.0],
+      [0, 10.8],
+      [52, 8.0],
+      [86, 7.0],
+      [118, 7.6],
+    ] as const) {
+      hazardSpots.push(
+        { x: cx, z: RAILWAY_TRACK_Z - 3.6, sx: wid, sz: 0.42 },
+        { x: cx, z: RAILWAY_TRACK_Z + 3.6, sx: wid, sz: 0.42 },
+      );
+    }
+    const hazardInst = new THREE.InstancedMesh(dashUnitGeo, hazardMat, hazardSpots.length);
+    hazardSpots.forEach((p, idx) => {
+      instDummy.position.set(p.x, 0.02, p.z);
+      instDummy.rotation.set(0, 0, 0);
+      instDummy.scale.set(p.sx, 1, p.sz);
+      instDummy.updateMatrix();
+      hazardInst.setMatrixAt(idx, instDummy.matrix);
+    });
+    hazardInst.instanceMatrix.needsUpdate = true;
+    hazardInst.computeBoundingSphere();
+    scene.add(hazardInst);
+
     // Textured District Plazas + Shop-Authentic Interior Floors + Instanced Beveled Stone Curbs
     const curbMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.78 });
     const shopTintByZone: Record<string, string> = {
@@ -456,6 +565,47 @@ export function WorldScene({
       biyer_pandal: '#e6becc',
     };
     const borderCurbPlacements: Array<{ x: number; y: number; z: number; sx: number; sz: number }> = [];
+    const groundPadsGroup = new THREE.Group();
+    const padMatCache = new Map<string, THREE.MeshStandardMaterial>();
+    const getSharedPadMat = (
+      key: string,
+      factory: () => THREE.MeshStandardMaterial,
+    ): THREE.MeshStandardMaterial => {
+      let mat = padMatCache.get(key);
+      if (!mat) {
+        mat = factory();
+        padMatCache.set(key, mat);
+      }
+      return mat;
+    };
+
+    const outerGrassMat = getSharedPadMat('grass', () =>
+      new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        map: textures.grassMap,
+        roughness: 0.92,
+        metalness: 0.0,
+      }),
+    );
+    const outerCobbleMat = getSharedPadMat('cobble', () =>
+      new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        map: textures.cobbleMap,
+        normalMap: textures.cobbleNormal,
+        normalScale: new THREE.Vector2(0.9, 0.9),
+        roughness: 0.78,
+        metalness: 0.07,
+      }),
+    );
+    const outerTerraMat = getSharedPadMat('terra:#d9c2ae', () =>
+      new THREE.MeshStandardMaterial({
+        color: '#d9c2ae',
+        map: textures.terracottaTileMap,
+        roughness: 0.84,
+        metalness: 0.04,
+      }),
+    );
+
     for (const zDef of ZONES) {
       if (zDef.id === 'pukur_ghat' || zDef.id === 'rail_station' || zDef.id === 'jheel_par') continue;
       const isCentral = zDef.id === 'adda_chowk';
@@ -465,60 +615,59 @@ export function WorldScene({
       const isSaloon = zDef.id === 'saloon_goli';
       const isPharmacy = zDef.id === 'pharmacy_mor';
       const isGarage = zDef.id === 'rickshaw_garage';
+      const terraTint = shopTintByZone[zDef.id] ?? '#cbd5e1';
       const padMat = isCentral
-        ? new THREE.MeshStandardMaterial({
-            color: '#ffffff',
-            map: textures.cobbleMap,
-            normalMap: textures.cobbleNormal,
-            normalScale: new THREE.Vector2(0.95, 0.95),
-            roughness: 0.76,
-            metalness: 0.08,
-          })
+        ? outerCobbleMat
         : isCricket
-          ? new THREE.MeshStandardMaterial({
-              color: '#ffffff',
-              map: textures.cricketTurfMap,
-              roughness: 0.88,
-              metalness: 0.0,
-            })
-          : isEidgah || isPark
-            ? new THREE.MeshStandardMaterial({
+          ? getSharedPadMat('cricket', () =>
+              new THREE.MeshStandardMaterial({
                 color: '#ffffff',
-                map: textures.grassMap,
-                roughness: 0.92,
+                map: textures.cricketTurfMap,
+                roughness: 0.88,
                 metalness: 0.0,
-              })
+              }),
+            )
+          : isEidgah || isPark
+            ? outerGrassMat
             : isSaloon
-              ? new THREE.MeshStandardMaterial({
-                  color: '#ffffff',
-                  map: textures.saloonTileMap,
-                  roughness: 0.36,
-                  metalness: 0.08,
-                })
-              : isPharmacy
-                ? new THREE.MeshStandardMaterial({
+              ? getSharedPadMat('saloon', () =>
+                  new THREE.MeshStandardMaterial({
                     color: '#ffffff',
-                    map: textures.pharmacyTileMap,
-                    roughness: 0.28,
-                    metalness: 0.06,
-                  })
-                : isGarage
-                  ? new THREE.MeshStandardMaterial({
+                    map: textures.saloonTileMap,
+                    roughness: 0.36,
+                    metalness: 0.08,
+                  }),
+                )
+              : isPharmacy
+                ? getSharedPadMat('pharmacy', () =>
+                    new THREE.MeshStandardMaterial({
                       color: '#ffffff',
-                      map: textures.garageFloorMap,
-                      roughness: 0.86,
-                      metalness: 0.05,
-                    })
-                  : new THREE.MeshStandardMaterial({
-                      color: shopTintByZone[zDef.id] ?? '#cbd5e1',
-                      map: textures.terracottaTileMap,
-                      roughness: 0.82,
-                      metalness: 0.04,
-                    });
+                      map: textures.pharmacyTileMap,
+                      roughness: 0.28,
+                      metalness: 0.06,
+                    }),
+                  )
+                : isGarage
+                  ? getSharedPadMat('garage', () =>
+                      new THREE.MeshStandardMaterial({
+                        color: '#ffffff',
+                        map: textures.garageFloorMap,
+                        roughness: 0.86,
+                        metalness: 0.05,
+                      }),
+                    )
+                  : getSharedPadMat(`terra:${terraTint}`, () =>
+                      new THREE.MeshStandardMaterial({
+                        color: terraTint,
+                        map: textures.terracottaTileMap,
+                        roughness: 0.82,
+                        metalness: 0.04,
+                      }),
+                    );
       const pad = new THREE.Mesh(new THREE.BoxGeometry(zDef.width, 0.07, zDef.depth), padMat);
       pad.position.set(zDef.x, 0.025, zDef.z);
       pad.receiveShadow = true;
-      scene.add(pad);
+      groundPadsGroup.add(pad);
 
       if (
         isCentral ||
@@ -537,6 +686,61 @@ export function WorldScene({
         );
       }
     }
+    const outerGroundBlocks: Array<{
+      x: number;
+      z: number;
+      w: number;
+      d: number;
+      kind: 'grass' | 'cobble' | 'terra';
+    }> = [
+      // North Outer Lawns & Plazas (z: -154..-120)
+      { x: -101, z: -135, w: 21, d: 28, kind: 'terra' },
+      { x: 101, z: -135, w: 21, d: 28, kind: 'terra' },
+      { x: 138, z: -135, w: 25, d: 28, kind: 'grass' },
+      { x: 0, z: -135, w: 19, d: 28, kind: 'grass' },
+      // Residential Courtyard Strips (z: -106..-78)
+      { x: -101, z: -93, w: 21, d: 28, kind: 'cobble' },
+      { x: 101, z: -93, w: 21, d: 28, kind: 'cobble' },
+      { x: -12, z: -92, w: 12, d: 26, kind: 'grass' },
+      { x: 12, z: -92, w: 12, d: 26, kind: 'grass' },
+      { x: -53, z: -92, w: 10, d: 26, kind: 'grass' },
+      { x: 53, z: -92, w: 10, d: 26, kind: 'grass' },
+      // Inner-Outer Green Verges (z: -66..-58 & -44..44 along x=±101)
+      { x: -101, z: -26, w: 21, d: 34, kind: 'grass' },
+      { x: -101, z: 26, w: 21, d: 34, kind: 'grass' },
+      { x: 101, z: -26, w: 21, d: 34, kind: 'grass' },
+      { x: 101, z: 26, w: 21, d: 34, kind: 'grass' },
+      { x: -138, z: -59, w: 24, d: 10, kind: 'cobble' },
+      { x: 138, z: -59, w: 24, d: 10, kind: 'cobble' },
+      { x: -138, z: 60, w: 24, d: 12, kind: 'grass' },
+      { x: 138, z: 60, w: 24, d: 12, kind: 'grass' },
+      // South Opar Para Yards, Haat Plaza & Green Parks (z: 100..138)
+      { x: -138, z: 125, w: 24, d: 24, kind: 'grass' },
+      { x: 138, z: 125, w: 24, d: 24, kind: 'grass' },
+      { x: -101, z: 120, w: 21, d: 34, kind: 'cobble' },
+      { x: 101, z: 120, w: 21, d: 34, kind: 'terra' },
+      { x: 0, z: 125, w: 18, d: 24, kind: 'cobble' },
+    ];
+    for (const blk of outerGroundBlocks) {
+      const mat =
+        blk.kind === 'grass'
+          ? outerGrassMat
+          : blk.kind === 'cobble'
+            ? outerCobbleMat
+            : outerTerraMat;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(blk.w, 0.055, blk.d), mat);
+      mesh.position.set(blk.x, 0.018, blk.z);
+      mesh.receiveShadow = true;
+      groundPadsGroup.add(mesh);
+      borderCurbPlacements.push(
+        { x: blk.x, y: 0.055, z: blk.z - blk.d / 2, sx: blk.w + 0.3, sz: 0.24 },
+        { x: blk.x, y: 0.055, z: blk.z + blk.d / 2, sx: blk.w + 0.3, sz: 0.24 },
+        { x: blk.x - blk.w / 2, y: 0.055, z: blk.z, sx: 0.24, sz: blk.d + 0.3 },
+        { x: blk.x + blk.w / 2, y: 0.055, z: blk.z, sx: 0.24, sz: blk.d + 0.3 },
+      );
+    }
+    scene.add(optimizeStaticGroup(groundPadsGroup));
+
     const borderCurbGeo = new THREE.BoxGeometry(1, 0.12, 1);
     const borderCurbInst = new THREE.InstancedMesh(borderCurbGeo, curbMat, borderCurbPlacements.length);
     borderCurbPlacements.forEach((p, idx) => {
@@ -651,8 +855,10 @@ export function WorldScene({
     const waterUniforms = { uTime: { value: 0 } };
     const waterMat = new THREE.MeshStandardMaterial({
       map: textures.waterMap,
-      roughness: 0.14,
-      metalness: 0.38,
+      roughness: 0.08,
+      metalness: 0.48,
+      emissive: '#0c4a6e',
+      emissiveIntensity: 0.14,
     });
     waterMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = waterUniforms.uTime;
@@ -670,14 +876,16 @@ export function WorldScene({
     const pukurDetails = createPukurDetails();
     scene.add(pukurDetails.group);
 
+    const pondStoneGroup = new THREE.Group();
+    const ghatStepMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.8 });
     for (let step = 0; step < 4; step++) {
       const ghatStep = new THREE.Mesh(
         new THREE.BoxGeometry(1.15, 0.12 + step * 0.055, 14.4),
-        new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.8 }),
+        ghatStepMat,
       );
       ghatStep.position.set(-41.5 + step * 0.98, 0.06 + step * 0.04, 0);
       ghatStep.receiveShadow = true;
-      scene.add(ghatStep);
+      pondStoneGroup.add(ghatStep);
     }
     const pukurBorderMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.82 });
     const pukurEdgeW = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.24, 16.9), pukurBorderMat);
@@ -686,7 +894,7 @@ export function WorldScene({
     pukurEdgeN.position.set(-46.6, 0.12, -8.22);
     const pukurEdgeS = pukurEdgeN.clone();
     pukurEdgeS.position.z = 8.22;
-    scene.add(pukurEdgeW, pukurEdgeN, pukurEdgeS);
+    pondStoneGroup.add(pukurEdgeW, pukurEdgeN, pukurEdgeS);
 
     // Jheel Par Lake Water (-146.5..-130.5, -91.5..-72.5) + Borders + Boat & Lotuses
     const jheelWater = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 19.0, 22, 32), waterMat);
@@ -703,10 +911,11 @@ export function WorldScene({
     jheelEdgeN.position.set(-138.5, 0.12, -91.78);
     const jheelEdgeS = jheelEdgeN.clone();
     jheelEdgeS.position.z = -72.22;
-    scene.add(jheelEdgeW, jheelEdgeN, jheelEdgeS);
+    pondStoneGroup.add(jheelEdgeW, jheelEdgeN, jheelEdgeS);
+    scene.add(optimizeStaticGroup(pondStoneGroup));
 
     // Distinct Architectural Wall Materials & Coping Caps per Moholla District
-    const wallMeshes: THREE.Object3D[] = [];
+    const occluderWalls: OccluderAabb[] = [];
     const brickWallMat = new THREE.MeshStandardMaterial({
       map: textures.wallBrickMap,
       normalMap: textures.wallBrickNormal,
@@ -847,6 +1056,21 @@ export function WorldScene({
       'airdrop_nw_park',
       'airdrop_ne_park',
       'airdrop_south_plaza',
+      'tapri_nw',
+      'tapri_ne',
+      'minibus_north',
+      'brick_depot_sw',
+      'minibus_sw_1',
+      'tapri_sw_1',
+      'haat_stall_se_1',
+      'haat_stall_se_2',
+      'minibus_se_1',
+      'minibus_sw_far',
+      'tapri_se_far',
+      'moto_nw_park',
+      'moto_ne_park',
+      'moto_cyber',
+      'moto_gym',
     ]);
 
     const alleyCopingMat = new THREE.MeshStandardMaterial({
@@ -854,6 +1078,7 @@ export function WorldScene({
       roughness: 0.68,
       metalness: 0.05,
     });
+    const wallsGroup = new THREE.Group();
     const capsGroup = new THREE.Group();
     for (const w of WALLS) {
       if (skipWallIds.has(w.id)) {
@@ -874,8 +1099,15 @@ export function WorldScene({
           segMesh.position.set(cx, w.height / 2, cz);
           segMesh.castShadow = !isSoftwareGl;
           segMesh.receiveShadow = true;
-          scene.add(segMesh);
-          wallMeshes.push(segMesh);
+          wallsGroup.add(segMesh);
+          occluderWalls.push({
+            minX: w.minX,
+            maxX: w.maxX,
+            minY: 0,
+            maxY: w.height,
+            minZ: segMinZ,
+            maxZ: segMinZ + segSpan,
+          });
           const segCap = new THREE.Mesh(new THREE.BoxGeometry(wWidth + 0.16, 0.14, segSpan + 0.16), copingMat);
           segCap.position.set(cx, w.height + 0.07, cz);
           segCap.receiveShadow = true;
@@ -893,9 +1125,16 @@ export function WorldScene({
       wallMesh.position.set(cx, w.height / 2, cz);
       wallMesh.castShadow = !isSoftwareGl;
       wallMesh.receiveShadow = true;
-      scene.add(wallMesh);
+      wallsGroup.add(wallMesh);
       if (w.height >= 2.2) {
-        wallMeshes.push(wallMesh);
+        occluderWalls.push({
+          minX: w.minX,
+          maxX: w.maxX,
+          minY: 0,
+          maxY: w.height,
+          minZ: w.minZ,
+          maxZ: w.maxZ,
+        });
       }
 
       const capMat = (w.zone && zoneCopingMatMap[w.zone]) || (isAlleyDivider ? alleyCopingMat : copingMat);
@@ -904,6 +1143,7 @@ export function WorldScene({
       cap.receiveShadow = true;
       capsGroup.add(cap);
     }
+    scene.add(optimizeStaticGroup(wallsGroup));
     scene.add(optimizeStaticGroup(capsGroup));
 
     // Periodic Concrete Pilasters along the 320m Compound Perimeter Walls (1 InstancedMesh draw call)
@@ -1179,6 +1419,13 @@ export function WorldScene({
     const shopPoolMats: THREE.MeshBasicMaterial[] = [];
     const tubeFrameMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.65 });
     const signFrameMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.45, metalness: 0.55 });
+    const buildingStaticGroup = new THREE.Group();
+    const billboardsGroup = new THREE.Group();
+    const colMatByHex = new Map<string, THREE.MeshStandardMaterial>();
+    const eaveMatByHex = new Map<string, THREE.MeshStandardMaterial>();
+    const postMatByHex = new Map<string, THREE.MeshStandardMaterial>();
+    const tubeMatByTint = new Map<string, THREE.MeshStandardMaterial>();
+    const poolMatByTint = new Map<string, THREE.MeshBasicMaterial>();
 
     const addDoubleSidedBillboard = (
       tex: THREE.CanvasTexture,
@@ -1207,14 +1454,18 @@ export function WorldScene({
       back.position.z = -0.11;
       grp.add(frame, front, back);
       if (withPosts) {
-        const pMat = new THREE.MeshStandardMaterial({ color: postHex, roughness: 0.5, metalness: 0.4 });
+        let pMat = postMatByHex.get(postHex);
+        if (!pMat) {
+          pMat = new THREE.MeshStandardMaterial({ color: postHex, roughness: 0.5, metalness: 0.4 });
+          postMatByHex.set(postHex, pMat);
+        }
         for (const px of [-w * 0.44, w * 0.44]) {
           const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, pos[1], 12), pMat);
           post.position.set(px, -pos[1] / 2, 0);
           grp.add(post);
         }
       }
-      scene.add(grp);
+      billboardsGroup.add(grp);
       return grp;
     };
 
@@ -1222,21 +1473,29 @@ export function WorldScene({
       const [bx1, bx2, bz1, bz2] = b.bounds;
       const midX = (bx1 + bx2) / 2;
       const midZ = (bz1 + bz2) / 2;
-      const colMat = new THREE.MeshStandardMaterial({ color: b.pillarHex, roughness: 0.55, metalness: 0.12 });
-      const eaveMat = new THREE.MeshStandardMaterial({
-        color: b.eaveHex,
-        roughness: 0.32,
-        metalness: 0.68,
-        normalMap: textures.tinNormal,
-        normalScale: new THREE.Vector2(0.85, 0.85),
-      });
+      let colMat = colMatByHex.get(b.pillarHex);
+      if (!colMat) {
+        colMat = new THREE.MeshStandardMaterial({ color: b.pillarHex, roughness: 0.55, metalness: 0.12 });
+        colMatByHex.set(b.pillarHex, colMat);
+      }
+      let eaveMat = eaveMatByHex.get(b.eaveHex);
+      if (!eaveMat) {
+        eaveMat = new THREE.MeshStandardMaterial({
+          color: b.eaveHex,
+          roughness: 0.32,
+          metalness: 0.68,
+          normalMap: textures.tinNormal,
+          normalScale: new THREE.Vector2(0.85, 0.85),
+        });
+        eaveMatByHex.set(b.eaveHex, eaveMat);
+      }
 
       for (const cx of [bx1 + 0.45, bx2 - 0.45]) {
         for (const cz of [bz1 + 0.45, bz2 - 0.45]) {
           const col = new THREE.Mesh(new THREE.BoxGeometry(1.15, b.height + 0.16, 1.15), colMat);
           col.position.set(cx, (b.height + 0.16) / 2, cz);
           col.castShadow = !isSoftwareGl;
-          scene.add(col);
+          buildingStaticGroup.add(col);
         }
       }
       // Overhanging perimeter eave canopies (scaled dynamically to building height)
@@ -1253,14 +1512,13 @@ export function WorldScene({
       const eaveE = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, bz2 - bz1 + 1.0), eaveMat);
       eaveE.position.set(bx2 - 0.4, eaveY, midZ);
       eaveE.rotation.z = -0.18;
-      scene.add(eaveN, eaveS, eaveW, eaveE);
+      buildingStaticGroup.add(eaveN, eaveS, eaveW, eaveE);
 
       // Unique Location Facade Nameplate above Building Entrance
       addDoubleSidedBillboard(b.signMap, b.signPos, b.signRotY, 4.9, 1.35);
 
       // Location-specific architectural exterior flourishes (relative to b.height)
       if (b.id === 'desco_power') {
-        // Rooftop steel exhaust pods + glowing amber/red warning beacons
         const podMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.4, metalness: 0.72 });
         const beaconMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
         for (const px of [bx1 + 3.5, bx2 - 3.5]) {
@@ -1268,27 +1526,24 @@ export function WorldScene({
           pod.position.set(px, b.height + 0.35, bz2 - 0.8);
           const dome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), beaconMat);
           dome.position.set(px, b.height + 0.78, bz2 - 0.8);
-          scene.add(pod, dome);
+          buildingStaticGroup.add(pod, dome);
         }
       } else if (b.id === 'dish_roof') {
-        // Rooftop 5G & Dish Signal Mast on East eave
         const mastMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.28, metalness: 0.85 });
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.4, 12), mastMat);
         mast.position.set(bx2 - 2.0, b.height + 1.15, bz1 + 2.0);
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 20), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
         ring.rotation.x = Math.PI / 2;
         ring.position.set(bx2 - 2.0, b.height + 2.05, bz1 + 2.0);
-        scene.add(mast, ring);
+        buildingStaticGroup.add(mast, ring);
       } else if (b.id === 'saloon_goli') {
-        // Twin glowing rose-gold wall sconces flanking East doorway
         const sconceMat = new THREE.MeshBasicMaterial({ color: '#f472b6' });
         for (const sz of [-29.0, -23.0]) {
           const globe = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 14), sconceMat);
           globe.position.set(-56.7, 2.45, sz);
-          scene.add(globe);
+          buildingStaticGroup.add(globe);
         }
       } else if (b.id === 'pharmacy_mor') {
-        // Glowing emerald medical cross beacon on East roofline
         const crossMat = new THREE.MeshStandardMaterial({
           color: '#10b981',
           emissive: '#10b981',
@@ -1298,40 +1553,48 @@ export function WorldScene({
         cv.position.set(-56.7, b.height + 1.55, 26.0);
         const ch = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.34, 1.05), crossMat);
         ch.position.set(-56.7, b.height + 1.55, 26.0);
-        scene.add(cv, ch);
+        buildingStaticGroup.add(cv, ch);
       }
 
       // Emissive Interior Fluorescent Tube Light Bars under North/South Eaves + Soft Floor Light Pool
-      const tubeMat = new THREE.MeshStandardMaterial({
-        color: '#ffffff',
-        emissive: b.tint,
-        emissiveIntensity: 1.7,
-        roughness: 0.2,
-      });
-      shopTubeMats.push(tubeMat);
+      let tubeMat = tubeMatByTint.get(b.tint);
+      if (!tubeMat) {
+        tubeMat = new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          emissive: b.tint,
+          emissiveIntensity: 1.7,
+          roughness: 0.2,
+        });
+        tubeMatByTint.set(b.tint, tubeMat);
+        shopTubeMats.push(tubeMat);
+      }
       for (const tz of [bz1 + 1.15, bz2 - 1.15]) {
         const casing = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.08, 0.14), tubeFrameMat);
         casing.position.set(midX, b.height - 0.32, tz);
         const bulb = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 3.2, 10), tubeMat);
         bulb.rotation.z = Math.PI / 2;
         bulb.position.set(midX, b.height - 0.37, tz);
-        scene.add(casing, bulb);
+        buildingStaticGroup.add(casing, bulb);
       }
-      const poolMat = new THREE.MeshBasicMaterial({
-        color: b.tint,
-        transparent: true,
-        opacity: 0.052,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      shopPoolMats.push(poolMat);
+      let poolMat = poolMatByTint.get(b.tint);
+      if (!poolMat) {
+        poolMat = new THREE.MeshBasicMaterial({
+          color: b.tint,
+          transparent: true,
+          opacity: 0.052,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        poolMatByTint.set(b.tint, poolMat);
+        shopPoolMats.push(poolMat);
+      }
       const interiorPool = new THREE.Mesh(
         new THREE.PlaneGeometry(bx2 - bx1 - 3.6, bz2 - bz1 - 3.6),
         poolMat,
       );
       interiorPool.rotation.x = -Math.PI / 2;
       interiorPool.position.set(midX, 0.068, midZ);
-      scene.add(interiorPool);
+      buildingStaticGroup.add(interiorPool);
     }
 
     // Architectural Finishing: Plinth Foundation Skirts, Recessed Glowing Windows with Grilles,
@@ -1533,8 +1796,8 @@ export function WorldScene({
       };
       const furn = residentialBounds[b.id];
       if (furn) {
-        const woodFurnitureMat = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.65 });
-        const sofaCushionMat = new THREE.MeshStandardMaterial({ color: furn.color, roughness: 0.8 });
+        const woodFurnitureMat = getSharedPadMat('woodFurn', () => new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.65 }));
+        const sofaCushionMat = getSharedPadMat(`sofa:${furn.color}`, () => new THREE.MeshStandardMaterial({ color: furn.color, roughness: 0.8 }));
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(furn.fw, 0.72, furn.fd),
           furn.swap ? woodFurnitureMat : sofaCushionMat,
@@ -1864,7 +2127,7 @@ export function WorldScene({
         );
         tread.position.set(isZ ? cx : coord, treadTop / 2, isZ ? coord : cz);
         tread.receiveShadow = true;
-        tread.castShadow = !isSoftwareGl;
+        tread.castShadow = false;
         archGroup.add(tread);
       }
 
@@ -1931,6 +2194,7 @@ export function WorldScene({
     addDoubleSidedBillboard(textures.jheelSignMap, [-128.5, 4.2, -82.0], Math.PI / 2, 4.6, 1.3, true, '#0e7490');
     addDoubleSidedBillboard(textures.machSignMap, [-69.0, 4.3, 119.5], 0, 4.8, 1.35, true, '#0284c7');
     addDoubleSidedBillboard(textures.signalSignMap, [26.0, 4.3, 118.5], 0, 4.8, 1.35, true, '#ca8a04');
+    scene.add(optimizeStaticGroup(billboardsGroup));
 
     // Rolling Door Shutters
     const shutterMeshes = new Map<DoorZoneId, { mesh: THREE.Group; targetY: number; openY: number }>();
@@ -1947,14 +2211,14 @@ export function WorldScene({
     );
     bazarCounter.position.set(44.5, 0.6, 0);
     bazarCounter.castShadow = !isSoftwareGl;
-    scene.add(bazarCounter);
+    buildingStaticGroup.add(bazarCounter);
     const bazarAwning = new THREE.Mesh(
       new THREE.BoxGeometry(5.2, 0.16, 10.6),
       new THREE.MeshStandardMaterial({ map: textures.bazarAwningMap, roughness: 0.52 }),
     );
     bazarAwning.position.set(43.8, 3.05, 0);
     bazarAwning.rotation.z = 0.15;
-    scene.add(bazarAwning);
+    buildingStaticGroup.add(bazarAwning);
     const bazarTubeMat = new THREE.MeshStandardMaterial({
       color: '#ffffff',
       emissive: '#fde68a',
@@ -1965,7 +2229,7 @@ export function WorldScene({
     const bazarTube = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 7.6, 10), bazarTubeMat);
     bazarTube.rotation.x = Math.PI / 2;
     bazarTube.position.set(42.5, 2.86, 0);
-    scene.add(bazarTube);
+    buildingStaticGroup.add(bazarTube);
     const bazarPoolMat = new THREE.MeshBasicMaterial({
       color: '#fde68a',
       transparent: true,
@@ -1977,7 +2241,8 @@ export function WorldScene({
     const bazarPool = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 10.6), bazarPoolMat);
     bazarPool.rotation.x = -Math.PI / 2;
     bazarPool.position.set(41.2, 0.068, 0);
-    scene.add(bazarPool);
+    buildingStaticGroup.add(bazarPool);
+    scene.add(optimizeStaticGroup(buildingStaticGroup));
     scene.add(createBazarProps(textures, isSoftwareGl));
 
     // Banglish Posters & Dustbins along the Tactical Alley Sightline Walls
@@ -2098,47 +2363,168 @@ export function WorldScene({
       scene.add(mesh);
     }
 
-    // 3 Ground PUBG/FF Airdrop Supply Crates with Red Flare Smoke Beams (Matching WALLS AABBs 1:1!)
-    for (const [ax, az] of [
-      [-100.3, -17.9],
-      [100.3, 17.9],
-      [-3.3, 125.9],
-    ]) {
-      const crate = createAirdropCrateModel(isSoftwareGl);
-      crate.position.set(ax, 0, az);
-      scene.add(crate);
+    // Dhaka Mini-Buses / Legunas, Roadside Tapri Stalls, Brick Depots & Parked Motorbikes
+    for (const [hex, x, z, rotY] of [
+      ['#047857', 134.75, -131.0, 0],
+      ['#dc2626', -95.25, 120.0, Math.PI],
+      ['#0284c7', 96.75, 103.7, 0],
+      ['#ca8a04', -134.0, 126.0, 0],
+    ] as const) {
+      const bus = createDhakaMiniBusModel(hex, isSoftwareGl);
+      bus.position.set(x, 0, z);
+      bus.rotation.y = rotY;
+      scene.add(bus);
     }
 
-    // 4 Wide Boulevard Overhead Welcome Gantry Arches (North, South, West, East Avenues)
-    const gantrySpecs: Array<[THREE.CanvasTexture, number, number, number]> = [
-      [textures.gantryNorthMap, 0, -58.5, 0],
-      [textures.gantrySouthMap, 0, 58.5, 0],
-      [textures.gantryNorthMap, -58.5, 0, Math.PI / 2],
-      [textures.gantrySouthMap, 58.5, 0, Math.PI / 2],
-    ];
-    for (const [tex, gx, gz, rotY] of gantrySpecs) {
-      const arch = createBoulevardWelcomeArch(tex, 12.6, isSoftwareGl);
-      arch.position.set(gx, 0, gz);
-      arch.rotation.y = rotY;
-      scene.add(arch);
+    for (const [roofHex, x, z, rotY] of [
+      ['#0284c7', -102.0, -127.25, 0],
+      ['#dc2626', 102.0, -127.25, 0],
+      ['#d97706', -106.0, 120.1, 0],
+      ['#15803d', 96.1, 120.1, 0],
+      ['#7c3aed', 105.5, 120.1, 0],
+      ['#be123c', 134.0, 126.0, 0],
+    ] as const) {
+      const tapri = createRoadsideTapriStall(roofHex, textures, isSoftwareGl);
+      tapri.position.set(x, 0, z);
+      tapri.rotation.y = rotY;
+      scene.add(tapri);
     }
 
-    // 8 Giant Roadside Billboard Hoardings facing Major Intersections (zero overlap with trees/poles/roads)
-    const hoardingSpecs: Array<[THREE.CanvasTexture, number, number, number]> = [
-      [textures.hoardingAdMap, -23.0, -60.5, 0.24],
-      [textures.hoardingKacchiMap, 23.0, -60.5, -0.24],
-      [textures.hoardingGgMap, -77.5, -61.5, 0.34],
-      [textures.hoardingAdMap, 77.5, -61.5, -0.34],
-      [textures.hoardingRailMap, -77.5, 61.5, -0.34],
-      [textures.hoardingRailMap, 77.5, 61.5, 0.34],
-      [textures.hoardingGgMap, -68.0, 103.5, 0.24],
-      [textures.hoardingKacchiMap, 68.0, 103.5, -0.24],
-    ];
-    for (const [tex, bx, bz, rotY] of hoardingSpecs) {
-      const board = createBillboardHoarding(tex, 7.2, 3.6, 3.9, isSoftwareGl);
-      board.position.set(bx, 0, bz);
-      board.rotation.y = rotY;
-      scene.add(board);
+    const swDepot = createBrickDepotCluster(isSoftwareGl);
+    swDepot.position.set(-104.15, 0, 104.4);
+    scene.add(swDepot);
+
+    for (const [hex, x, z, rotY] of [
+      ['#ef4444', -96.0, -34.0, 0.2],
+      ['#2563eb', 96.0, 34.0, -2.9],
+      ['#10b981', -125.0, 39.0, 0.1],
+      ['#f59e0b', 125.0, -39.0, 3.05],
+    ] as const) {
+      const moto = createMotorbikeModel(hex, isSoftwareGl);
+      moto.position.set(x, 0, z);
+      moto.rotation.y = rotY;
+      scene.add(moto);
+    }
+
+    // Flowering Bush Clusters & Trimmed Park Hedge Rows across Lawns & Avenues
+    instantiateGroupAtTransforms(
+      createBushCluster(isSoftwareGl),
+      [
+        { x: -109.0, z: -38.0, rotY: 0.4, scale: 1.1 },
+        { x: -109.0, z: -26.0, rotY: 1.2, scale: 1.0 },
+        { x: -109.0, z: -14.0, rotY: 2.1, scale: 1.15 },
+        { x: -109.0, z: 14.0, rotY: 0.8, scale: 1.05 },
+        { x: -109.0, z: 26.0, rotY: 1.9, scale: 1.1 },
+        { x: -109.0, z: 38.0, rotY: 2.7, scale: 1.0 },
+        { x: 109.0, z: -38.0, rotY: 0.5, scale: 1.1 },
+        { x: 109.0, z: -26.0, rotY: 1.4, scale: 1.0 },
+        { x: 109.0, z: -14.0, rotY: 2.3, scale: 1.15 },
+        { x: 109.0, z: 14.0, rotY: 0.9, scale: 1.05 },
+        { x: 109.0, z: 26.0, rotY: 2.0, scale: 1.1 },
+        { x: 109.0, z: 38.0, rotY: 2.8, scale: 1.0 },
+        { x: -108.0, z: -146.0, rotY: 0.3, scale: 1.2 },
+        { x: -94.0, z: -146.0, rotY: 1.5, scale: 1.1 },
+        { x: 94.0, z: -146.0, rotY: 2.1, scale: 1.1 },
+        { x: 108.0, z: -146.0, rotY: 0.8, scale: 1.2 },
+        { x: 129.0, z: -145.0, rotY: 1.7, scale: 1.15 },
+        { x: 147.0, z: -145.0, rotY: 2.4, scale: 1.2 },
+        { x: -147.0, z: 134.0, rotY: 0.6, scale: 1.15 },
+        { x: -129.0, z: 134.0, rotY: 1.8, scale: 1.1 },
+        { x: 129.0, z: 134.0, rotY: 2.5, scale: 1.1 },
+        { x: 147.0, z: 134.0, rotY: 0.9, scale: 1.15 },
+        { x: -15.5, z: -98.0, rotY: 0.4, scale: 1.05 },
+        { x: -15.5, z: -80.0, rotY: 1.6, scale: 1.05 },
+        { x: 15.5, z: -98.0, rotY: 2.2, scale: 1.05 },
+        { x: 15.5, z: -80.0, rotY: 0.7, scale: 1.05 },
+        { x: -7.5, z: -134.0, rotY: 1.1, scale: 1.15 },
+        { x: 7.5, z: -134.0, rotY: 2.3, scale: 1.15 },
+        { x: -7.5, z: 126.0, rotY: 0.5, scale: 1.1 },
+        { x: 7.5, z: 126.0, rotY: 1.9, scale: 1.1 },
+        { x: -147.0, z: 58.0, rotY: 0.2, scale: 1.1 },
+        { x: 147.0, z: 58.0, rotY: 1.4, scale: 1.1 },
+      ],
+      scene,
+    );
+
+    instantiateGroupAtTransforms(
+      createHedgeRow(7.5, isSoftwareGl),
+      [
+        { x: -101.0, z: -41.5, rotY: 0 },
+        { x: 101.0, z: -41.5, rotY: 0 },
+        { x: -101.0, z: 41.5, rotY: 0 },
+        { x: 101.0, z: 41.5, rotY: 0 },
+        { x: -138.0, z: 114.5, rotY: 0 },
+        { x: 138.0, z: 114.5, rotY: 0 },
+        { x: 138.0, z: -122.5, rotY: 0 },
+        { x: -101.0, z: -122.5, rotY: 0 },
+        { x: 101.0, z: -122.5, rotY: 0 },
+      ],
+      scene,
+    );
+
+    // 3 Ground PUBG/FF Airdrop Supply Crates with Red Flare Smoke Beams (Instanced!)
+    instantiateGroupAtTransforms(
+      createAirdropCrateModel(isSoftwareGl),
+      [
+        { x: -100.3, z: -17.9 },
+        { x: 100.3, z: 17.9 },
+        { x: -3.3, z: 125.9 },
+      ],
+      scene,
+    );
+
+    // 4 Wide Boulevard Overhead Welcome Gantry Arches (Instanced per banner texture)
+    for (const [tex, spots] of [
+      [
+        textures.gantryNorthMap,
+        [
+          { x: 0, z: -58.5, rotY: 0 },
+          { x: -58.5, z: 0, rotY: Math.PI / 2 },
+        ],
+      ],
+      [
+        textures.gantrySouthMap,
+        [
+          { x: 0, z: 58.5, rotY: 0 },
+          { x: 58.5, z: 0, rotY: Math.PI / 2 },
+        ],
+      ],
+    ] as const) {
+      instantiateGroupAtTransforms(createBoulevardWelcomeArch(tex, 12.6, isSoftwareGl), [...spots], scene);
+    }
+
+    // 8 Giant Roadside Billboard Hoardings facing Major Intersections (Instanced per hoarding texture)
+    for (const [tex, spots] of [
+      [
+        textures.hoardingAdMap,
+        [
+          { x: -23.0, z: -60.5, rotY: 0.24 },
+          { x: 77.5, z: -61.5, rotY: -0.34 },
+        ],
+      ],
+      [
+        textures.hoardingKacchiMap,
+        [
+          { x: 23.0, z: -60.5, rotY: -0.24 },
+          { x: 68.0, z: 103.5, rotY: -0.24 },
+        ],
+      ],
+      [
+        textures.hoardingGgMap,
+        [
+          { x: -77.5, z: -61.5, rotY: 0.34 },
+          { x: -68.0, z: 103.5, rotY: 0.24 },
+        ],
+      ],
+      [
+        textures.hoardingRailMap,
+        [
+          { x: -77.5, z: 61.5, rotY: -0.34 },
+          { x: 77.5, z: 61.5, rotY: 0.34 },
+        ],
+      ],
+    ] as const) {
+      instantiateGroupAtTransforms(createBillboardHoarding(tex, 7.2, 3.6, 3.9, isSoftwareGl), [...spots], scene);
     }
 
     // 4 'Jatri Chhauni' Bus Stop Shelters on Avenue Sidewalks
@@ -2637,8 +3023,8 @@ export function WorldScene({
       scene,
     );
 
-    // 340 GPU-Animated Twilight Fireflies across the 320x320m Moholla (zero CPU update loop)
-    const fireflyCount = 340;
+    // Soft Radial-Glow GPU-Animated Twilight Fireflies across the 320x320m Moholla (zero CPU update loop)
+    const fireflyCount = isMobileGpu ? 160 : 320;
     const fireflyPositions = new Float32Array(fireflyCount * 3);
     const fireflyPhases = new Float32Array(fireflyCount);
     for (let i = 0; i < fireflyCount; i++) {
@@ -2650,15 +3036,31 @@ export function WorldScene({
       fireflyPositions[i * 3 + 2] = fz;
       fireflyPhases[i] = i * 0.9;
     }
+    const ffCanvas = document.createElement('canvas');
+    ffCanvas.width = 32;
+    ffCanvas.height = 32;
+    const ffCtx = ffCanvas.getContext('2d')!;
+    const ffGrad = ffCtx.createRadialGradient(16, 16, 1, 16, 16, 15);
+    ffGrad.addColorStop(0, 'rgba(255, 251, 214, 1)');
+    ffGrad.addColorStop(0.35, 'rgba(253, 230, 138, 0.72)');
+    ffGrad.addColorStop(1, 'rgba(253, 230, 138, 0)');
+    ffCtx.fillStyle = ffGrad;
+    ffCtx.fillRect(0, 0, 32, 32);
+    const fireflyGlowMap = new THREE.CanvasTexture(ffCanvas);
+    fireflyGlowMap.colorSpace = THREE.SRGBColorSpace;
+
     const fireflyGeo = new THREE.BufferGeometry();
     fireflyGeo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
     fireflyGeo.setAttribute('aPhase', new THREE.BufferAttribute(fireflyPhases, 1));
     const fireflyUniforms = { uTime: { value: 0 } };
     const fireflyMat = new THREE.PointsMaterial({
-      color: '#fde68a',
-      size: 0.17,
+      color: '#fef08a',
+      map: fireflyGlowMap,
+      size: 0.34,
       transparent: true,
-      opacity: 0.74,
+      opacity: 0.86,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     fireflyMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = fireflyUniforms.uTime;
@@ -2969,10 +3371,13 @@ export function WorldScene({
       if (composer) {
         composer.setPixelRatio(currentDpr);
         composer.setSize(w, h);
-        composer.render();
-      } else {
-        renderer.render(scene, camera);
+        bloomPass?.resolution.set(Math.max(1, Math.floor(w / 2)), Math.max(1, Math.floor(h / 2)));
+        if (useComposer) {
+          composer.render();
+          return;
+        }
       }
+      renderer.render(scene, camera);
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -3018,7 +3423,7 @@ export function WorldScene({
       textures: renderer.info.memory.textures,
       dpr: renderer.getPixelRatio(),
       isMobileGpu,
-      hasComposer: Boolean(composer),
+      hasComposer: Boolean(composer && useComposer),
     });
 
     const afterDraw = (cb: () => void) => {
@@ -3282,19 +3687,45 @@ export function WorldScene({
       const dt = Math.min(rawDt, 0.05);
       elapsed += dt;
 
-      if (isMobileGpu && currentDpr > 1.01) {
+      if (!isSoftwareGl && rawDt < 0.15) {
         slowFrameCount += 1;
         slowFrameSum += rawDt;
         if (slowFrameCount >= 45) {
           const avgDt = slowFrameSum / slowFrameCount;
           slowFrameCount = 0;
           slowFrameSum = 0;
-          if (avgDt > 0.028) {
-            currentDpr = 1.0;
-            renderer.setPixelRatio(1.0);
-            const rw = container.clientWidth || window.innerWidth;
-            const rh = container.clientHeight || window.innerHeight;
-            renderer.setSize(rw, rh);
+          if (!isMobileGpu) {
+            if (avgDt > 0.022) {
+              if (useComposer) {
+                useComposer = false;
+              } else if (currentDpr > 1.2) {
+                currentDpr = 1.15;
+                renderer.setPixelRatio(currentDpr);
+                const rw = container.clientWidth || window.innerWidth;
+                const rh = container.clientHeight || window.innerHeight;
+                renderer.setSize(rw, rh);
+              } else if (currentDpr > 1.0) {
+                currentDpr = 0.95;
+                renderer.setPixelRatio(currentDpr);
+                const rw = container.clientWidth || window.innerWidth;
+                const rh = container.clientHeight || window.innerHeight;
+                renderer.setSize(rw, rh);
+              }
+            }
+          } else if (avgDt > 0.023) {
+            if (currentDpr > 1.1) {
+              currentDpr = 1.0;
+              renderer.setPixelRatio(currentDpr);
+              const rw = container.clientWidth || window.innerWidth;
+              const rh = container.clientHeight || window.innerHeight;
+              renderer.setSize(rw, rh);
+            } else if (currentDpr > 0.9) {
+              currentDpr = 0.85;
+              renderer.setPixelRatio(currentDpr);
+              const rw = container.clientWidth || window.innerWidth;
+              const rh = container.clientHeight || window.innerHeight;
+              renderer.setSize(rw, rh);
+            }
           }
         }
       }
@@ -3430,8 +3861,9 @@ export function WorldScene({
           Math.cos(orbitAngle) * 35,
         );
         camera.lookAt(0, 1.5, 0);
-        hemiLight.intensity = isMobileGpu ? 0.54 : 0.45;
-        keyLight.intensity = 1.18;
+        hemiLight.intensity = baseHemiIntensity;
+        keyLight.intensity = baseKeyIntensity;
+        bounceLight.intensity = baseBounceIntensity;
         lanternLight.intensity = 0;
         if (lampConesInst) lampConesInst.visible = true;
 
@@ -3701,14 +4133,16 @@ export function WorldScene({
         const isLoadshedding = snap.sabotage.active === 'loadshedding';
         const crewBlinded =
           isLoadshedding && Boolean(localPlayer && localPlayer.alive && localPlayer.role !== 'vondo');
-        const targetHemi = isLoadshedding ? (crewBlinded ? 0.06 : 0.28) : isMobileGpu ? 0.54 : 0.45;
-        const targetKey = isLoadshedding ? (crewBlinded ? 0.1 : 0.72) : 1.18;
+        const targetHemi = isLoadshedding ? (crewBlinded ? 0.06 : 0.28) : baseHemiIntensity;
+        const targetKey = isLoadshedding ? (crewBlinded ? 0.1 : 0.72) : baseKeyIntensity;
+        const targetBounce = isLoadshedding ? (crewBlinded ? 0.02 : 0.08) : baseBounceIntensity;
         const targetLamp = isLoadshedding ? 0.08 : 1.15;
         const targetLantern = isLoadshedding ? (crewBlinded ? 1.45 : 2.15) : 0.0;
         const targetFogDensity = isLoadshedding ? (crewBlinded ? 0.068 : 0.0075) : 0.0024;
 
         hemiLight.intensity = THREE.MathUtils.damp(hemiLight.intensity, targetHemi, 5, dt);
         keyLight.intensity = THREE.MathUtils.damp(keyLight.intensity, targetKey, 5, dt);
+        bounceLight.intensity = THREE.MathUtils.damp(bounceLight.intensity, targetBounce, 5, dt);
         lanternLight.intensity = THREE.MathUtils.damp(lanternLight.intensity, targetLantern, 6, dt);
         lanternLight.distance = crewBlinded ? 9.5 : 20;
         if (scene.fog instanceof THREE.FogExp2) {
@@ -3831,13 +4265,23 @@ export function WorldScene({
           _rayOrigin.set(localPosX, 1.32 + playerCamY, localPosZ);
           _rayDir.subVectors(_desiredCamPos, _rayOrigin);
           const maxCamDist = _rayDir.length();
-          _rayDir.normalize();
-          _raycaster.set(_rayOrigin, _rayDir);
-          _raycaster.far = maxCamDist;
-          const hits = _raycaster.intersectObjects(wallMeshes, false);
-          if (hits.length > 0 && hits[0].distance < maxCamDist) {
-            const pullDist = Math.max(2.2, hits[0].distance - 0.45);
-            _desiredCamPos.copy(_rayOrigin).addScaledVector(_rayDir, pullDist);
+          if (maxCamDist > 0.001) {
+            const invLen = 1 / maxCamDist;
+            _rayDir.multiplyScalar(invLen);
+            const hitDist = raycastWallsDistance(
+              _rayOrigin.x,
+              _rayOrigin.y,
+              _rayOrigin.z,
+              _rayDir.x,
+              _rayDir.y,
+              _rayDir.z,
+              maxCamDist,
+              occluderWalls,
+            );
+            if (hitDist < maxCamDist) {
+              const pullDist = Math.max(2.2, hitDist - 0.45);
+              _desiredCamPos.copy(_rayOrigin).addScaledVector(_rayDir, pullDist);
+            }
           }
           _desiredCamPos.y = Math.max(0.45, _desiredCamPos.y);
 
@@ -3854,7 +4298,7 @@ export function WorldScene({
         }
       }
 
-      if (composer) {
+      if (useComposer && composer) {
         composer.render();
       } else {
         renderer.render(scene, camera);
@@ -3909,6 +4353,7 @@ export function WorldScene({
       unitBoxGeo.dispose();
       poolGeo.dispose();
       fireflyGeo.dispose();
+      fireflyGlowMap.dispose();
       fireflyMat.dispose();
       composer?.dispose();
       roadNormNS.dispose();

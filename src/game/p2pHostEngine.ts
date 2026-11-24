@@ -34,7 +34,8 @@ import {
   CCTV_KAKU_COOLDOWN_SEC,
   CHAMCHA_COOLDOWN_SEC,
   CHANDABAZ_COOLDOWN_SEC,
-  CHANDABAZ_GOAL,
+  CHANDABAZ_INITIAL_COOLDOWN_SEC,
+  CHANDABAZ_WITNESS_RANGE,
   DALAL_COOLDOWN_SEC,
   DALAL_JAM_DURATION_MS,
   DAROGA_COOLDOWN_SEC,
@@ -73,6 +74,7 @@ import {
   canUseVent,
   collectChandaFromTarget,
   computeTaskProgress,
+  countAliveChandabazTargets,
   createEmptySabotageState,
   createSabotageState,
   evaluateMatchOutcome,
@@ -91,6 +93,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getColorShadeHint,
   inspectBodyClue,
   inspectPlayerTaskAuthenticity,
@@ -119,6 +122,7 @@ import {
   createBotBrainState,
   generateFallbackMeetingChats,
   getMeetingTypingBotIds,
+  notifyBotsOfChandabazExtort,
   processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
@@ -600,14 +604,16 @@ export class P2PHostRoomEngine {
       p.watchingCams = false;
       p.visualTaskTimer = 0;
       p.abilityCooldown =
-        p.specialRole === 'bohurupi' ||
-        p.specialRole === 'kobiraj' ||
-        p.specialRole === 'daroga' ||
-        p.specialRole === 'jharudar' ||
-        p.specialRole === 'hatur_daktar' ||
-        p.specialRole === 'dalal'
-          ? 6
-          : 0;
+        p.specialRole === 'chandabaz'
+          ? CHANDABAZ_INITIAL_COOLDOWN_SEC
+          : p.specialRole === 'bohurupi' ||
+              p.specialRole === 'kobiraj' ||
+              p.specialRole === 'daroga' ||
+              p.specialRole === 'jharudar' ||
+              p.specialRole === 'hatur_daktar' ||
+              p.specialRole === 'dalal'
+            ? 6
+            : 0;
       p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
       p.scansLeft = p.specialRole === 'goyenda' ? 2 : 0;
       p.shotsLeft = p.specialRole === 'daroga' ? 1 : 0;
@@ -1007,6 +1013,9 @@ export class P2PHostRoomEngine {
             p.votedFor = null;
             if (p.role === 'vondo') {
               p.killCooldownRemaining = this.settings.killCooldownSec;
+            }
+            if (p.specialRole === 'chandabaz') {
+              p.abilityCooldown = Math.max(p.abilityCooldown, 14);
             }
             idx++;
           }
@@ -1642,23 +1651,56 @@ export class P2PHostRoomEngine {
         }
         if (player.specialRole === 'chandabaz') {
           if (player.abilityCooldown > 0.05) return;
-          const target = findNearestChandabazTarget(player, Array.from(this.players.values()));
+          if (isCriticalSabotage(this.sabotage.active)) {
+            this.transport.sendToClient(clientId, {
+              type: 'clue:result',
+              title: 'গ্যাস লিক চলছে!',
+              detail: 'জরুরি নাশকতার সময় চাঁদা তোলা যাবে না — আগে গ্যাস সামলাও!',
+            });
+            return;
+          }
+          const allPlayers = Array.from(this.players.values());
+          const target = findNearestChandabazTarget(player, allPlayers);
           if (!target) {
             this.transport.sendToClient(clientId, {
               type: 'clue:result',
               title: 'চাঁদাবাজ',
-              detail: 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর কাছে যাও!',
+              detail: 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর একদম কাছে যাও!',
             });
             return;
           }
-          const res = collectChandaFromTarget(player, target);
+          const res = collectChandaFromTarget(player, target, allPlayers);
           if (!res.ok) return;
           player.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+          notifyBotsOfChandabazExtort(player, target, allPlayers, this.botMemories, this.doorLocks);
+          if (!target.isBot) {
+            this.sendToPlayer(target.id, {
+              type: 'clue:result',
+              title: 'চাঁদাবাজ হানা!',
+              detail: `${player.name} তোমাকে ভয় দেখিয়ে চাঁদা নিয়েছে — সালিশে সবাইকে জানাও!`,
+            });
+          }
+          for (const pl of allPlayers) {
+            if (
+              !pl.isBot &&
+              pl.alive &&
+              pl.id !== player.id &&
+              pl.id !== target.id &&
+              distance2D(pl.x, pl.z, player.x, player.z) <= CHANDABAZ_WITNESS_RANGE &&
+              hasLineOfSight(pl.x, pl.z, player.x, player.z, WALLS, this.doorLocks)
+            ) {
+              this.sendToPlayer(pl.id, {
+                type: 'clue:result',
+                title: 'চাঁদাবাজির সাক্ষী!',
+                detail: `${player.name} এইমাত্র ${target.name}-এর কাছ থেকে চাঁদা নিচ্ছে!`,
+              });
+            }
+          }
           this.transport.sendToClient(clientId, { type: 'sfx:event', kind: 'task' });
           this.transport.sendToClient(clientId, {
             type: 'clue:result',
-            title: `চাঁদা উসুল (${res.count}/${CHANDABAZ_GOAL})!`,
-            detail: `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে!`,
+            title: `চাঁদা উসুল (${countAliveChandabazTargets(player, allPlayers)}/${getChandabazGoal(player, allPlayers)})!`,
+            detail: `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে — বাকি সবাই বেঁচে থাকা অবস্থায় শেষ করো!`,
           });
           if (!this.checkWin()) {
             this.broadcastState();
@@ -1923,7 +1965,19 @@ export class P2PHostRoomEngine {
         break;
       }
       case 'player:meme_sfx': {
-        const allowed = new Set(['vine_boom', 'bonk', 'sad_trombone', 'airhorn', 'dun_dun', 'chubani']);
+        const allowed = new Set([
+          'vine_boom',
+          'bonk',
+          'sad_trombone',
+          'airhorn',
+          'dun_dun',
+          'chubani',
+          'aaho_bhatija',
+          'helicopter_milon',
+          'gacher_pata',
+          'ashraful',
+          'prank_call',
+        ]);
         if (allowed.has(msg.memeId)) {
           this.broadcastState({ type: 'meme:play', memeId: msg.memeId });
         }

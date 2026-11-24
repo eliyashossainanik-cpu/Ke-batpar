@@ -417,10 +417,18 @@ export function MemePackModal({ onClose }: MemePackModalProps) {
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
                         : hasClip
                           ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
-                          : 'bg-slate-800 text-slate-400'
+                          : slot.defaultAudioUrl
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
+                            : 'bg-slate-800 text-slate-400'
                     }`}
                   >
-                    {onServer ? 'সার্ভার লাইভ' : hasClip ? 'লোকাল ক্লিপ' : 'ডিফল্ট সাউন্ড'}
+                    {onServer
+                      ? 'সার্ভার লাইভ'
+                      : hasClip
+                        ? 'লোকাল ক্লিপ'
+                        : slot.defaultAudioUrl
+                          ? 'বিল্ট-ইন ভয়েস'
+                          : 'ডিফল্ট সাউন্ড'}
                   </span>
                 </div>
 

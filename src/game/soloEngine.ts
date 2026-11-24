@@ -30,7 +30,8 @@ import {
   CCTV_KAKU_COOLDOWN_SEC,
   CHAMCHA_COOLDOWN_SEC,
   CHANDABAZ_COOLDOWN_SEC,
-  CHANDABAZ_GOAL,
+  CHANDABAZ_INITIAL_COOLDOWN_SEC,
+  CHANDABAZ_WITNESS_RANGE,
   DALAL_COOLDOWN_SEC,
   DALAL_JAM_DURATION_MS,
   DAROGA_COOLDOWN_SEC,
@@ -68,6 +69,7 @@ import {
   canUseVent,
   collectChandaFromTarget,
   computeTaskProgress,
+  countAliveChandabazTargets,
   createEmptySabotageState,
   createSabotageState,
   evaluateMatchOutcome,
@@ -85,6 +87,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getColorShadeHint,
   inspectPlayerTaskAuthenticity,
   isCriticalSabotage,
@@ -111,6 +114,7 @@ import {
   createBotBrainState,
   generateFallbackMeetingChats,
   getMeetingTypingBotIds,
+  notifyBotsOfChandabazExtort,
   processChatMessageForBots,
   recordKillWitnesses,
   resetBotBrainsForMeeting,
@@ -305,14 +309,16 @@ export class SoloMatchEngine {
       p.votedFor = null;
       p.killCooldownRemaining = p.role === 'vondo' ? INITIAL_KILL_COOLDOWN_SEC : 0;
       p.abilityCooldown =
-        p.specialRole === 'bohurupi' ||
-        p.specialRole === 'kobiraj' ||
-        p.specialRole === 'daroga' ||
-        p.specialRole === 'jharudar' ||
-        p.specialRole === 'hatur_daktar' ||
-        p.specialRole === 'dalal'
-          ? 6
-          : 0;
+        p.specialRole === 'chandabaz'
+          ? CHANDABAZ_INITIAL_COOLDOWN_SEC
+          : p.specialRole === 'bohurupi' ||
+              p.specialRole === 'kobiraj' ||
+              p.specialRole === 'daroga' ||
+              p.specialRole === 'jharudar' ||
+              p.specialRole === 'hatur_daktar' ||
+              p.specialRole === 'dalal'
+            ? 6
+            : 0;
       p.revivesLeft = p.specialRole === 'daktar' ? 1 : 0;
       p.scansLeft = p.specialRole === 'goyenda' ? 2 : 0;
       p.shotsLeft = p.specialRole === 'daroga' ? 1 : 0;
@@ -988,18 +994,33 @@ export class SoloMatchEngine {
 
     if (lp.specialRole === 'chandabaz') {
       if (lp.abilityCooldown > 0.05) return;
-      const target = findNearestChandabazTarget(lp, this.snapshot.players);
-      if (!target) {
-        this.onClueNotice?.('চাঁদাবাজ', 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর কাছে যাও!');
+      if (isCriticalSabotage(this.snapshot.sabotage.active)) {
+        this.onClueNotice?.('গ্যাস লিক চলছে!', 'জরুরি নাশকতার সময় চাঁদা তোলা যাবে না — আগে গ্যাস সামলাও!');
         return;
       }
-      const res = collectChandaFromTarget(lp, target);
+      const target = findNearestChandabazTarget(lp, this.snapshot.players);
+      if (!target) {
+        this.onClueNotice?.('চাঁদাবাজ', 'চাঁদা তুলতে নতুন কোনো প্রতিবেশীর একদম কাছে যাও!');
+        return;
+      }
+      const res = collectChandaFromTarget(lp, target, this.snapshot.players);
       if (!res.ok) return;
       lp.abilityCooldown = CHANDABAZ_COOLDOWN_SEC;
+      notifyBotsOfChandabazExtort(lp, target, this.snapshot.players, this.brains, this.snapshot.doorLocks);
       soundEngine.playTaskComplete();
+      const nearWitnesses = this.snapshot.players.filter(
+        (pl) =>
+          pl.alive &&
+          pl.id !== lp.id &&
+          pl.id !== target.id &&
+          distance2D(pl.x, pl.z, lp.x, lp.z) <= CHANDABAZ_WITNESS_RANGE &&
+          hasLineOfSight(pl.x, pl.z, lp.x, lp.z, WALLS, this.snapshot.doorLocks),
+      ).length;
       this.onClueNotice?.(
-        `চাঁদা উসুল (${res.count}/${CHANDABAZ_GOAL})!`,
-        `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে!`,
+        `চাঁদা উসুল (${countAliveChandabazTargets(lp, this.snapshot.players)}/${getChandabazGoal(lp, this.snapshot.players)})!`,
+        nearWitnesses > 0
+          ? `${target.name} ও আশপাশের ${nearWitnesses} জন দেখে ফেলেছে! সাবধান!`
+          : `${target.name}-এর কাছ থেকে চাঁদা আদায় করা হয়েছে — বাকি সবাই বেঁচে থাকা অবস্থায় শেষ করো!`,
       );
       this.checkWin();
       return;
@@ -1657,6 +1678,7 @@ export class SoloMatchEngine {
             p.hasVoted = false;
             p.votedFor = null;
             if (p.role === 'vondo') p.killCooldownRemaining = this.snapshot.settings.killCooldownSec;
+            if (p.specialRole === 'chandabaz') p.abilityCooldown = Math.max(p.abilityCooldown, 14);
           });
           this.snapshot.emergencyCooldownRemaining = this.snapshot.settings.emergencyCooldownSec;
           this.snapshot.phase = 'playing';

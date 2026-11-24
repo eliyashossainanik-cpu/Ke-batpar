@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  CHANDABAZ_COOLDOWN_SEC,
   DAROGA_ARREST_RANGE,
   GOYENDA_SCANS_LIMIT,
   JHARUDAR_CLEAN_CHANNEL_SEC,
@@ -34,6 +35,7 @@ import {
   findNearestReportableBody,
   findNearestRevivableBody,
   findNearestShieldTarget,
+  getChandabazGoal,
   getColorShadeHint,
   getConnectedVents,
   getDirectionCompass,
@@ -793,17 +795,33 @@ test('Phase 6: 15P capacity, 15 unique colors, 3 Batpars at 11P+, and all 9 exte
   assert.equal(batWin?.winner, 'vondo');
   assert.deepEqual(batWin?.coWinnerIds, ['ch']);
 
-  // Chandabaz 3 unique targets immediate win
+  // Chandabaz 30s cooldown & dynamic goal: must collect from EVERY other living player in the match
+  assert.equal(CHANDABAZ_COOLDOWN_SEC, 30);
   const chandabaz = makePlayer({ id: 'cb', name: 'Chanda', role: 'parabasi', specialRole: 'chandabaz', alive: true, x: 0, z: 0 });
   const n1 = makePlayer({ id: 'n1', x: 1, z: 0 });
   const n2 = makePlayer({ id: 'n2', x: 1, z: 0 });
   const n3 = makePlayer({ id: 'n3', x: 1, z: 0 });
+  const n4 = makePlayer({ id: 'n4', x: 1, z: 0 });
+  const n5 = makePlayer({ id: 'n5', x: 1, z: 0 });
+  const roster = [chandabaz, bat, n1, n2, n3, n4, n5];
+  assert.equal(getChandabazGoal(chandabaz, roster), 6);
   assert.equal(findNearestChandabazTarget(chandabaz, [chandabaz, n1])?.id, 'n1');
-  assert.equal(collectChandaFromTarget(chandabaz, n1).count, 1);
-  assert.equal(collectChandaFromTarget(chandabaz, n1).ok, false);
-  assert.equal(collectChandaFromTarget(chandabaz, n2).count, 2);
-  assert.equal(collectChandaFromTarget(chandabaz, n3).reachedGoal, true);
-  assert.equal(evaluateMatchOutcome([chandabaz, bat, n1, n2, n3], 0.2)?.winner, 'chandabaz');
+  assert.equal(collectChandaFromTarget(chandabaz, n1, roster).count, 1);
+  assert.equal(collectChandaFromTarget(chandabaz, n1, roster).ok, false);
+  assert.equal(collectChandaFromTarget(chandabaz, n2, roster).count, 2);
+  assert.equal(collectChandaFromTarget(chandabaz, n3, roster).count, 3);
+  assert.equal(collectChandaFromTarget(chandabaz, n4, roster).count, 4);
+  assert.equal(collectChandaFromTarget(chandabaz, n5, roster).reachedGoal, false);
+  assert.equal(evaluateMatchOutcome(roster, 0.2), null);
+  // Collecting from bat finishes 6/6 living neighbors -> Chandabaz wins!
+  assert.equal(collectChandaFromTarget(chandabaz, bat, roster).reachedGoal, true);
+  assert.equal(evaluateMatchOutcome(roster, 0.2)?.winner, 'chandabaz');
+  // If bat wasn't collected yet and n1 dies, bat is still alive -> 4/5 -> does not win until all living neighbors paid
+  chandabaz.chandabazTargets = ['n1', 'n2', 'n3', 'n4', 'n5'];
+  n1.alive = false;
+  assert.equal(getChandabazGoal(chandabaz, roster), 5);
+  assert.equal(evaluateMatchOutcome(roster, 0.2), null);
+  n1.alive = true;
 
   // TikTok Star 3 distinct zones + <= 4 alive
   const tiktok = makePlayer({ id: 'tt', name: 'Reeler', role: 'parabasi', specialRole: 'tiktok_star', alive: true });

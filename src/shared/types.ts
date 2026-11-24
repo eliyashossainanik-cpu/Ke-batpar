@@ -203,7 +203,7 @@ export const SPECIAL_ROLES: Record<SpecialRole, SpecialRoleMeta> = {
     faction: 'neutral',
     accentHex: '#eab308',
     abilityLabel: 'চাঁদা আদায় [G]',
-    shortDesc: '৩ জন আলাদা প্রতিবেশীর কাছ থেকে চাঁদা আদায় করতে পারলেই একক বিজয়!',
+    shortDesc: 'সব জীবিত প্রতিবেশীর কাছ থেকে গোপনে চাঁদা তুলে টিকে থাকো — শিকার জানাজানি হলেই বিপদ!',
   },
   tiktok_star: {
     id: 'tiktok_star',
