@@ -6,6 +6,12 @@ export interface ProceduralTextureSet {
   asphaltMap: THREE.CanvasTexture;
   asphaltNormal: THREE.DataTexture;
   asphaltRoughness: THREE.CanvasTexture;
+  stuccoNormal: THREE.DataTexture;
+  blockNormal: THREE.DataTexture;
+  tileNormal: THREE.DataTexture;
+  concreteRoughness: THREE.CanvasTexture;
+  rickshawHoodMap: THREE.CanvasTexture;
+  rickshawHoodNormal: THREE.DataTexture;
   terracottaTileMap: THREE.CanvasTexture;
   saloonTileMap: THREE.CanvasTexture;
   pharmacyTileMap: THREE.CanvasTexture;
@@ -183,7 +189,7 @@ function makeSignTexture(
   maxAnisotropy: number,
   compactMode = false,
 ): THREE.CanvasTexture {
-  const scale = compactMode ? 0.6667 : 1;
+  const scale: number = compactMode ? 0.6667 : 1.3334;
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(768 * scale);
   canvas.height = Math.round(256 * scale);
@@ -265,11 +271,14 @@ function makePosterTexture(
   paperHex: string,
   inkHex: string,
   maxAnisotropy: number,
+  compactMode = false,
 ): THREE.CanvasTexture {
+  const scale = compactMode ? 1 : 2;
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 320;
+  canvas.width = Math.round(256 * scale);
+  canvas.height = Math.round(320 * scale);
   const ctx = canvas.getContext('2d')!;
+  if (scale !== 1) ctx.scale(scale, scale);
 
   ctx.fillStyle = paperHex;
   ctx.fillRect(0, 0, 256, 320);
@@ -312,7 +321,7 @@ function makeHoardingTexture(
   maxAnisotropy: number,
   compactMode = false,
 ): THREE.CanvasTexture {
-  const scale = compactMode ? 0.5 : 1;
+  const scale: number = compactMode ? 0.5 : 1.5;
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(1024 * scale);
   canvas.height = Math.round(512 * scale);
@@ -399,7 +408,7 @@ function makeGantryBannerTexture(
   maxAnisotropy: number,
   compactMode = false,
 ): THREE.CanvasTexture {
-  const scale = compactMode ? 0.5 : 1;
+  const scale: number = compactMode ? 0.5 : 1.5;
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(1024 * scale);
   canvas.height = Math.round(224 * scale);
@@ -461,12 +470,14 @@ function makeGantryBannerTexture(
 
 export function createProceduralTextures(
   renderer: THREE.WebGLRenderer,
-  maxAnisotropyCap = 8,
+  maxAnisotropyCap = 16,
   compactMode = false,
 ): ProceduralTextureSet {
   const maxAniso = Math.max(1, Math.min(renderer.capabilities.getMaxAnisotropy(), maxAnisotropyCap));
-  const tileScale = compactMode ? 0.5 : 1;
+  const tileScale: number = compactMode ? 0.5 : 2;
   const tilePx = Math.round(512 * tileScale);
+  const subScale = compactMode ? 1 : 2;
+  const subPx = Math.round(256 * subScale);
 
   // 1. High-Detail Stone Cobble Albedo + Tangent Normal Map
   const cobbleCanvas = document.createElement('canvas');
@@ -474,7 +485,7 @@ export function createProceduralTextures(
   cobbleCanvas.height = tilePx;
   const cCtx = cobbleCanvas.getContext('2d')!;
   if (tileScale !== 1) cCtx.scale(tileScale, tileScale);
-  cCtx.fillStyle = '#202736';
+  cCtx.fillStyle = '#333d4f';
   cCtx.fillRect(0, 0, 512, 512);
 
   const cobbleHeightCanvas = document.createElement('canvas');
@@ -492,10 +503,10 @@ export function createProceduralTextures(
   for (let r = 0; r < rows; r++) {
     const offset = (r % 2) * (bw / 2);
     for (let c = -1; c <= cols; c++) {
-      const shade = 52 + ((r * 7 + c * 13) % 24);
-      cCtx.fillStyle = `rgb(${shade + 12}, ${shade + 16}, ${shade + 26})`;
+      const shade = 78 + ((r * 7 + c * 13) % 28);
+      cCtx.fillStyle = `rgb(${shade + 14}, ${shade + 18}, ${shade + 26})`;
       cCtx.fillRect(c * bw + offset + 3, r * bh + 3, bw - 6, bh - 6);
-      cCtx.fillStyle = 'rgba(255,255,255,0.08)';
+      cCtx.fillStyle = 'rgba(255,255,255,0.12)';
       cCtx.fillRect(c * bw + offset + 4, r * bh + 4, bw - 8, 4);
 
       const hv = 190 + ((r * 3 + c * 5) % 45);
@@ -512,13 +523,13 @@ export function createProceduralTextures(
 
   const cobbleNormal = heightCanvasToNormalMap(cobbleHeightCanvas, 2.2, 12, 12, maxAniso);
 
-  // 2. Seamless Monsoon Wet/Dry Tarmac Asphalt + Fine Micro-Normal + Soft Rain Sheen Map
+  // 2. Seamless Mineral Tarmac Asphalt + Aggregate Micro-Normal + Matte/Worn Roughness Map
   const aspCanvas = document.createElement('canvas');
   aspCanvas.width = tilePx;
   aspCanvas.height = tilePx;
   const aCtx = aspCanvas.getContext('2d')!;
   if (tileScale !== 1) aCtx.scale(tileScale, tileScale);
-  aCtx.fillStyle = '#1b2332';
+  aCtx.fillStyle = '#2c313a';
   aCtx.fillRect(0, 0, 512, 512);
 
   const aspHeightCanvas = document.createElement('canvas');
@@ -543,42 +554,53 @@ export function createProceduralTextures(
     return seed / 4294967296;
   };
 
-  const speckleCount = compactMode ? 5000 : 18000;
+  // Subtle longitudinal tire wear lanes (continuous, never circular blotches)
+  const laneGradL = aCtx.createLinearGradient(80, 0, 200, 0);
+  laneGradL.addColorStop(0, 'rgba(26, 30, 38, 0)');
+  laneGradL.addColorStop(0.5, 'rgba(20, 24, 30, 0.24)');
+  laneGradL.addColorStop(1, 'rgba(26, 30, 38, 0)');
+  aCtx.fillStyle = laneGradL;
+  aCtx.fillRect(80, 0, 120, 512);
+
+  const laneGradR = aCtx.createLinearGradient(312, 0, 432, 0);
+  laneGradR.addColorStop(0, 'rgba(26, 30, 38, 0)');
+  laneGradR.addColorStop(0.5, 'rgba(20, 24, 30, 0.24)');
+  laneGradR.addColorStop(1, 'rgba(26, 30, 38, 0)');
+  aCtx.fillStyle = laneGradR;
+  aCtx.fillRect(312, 0, 120, 512);
+
+  // Subtle bitumen tar-patch & expansion joint lines
+  aCtx.strokeStyle = 'rgba(15, 18, 24, 0.42)';
+  aCtx.lineWidth = 2;
+  aCtx.beginPath();
+  aCtx.moveTo(0, 256);
+  aCtx.bezierCurveTo(170, 252, 340, 260, 512, 256);
+  aCtx.stroke();
+
+  // Multi-scale crushed basalt & quartz mineral aggregate speckles + roughness variation
+  const speckleCount = compactMode ? 8000 : 28000;
   const speckleSize = compactMode ? 2 : 1;
   for (let i = 0; i < speckleCount; i++) {
     const x = Math.floor(nextRand() * 512);
     const y = Math.floor(nextRand() * 512);
-    const v = 24 + Math.floor(nextRand() * 14);
-    aCtx.fillStyle = `rgb(${v}, ${v + 5}, ${v + 14})`;
+    const rRoll = nextRand();
+    const baseTone = rRoll > 0.88 ? 68 + Math.floor(nextRand() * 24) : 34 + Math.floor(nextRand() * 22);
+    aCtx.fillStyle = `rgb(${baseTone}, ${baseTone + 2}, ${baseTone + 5})`;
     aCtx.fillRect(x, y, speckleSize, speckleSize);
 
-    const bv = 114 + Math.floor(nextRand() * 28);
+    const bv = 94 + Math.floor(nextRand() * 68);
     ahCtx.fillStyle = `rgb(${bv},${bv},${bv})`;
     ahCtx.fillRect(x, y, speckleSize, speckleSize);
+
+    const rv = 185 + Math.floor(nextRand() * 55);
+    arCtx.fillStyle = `rgb(${rv},${rv},${rv})`;
+    arCtx.fillRect(x, y, speckleSize + 1, speckleSize + 1);
   }
 
-  for (let p = 0; p < 4; p++) {
-    const px = 80 + nextRand() * 352;
-    const py = 80 + nextRand() * 352;
-    const pr = 110 + nextRand() * 75;
-
-    const pGrad = arCtx.createRadialGradient(px, py, 8, px, py, pr);
-    pGrad.addColorStop(0, 'rgba(54, 54, 54, 0.72)');
-    pGrad.addColorStop(0.55, 'rgba(110, 110, 110, 0.45)');
-    pGrad.addColorStop(1, 'rgba(220, 220, 220, 0)');
-    arCtx.fillStyle = pGrad;
-    arCtx.beginPath();
-    arCtx.arc(px, py, pr, 0, Math.PI * 2);
-    arCtx.fill();
-
-    const dGrad = aCtx.createRadialGradient(px, py, 8, px, py, pr);
-    dGrad.addColorStop(0, 'rgba(12, 16, 26, 0.24)');
-    dGrad.addColorStop(1, 'rgba(12, 16, 26, 0)');
-    aCtx.fillStyle = dGrad;
-    aCtx.beginPath();
-    aCtx.arc(px, py, pr, 0, Math.PI * 2);
-    aCtx.fill();
-  }
+  // Slight tire-polish lower roughness along wheel tracks (matte 0.88 -> satin 0.72)
+  arCtx.fillStyle = 'rgba(182, 182, 182, 0.35)';
+  arCtx.fillRect(108, 0, 64, 512);
+  arCtx.fillRect(340, 0, 64, 512);
 
   const asphaltMap = new THREE.CanvasTexture(aspCanvas);
   asphaltMap.colorSpace = THREE.SRGBColorSpace;
@@ -586,18 +608,20 @@ export function createProceduralTextures(
   asphaltMap.repeat.set(8, 8);
   asphaltMap.anisotropy = maxAniso;
 
-  const asphaltNormal = heightCanvasToNormalMap(aspHeightCanvas, 0.55, 8, 8, maxAniso);
+  const asphaltNormal = heightCanvasToNormalMap(aspHeightCanvas, 1.35, 8, 8, maxAniso);
 
   const asphaltRoughness = new THREE.CanvasTexture(aspRoughCanvas);
+  asphaltRoughness.colorSpace = THREE.NoColorSpace;
   asphaltRoughness.wrapS = asphaltRoughness.wrapT = THREE.RepeatWrapping;
   asphaltRoughness.repeat.set(8, 8);
   asphaltRoughness.anisotropy = maxAniso;
 
   // 2b. Hand-laid Terracotta Verandah Tile Map
   const tileCanvas = document.createElement('canvas');
-  tileCanvas.width = 256;
-  tileCanvas.height = 256;
+  tileCanvas.width = subPx;
+  tileCanvas.height = subPx;
   const ttCtx = tileCanvas.getContext('2d')!;
+  if (subScale !== 1) ttCtx.scale(subScale, subScale);
   ttCtx.fillStyle = '#3b2c26';
   ttCtx.fillRect(0, 0, 256, 256);
   for (let ty = 0; ty < 4; ty++) {
@@ -618,9 +642,10 @@ export function createProceduralTextures(
 
   // 2b-2. Checkerboard Barber Saloon Mosaic Floor
   const salTileCanvas = document.createElement('canvas');
-  salTileCanvas.width = 256;
-  salTileCanvas.height = 256;
+  salTileCanvas.width = subPx;
+  salTileCanvas.height = subPx;
   const stCtx = salTileCanvas.getContext('2d')!;
+  if (subScale !== 1) stCtx.scale(subScale, subScale);
   for (let sy = 0; sy < 4; sy++) {
     for (let sx = 0; sx < 4; sx++) {
       const isEven = (sx + sy) % 2 === 0;
@@ -639,9 +664,10 @@ export function createProceduralTextures(
 
   // 2b-3. Clean Clinical Pharmacy Porcelain Tile Floor
   const phTileCanvas = document.createElement('canvas');
-  phTileCanvas.width = 256;
-  phTileCanvas.height = 256;
+  phTileCanvas.width = subPx;
+  phTileCanvas.height = subPx;
   const ptCtx = phTileCanvas.getContext('2d')!;
+  if (subScale !== 1) ptCtx.scale(subScale, subScale);
   ptCtx.fillStyle = '#cbd5e1';
   ptCtx.fillRect(0, 0, 256, 256);
   for (let py = 0; py < 4; py++) {
@@ -658,9 +684,10 @@ export function createProceduralTextures(
 
   // 2b-4. Oil-Stained Concrete Garage Floor
   const garCanvas = document.createElement('canvas');
-  garCanvas.width = 256;
-  garCanvas.height = 256;
+  garCanvas.width = subPx;
+  garCanvas.height = subPx;
   const grCtx = garCanvas.getContext('2d')!;
+  if (subScale !== 1) grCtx.scale(subScale, subScale);
   grCtx.fillStyle = '#334155';
   grCtx.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 1600; i++) {
@@ -692,9 +719,10 @@ export function createProceduralTextures(
 
   // 2b-5. Sidewalk Interlocking Kerb Brick Map
   const swCanvas = document.createElement('canvas');
-  swCanvas.width = 256;
-  swCanvas.height = 256;
+  swCanvas.width = subPx;
+  swCanvas.height = subPx;
   const swCtx = swCanvas.getContext('2d')!;
+  if (subScale !== 1) swCtx.scale(subScale, subScale);
   swCtx.fillStyle = '#475569';
   swCtx.fillRect(0, 0, 256, 256);
   for (let y = 0; y < 8; y++) {
@@ -710,21 +738,33 @@ export function createProceduralTextures(
   sidewalkMap.repeat.set(24, 1);
   sidewalkMap.anisotropy = maxAniso;
 
-  // 2c. Variegated Eidgah Lawn Grass Texture
+  // 2c. Sunlit Moholla Variegated Lawn Grass Texture
   const grassCanvas = document.createElement('canvas');
-  grassCanvas.width = 256;
-  grassCanvas.height = 256;
+  grassCanvas.width = subPx;
+  grassCanvas.height = subPx;
   const gCtx = grassCanvas.getContext('2d')!;
-  gCtx.fillStyle = '#114d36';
+  if (subScale !== 1) gCtx.scale(subScale, subScale);
+  gCtx.fillStyle = '#2d6a3e';
   gCtx.fillRect(0, 0, 256, 256);
   for (let s = 0; s < 8; s++) {
-    gCtx.fillStyle = s % 2 === 0 ? 'rgba(22, 101, 52, 0.45)' : 'rgba(6, 78, 59, 0.35)';
+    gCtx.fillStyle = s % 2 === 0 ? 'rgba(54, 128, 68, 0.42)' : 'rgba(34, 92, 48, 0.36)';
     gCtx.fillRect(s * 32, 0, 32, 256);
   }
-  for (let b = 0; b < 1800; b++) {
+  for (let p = 0; p < 10; p++) {
+    const px = nextRand() * 256;
+    const py = nextRand() * 256;
+    const g = gCtx.createRadialGradient(px, py, 4, px, py, 34);
+    g.addColorStop(0, p % 2 === 0 ? 'rgba(74, 152, 82, 0.25)' : 'rgba(38, 84, 42, 0.24)');
+    g.addColorStop(1, 'rgba(45, 106, 62, 0)');
+    gCtx.fillStyle = g;
+    gCtx.beginPath();
+    gCtx.arc(px, py, 34, 0, Math.PI * 2);
+    gCtx.fill();
+  }
+  for (let b = 0; b < 2400; b++) {
     const gx = Math.floor(nextRand() * 256);
     const gy = Math.floor(nextRand() * 256);
-    gCtx.fillStyle = nextRand() > 0.5 ? 'rgba(74, 222, 128, 0.16)' : 'rgba(20, 83, 45, 0.28)';
+    gCtx.fillStyle = nextRand() > 0.45 ? 'rgba(134, 210, 114, 0.22)' : 'rgba(22, 68, 36, 0.32)';
     gCtx.fillRect(gx, gy, 2, 3);
   }
   const grassMap = new THREE.CanvasTexture(grassCanvas);
@@ -734,16 +774,16 @@ export function createProceduralTextures(
   grassMap.anisotropy = maxAniso;
 
   // 3. Corrugated Tin Roof Bump & Normal Map
-  const tinPx = Math.round(256 * tileScale);
+  const tinPx = Math.round(256 * subScale);
   const tinCanvas = document.createElement('canvas');
   tinCanvas.width = tinPx;
   tinCanvas.height = tinPx;
   const tCtx = tinCanvas.getContext('2d')!;
-  if (tileScale !== 1) tCtx.scale(tileScale, tileScale);
-  for (let x = 0; x < 256; x += compactMode ? 2 : 1) {
+  if (subScale !== 1) tCtx.scale(subScale, subScale);
+  for (let x = 0; x < 256; x += compactMode ? 2 : 0.5) {
     const v = Math.round(128 + 115 * Math.sin((x / 256) * Math.PI * 24));
     tCtx.fillStyle = `rgb(${v},${v},${v})`;
-    tCtx.fillRect(x, 0, compactMode ? 2 : 1, 256);
+    tCtx.fillRect(x, 0, compactMode ? 2 : 0.6, 256);
   }
   const tinBump = new THREE.CanvasTexture(tinCanvas);
   tinBump.wrapS = tinBump.wrapT = THREE.RepeatWrapping;
@@ -804,9 +844,10 @@ export function createProceduralTextures(
     mode: 'plaster' | 'blocks' | 'steel' | 'tiles' | 'stucco',
   ): THREE.CanvasTexture => {
     const cv = document.createElement('canvas');
-    cv.width = 256;
-    cv.height = 256;
+    cv.width = subPx;
+    cv.height = subPx;
     const cx = cv.getContext('2d')!;
+    if (subScale !== 1) cx.scale(subScale, subScale);
     cx.fillStyle = midHex;
     cx.fillRect(0, 0, 256, 256);
 
@@ -911,18 +952,143 @@ export function createProceduralTextures(
   const colonyWallMap = makeBuildingWallTex('#475569', '#e2e8f0', '#334155', '#eab308', 'blocks');
   const fufuWallMap = makeBuildingWallTex('#9d174d', '#fff1f2', '#831843', '#fb7185', 'stucco');
 
+  // 4a-3. Reusable Architectural Normal & Concrete Roughness Maps for Stucco, Blocks, Ceramic Tiles & Rickshaw Fabric
+  const stuccoHeightCv = document.createElement('canvas');
+  stuccoHeightCv.width = subPx;
+  stuccoHeightCv.height = subPx;
+  const stHCtx = stuccoHeightCv.getContext('2d')!;
+  if (subScale !== 1) stHCtx.scale(subScale, subScale);
+  stHCtx.fillStyle = '#808080';
+  stHCtx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 4200; i++) {
+    const sx = Math.floor(nextRand() * 256);
+    const sy = Math.floor(nextRand() * 256);
+    const v = 96 + Math.floor(nextRand() * 64);
+    stHCtx.fillStyle = `rgb(${v},${v},${v})`;
+    stHCtx.fillRect(sx, sy, 2, 2);
+  }
+  const stuccoNormal = heightCanvasToNormalMap(stuccoHeightCv, 1.35, 3, 1, maxAniso);
+
+  const blockHeightCv = document.createElement('canvas');
+  blockHeightCv.width = subPx;
+  blockHeightCv.height = subPx;
+  const blHCtx = blockHeightCv.getContext('2d')!;
+  if (subScale !== 1) blHCtx.scale(subScale, subScale);
+  blHCtx.fillStyle = '#d4d4d4';
+  blHCtx.fillRect(0, 0, 256, 256);
+  blHCtx.strokeStyle = '#3a3a3a';
+  blHCtx.lineWidth = 3;
+  for (let y = 0; y < 256; y += 32) {
+    blHCtx.beginPath();
+    blHCtx.moveTo(0, y);
+    blHCtx.lineTo(256, y);
+    blHCtx.stroke();
+    const off = ((y / 32) % 2) * 32;
+    for (let x = off; x < 256; x += 64) {
+      blHCtx.beginPath();
+      blHCtx.moveTo(x, y);
+      blHCtx.lineTo(x, y + 32);
+      blHCtx.stroke();
+    }
+  }
+  const blockNormal = heightCanvasToNormalMap(blockHeightCv, 2.2, 3, 1, maxAniso);
+
+  const tileHeightCv = document.createElement('canvas');
+  tileHeightCv.width = subPx;
+  tileHeightCv.height = subPx;
+  const tlHCtx = tileHeightCv.getContext('2d')!;
+  if (subScale !== 1) tlHCtx.scale(subScale, subScale);
+  tlHCtx.fillStyle = '#dcdcdc';
+  tlHCtx.fillRect(0, 0, 256, 256);
+  tlHCtx.strokeStyle = '#383838';
+  tlHCtx.lineWidth = 3;
+  for (let y = 0; y <= 256; y += 64) {
+    tlHCtx.beginPath();
+    tlHCtx.moveTo(0, y);
+    tlHCtx.lineTo(256, y);
+    tlHCtx.stroke();
+  }
+  for (let x = 0; x <= 256; x += 64) {
+    tlHCtx.beginPath();
+    tlHCtx.moveTo(x, 0);
+    tlHCtx.lineTo(x, 256);
+    tlHCtx.stroke();
+  }
+  const tileNormal = heightCanvasToNormalMap(tileHeightCv, 2.0, 5, 5, maxAniso);
+
+  const concRoughCv = document.createElement('canvas');
+  concRoughCv.width = subPx;
+  concRoughCv.height = subPx;
+  const crRCtx = concRoughCv.getContext('2d')!;
+  if (subScale !== 1) crRCtx.scale(subScale, subScale);
+  crRCtx.fillStyle = '#d4d4d4';
+  crRCtx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2400; i++) {
+    const cx = Math.floor(nextRand() * 256);
+    const cy = Math.floor(nextRand() * 256);
+    const rv = 180 + Math.floor(nextRand() * 60);
+    crRCtx.fillStyle = `rgb(${rv},${rv},${rv})`;
+    crRCtx.fillRect(cx, cy, 3, 3);
+  }
+  const concreteRoughness = new THREE.CanvasTexture(concRoughCv);
+  concreteRoughness.colorSpace = THREE.NoColorSpace;
+  concreteRoughness.wrapS = concreteRoughness.wrapT = THREE.RepeatWrapping;
+  concreteRoughness.repeat.set(4, 4);
+  concreteRoughness.anisotropy = maxAniso;
+
+  // Quilted Rexine Rickshaw Canopy Texture + Pleat Normal Map
+  const hoodCv = document.createElement('canvas');
+  hoodCv.width = subPx;
+  hoodCv.height = subPx;
+  const hdCtx = hoodCv.getContext('2d')!;
+  if (subScale !== 1) hdCtx.scale(subScale, subScale);
+  hdCtx.fillStyle = '#b91c1c';
+  hdCtx.fillRect(0, 0, 256, 256);
+  const hoodHCv = document.createElement('canvas');
+  hoodHCv.width = subPx;
+  hoodHCv.height = subPx;
+  const hdHCtx = hoodHCv.getContext('2d')!;
+  if (subScale !== 1) hdHCtx.scale(subScale, subScale);
+  hdHCtx.fillStyle = '#909090';
+  hdHCtx.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 256; y += 32) {
+    const g = hdCtx.createLinearGradient(0, y, 0, y + 32);
+    g.addColorStop(0, 'rgba(0,0,0,0.22)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+    g.addColorStop(1, 'rgba(0,0,0,0.22)');
+    hdCtx.fillStyle = g;
+    hdCtx.fillRect(0, y, 256, 32);
+
+    const hg = hdHCtx.createLinearGradient(0, y, 0, y + 32);
+    hg.addColorStop(0, '#303030');
+    hg.addColorStop(0.5, '#eaeaea');
+    hg.addColorStop(1, '#303030');
+    hdHCtx.fillStyle = hg;
+    hdHCtx.fillRect(0, y, 256, 32);
+  }
+  // Decorative golden-yellow rickshaw trim band along canopy edge
+  hdCtx.fillStyle = '#facc15';
+  hdCtx.fillRect(0, 0, 256, 14);
+  hdCtx.fillRect(0, 242, 256, 14);
+  const rickshawHoodMap = new THREE.CanvasTexture(hoodCv);
+  rickshawHoodMap.colorSpace = THREE.SRGBColorSpace;
+  rickshawHoodMap.anisotropy = maxAniso;
+  const rickshawHoodNormal = heightCanvasToNormalMap(hoodHCv, 2.1, 1, 1, maxAniso);
+
   // 4b. PUBG-Style Slatted Wooden Supply Crate Albedo + Normal Map
   const crateCanvas = document.createElement('canvas');
-  crateCanvas.width = 256;
-  crateCanvas.height = 256;
+  crateCanvas.width = subPx;
+  crateCanvas.height = subPx;
   const crCtx = crateCanvas.getContext('2d')!;
+  if (subScale !== 1) crCtx.scale(subScale, subScale);
   crCtx.fillStyle = '#5c3a1e';
   crCtx.fillRect(0, 0, 256, 256);
 
   const crateHeightCanvas = document.createElement('canvas');
-  crateHeightCanvas.width = 256;
-  crateHeightCanvas.height = 256;
+  crateHeightCanvas.width = subPx;
+  crateHeightCanvas.height = subPx;
   const chCtx = crateHeightCanvas.getContext('2d')!;
+  if (subScale !== 1) chCtx.scale(subScale, subScale);
   chCtx.fillStyle = '#404040';
   chCtx.fillRect(0, 0, 256, 256);
 
@@ -955,9 +1121,10 @@ export function createProceduralTextures(
 
   // 4c. Woven Jute Burlap Rice Sack Texture (Chaler Bosta)
   const sackCanvas = document.createElement('canvas');
-  sackCanvas.width = 256;
-  sackCanvas.height = 256;
+  sackCanvas.width = subPx;
+  sackCanvas.height = subPx;
   const skCtx = sackCanvas.getContext('2d')!;
+  if (subScale !== 1) skCtx.scale(subScale, subScale);
   skCtx.fillStyle = '#a1805a';
   skCtx.fillRect(0, 0, 256, 256);
   for (let y = 0; y < 256; y += 6) {
@@ -981,21 +1148,22 @@ export function createProceduralTextures(
 
   // 5. Pukur Water Texture
   const waterCanvas = document.createElement('canvas');
-  waterCanvas.width = 256;
-  waterCanvas.height = 256;
+  waterCanvas.width = subPx;
+  waterCanvas.height = subPx;
   const waCtx = waterCanvas.getContext('2d')!;
+  if (subScale !== 1) waCtx.scale(subScale, subScale);
   const wGrad = waCtx.createLinearGradient(0, 0, 256, 256);
   wGrad.addColorStop(0, '#0a3d5c');
   wGrad.addColorStop(0.5, '#0e7490');
   wGrad.addColorStop(1, '#115e59');
   waCtx.fillStyle = wGrad;
   waCtx.fillRect(0, 0, 256, 256);
-  waCtx.strokeStyle = 'rgba(186, 230, 253, 0.3)';
+  waCtx.strokeStyle = 'rgba(186, 230, 253, 0.34)';
   waCtx.lineWidth = 2;
-  for (let y = 16; y < 256; y += 28) {
+  for (let y = 12; y < 256; y += 22) {
     waCtx.beginPath();
-    for (let x = 0; x <= 256; x += 16) {
-      const py = y + Math.sin((x / 256) * Math.PI * 4) * 5;
+    for (let x = 0; x <= 256; x += 12) {
+      const py = y + Math.sin((x / 256) * Math.PI * 4) * 4.5 + Math.cos((x / 256) * Math.PI * 8 + y) * 1.5;
       if (x === 0) waCtx.moveTo(x, py);
       else waCtx.lineTo(x, py);
     }
@@ -1005,6 +1173,7 @@ export function createProceduralTextures(
   waterMap.colorSpace = THREE.SRGBColorSpace;
   waterMap.wrapS = waterMap.wrapT = THREE.RepeatWrapping;
   waterMap.repeat.set(2, 3);
+  waterMap.anisotropy = maxAniso;
 
   // 6. Contact Shadow Disc Texture
   const shCanvas = document.createElement('canvas');
@@ -1057,9 +1226,10 @@ export function createProceduralTextures(
 
   // Cha Menu Chalkboard
   const cmCanvas = document.createElement('canvas');
-  cmCanvas.width = 256;
-  cmCanvas.height = 192;
+  cmCanvas.width = Math.round(256 * subScale);
+  cmCanvas.height = Math.round(192 * subScale);
   const cmCtx = cmCanvas.getContext('2d')!;
+  if (subScale !== 1) cmCtx.scale(subScale, subScale);
   cmCtx.fillStyle = '#0f291e';
   cmCtx.fillRect(0, 0, 256, 192);
   cmCtx.strokeStyle = '#92400e';
@@ -1081,9 +1251,10 @@ export function createProceduralTextures(
 
   // Cricket Scoreboard
   const scCanvas = document.createElement('canvas');
-  scCanvas.width = 256;
-  scCanvas.height = 160;
+  scCanvas.width = Math.round(256 * subScale);
+  scCanvas.height = Math.round(160 * subScale);
   const scCtx = scCanvas.getContext('2d')!;
+  if (subScale !== 1) scCtx.scale(subScale, subScale);
   scCtx.fillStyle = '#052e16';
   scCtx.fillRect(0, 0, 256, 160);
   scCtx.strokeStyle = '#f8fafc';
@@ -1105,9 +1276,10 @@ export function createProceduralTextures(
 
   // Saloon Haircut Style Poster
   const spCanvas = document.createElement('canvas');
-  spCanvas.width = 256;
-  spCanvas.height = 320;
+  spCanvas.width = Math.round(256 * subScale);
+  spCanvas.height = Math.round(320 * subScale);
   const spCtx = spCanvas.getContext('2d')!;
+  if (subScale !== 1) spCtx.scale(subScale, subScale);
   spCtx.fillStyle = '#1e1b4b';
   spCtx.fillRect(0, 0, 256, 320);
   spCtx.strokeStyle = '#f472b6';
@@ -1134,8 +1306,8 @@ export function createProceduralTextures(
   saloonPosterMap.anisotropy = maxAniso;
 
   const posterMaps: [THREE.CanvasTexture, THREE.CanvasTexture] = [
-    makePosterTexture('এখানে পোস্টার লাগাবেন না!', 'পাড়াবাসী সব দেখছে', '#fef3c7', '#b91c1c', maxAniso),
-    makePosterTexture('১০০% জিপিএ-৫ কোচিং', 'টং আড্ডার পাশে ভর্তি চলছে', '#e0f2fe', '#1d4ed8', maxAniso),
+    makePosterTexture('এখানে পোস্টার লাগাবেন না!', 'পাড়াবাসী সব দেখছে', '#fef3c7', '#b91c1c', maxAniso, compactMode),
+    makePosterTexture('১০০% জিপিএ-৫ কোচিং', 'টং আড্ডার পাশে ভর্তি চলছে', '#e0f2fe', '#1d4ed8', maxAniso, compactMode),
   ];
 
   // 7c. High-Resolution Bangla Roadside Billboard Hoardings & Boulevard Gantry Banners
@@ -1198,9 +1370,10 @@ export function createProceduralTextures(
 
   // 7b. Hand-Painted Dhaka Rickshaw Folk-Art Panel
   const rCanvas = document.createElement('canvas');
-  rCanvas.width = 256;
-  rCanvas.height = 128;
+  rCanvas.width = Math.round(256 * subScale);
+  rCanvas.height = Math.round(128 * subScale);
   const rCtx = rCanvas.getContext('2d')!;
+  if (subScale !== 1) rCtx.scale(subScale, subScale);
   rCtx.fillStyle = '#0f766e';
   rCtx.fillRect(0, 0, 256, 128);
   rCtx.strokeStyle = '#facc15';
@@ -1228,9 +1401,10 @@ export function createProceduralTextures(
 
   // 8. Bengali Alpona Mandala Ring
   const alpCanvas = document.createElement('canvas');
-  alpCanvas.width = 512;
-  alpCanvas.height = 512;
+  alpCanvas.width = tilePx;
+  alpCanvas.height = tilePx;
   const alCtx = alpCanvas.getContext('2d')!;
+  if (tileScale !== 1) alCtx.scale(tileScale, tileScale);
   alCtx.clearRect(0, 0, 512, 512);
   alCtx.save();
   alCtx.translate(256, 256);
@@ -1263,9 +1437,10 @@ export function createProceduralTextures(
 
   // 9. Striped Festive Bazar Awning
   const awnCanvas = document.createElement('canvas');
-  awnCanvas.width = 256;
-  awnCanvas.height = 256;
+  awnCanvas.width = subPx;
+  awnCanvas.height = subPx;
   const awCtx = awnCanvas.getContext('2d')!;
+  if (subScale !== 1) awCtx.scale(subScale, subScale);
   const stripeColors = ['#d97706', '#fef3c7', '#dc2626', '#fef3c7'];
   const sw = 256 / 8;
   for (let i = 0; i < 8; i++) {
@@ -1278,17 +1453,18 @@ export function createProceduralTextures(
 
   // 10. Striped Para Cricket Stadium Turf Map
   const turfCanvas = document.createElement('canvas');
-  turfCanvas.width = 256;
-  turfCanvas.height = 256;
+  turfCanvas.width = subPx;
+  turfCanvas.height = subPx;
   const tfCtx = turfCanvas.getContext('2d')!;
+  if (subScale !== 1) tfCtx.scale(subScale, subScale);
   for (let row = 0; row < 8; row++) {
-    tfCtx.fillStyle = row % 2 === 0 ? '#15803d' : '#166534';
+    tfCtx.fillStyle = row % 2 === 0 ? '#1f9d4c' : '#187c3c';
     tfCtx.fillRect(0, row * 32, 256, 32);
   }
-  for (let b = 0; b < 1400; b++) {
+  for (let b = 0; b < 1600; b++) {
     const tx = Math.floor(nextRand() * 256);
     const ty = Math.floor(nextRand() * 256);
-    tfCtx.fillStyle = nextRand() > 0.5 ? 'rgba(134, 239, 172, 0.14)' : 'rgba(20, 83, 45, 0.25)';
+    tfCtx.fillStyle = nextRand() > 0.5 ? 'rgba(187, 247, 208, 0.18)' : 'rgba(20, 83, 45, 0.24)';
     tfCtx.fillRect(tx, ty, 2, 2);
   }
   const cricketTurfMap = new THREE.CanvasTexture(turfCanvas);
@@ -1303,6 +1479,12 @@ export function createProceduralTextures(
     asphaltMap,
     asphaltNormal,
     asphaltRoughness,
+    stuccoNormal,
+    blockNormal,
+    tileNormal,
+    concreteRoughness,
+    rickshawHoodMap,
+    rickshawHoodNormal,
     terracottaTileMap,
     saloonTileMap,
     pharmacyTileMap,
@@ -1394,6 +1576,12 @@ export function createProceduralTextures(
       asphaltMap.dispose();
       asphaltNormal.dispose();
       asphaltRoughness.dispose();
+      stuccoNormal.dispose();
+      blockNormal.dispose();
+      tileNormal.dispose();
+      concreteRoughness.dispose();
+      rickshawHoodMap.dispose();
+      rickshawHoodNormal.dispose();
       terracottaTileMap.dispose();
       saloonTileMap.dispose();
       pharmacyTileMap.dispose();

@@ -601,7 +601,7 @@ export function TitleOverlay({
                       onChange={(e) => onChangeSoloPlayerCount(Number(e.target.value))}
                       className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
                     >
-                      {[5, 6, 7, 8, 9, 10, 12, 15].map((cnt) => (
+                      {[5, 6, 7, 8, 9, 10, 12, 15, 18, 20].map((cnt) => (
                         <option key={cnt} value={cnt}>
                           {cnt} জন
                         </option>
@@ -619,8 +619,14 @@ export function TitleOverlay({
                       <option value={2} disabled={soloPlayerCount < 6}>
                         ২ জন বাটপার {soloPlayerCount < 6 ? '(৬+ জন)' : ''}
                       </option>
-                      <option value={3} disabled={soloPlayerCount < 11}>
-                        ৩ জন বাটপার {soloPlayerCount < 11 ? '(১১+ জন)' : ''}
+                      <option value={3} disabled={soloPlayerCount < 10}>
+                        ৩ জন বাটপার {soloPlayerCount < 10 ? '(১০+ জন)' : ''}
+                      </option>
+                      <option value={4} disabled={soloPlayerCount < 14}>
+                        ৪ জন বাটপার {soloPlayerCount < 14 ? '(১৪+ জন)' : ''}
+                      </option>
+                      <option value={5} disabled={soloPlayerCount < 17}>
+                        ৫ জন বাটপার {soloPlayerCount < 17 ? '(১৭+ জন)' : ''}
                       </option>
                     </select>
                   </label>
@@ -643,10 +649,26 @@ export function TitleOverlay({
                       onChange={(e) => onUpdateSoloSettings({ tasksPerPlayer: Number(e.target.value) })}
                       className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
                     >
-                      <option value={4}>৪টি কাজ</option>
-                      <option value={5}>৫টি কাজ</option>
-                      <option value={6}>৬টি কাজ</option>
-                      <option value={8}>৮টি কাজ</option>
+                      {[4, 5, 6, 8, 10, 12, 15].map((cnt) => (
+                        <option key={cnt} value={cnt}>
+                          {cnt}টি কাজ
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="col-span-2 flex items-center justify-between gap-1.5">
+                    <span className="text-slate-400">দৌড়ের গতি</span>
+                    <select
+                      value={soloSettings.moveSpeed}
+                      onChange={(e) => onUpdateSoloSettings({ moveSpeed: Number(e.target.value) })}
+                      className="px-2 py-1 rounded-lg bg-slate-950 border border-white/15 text-white font-mono-tabular"
+                    >
+                      <option value={7.65}>০.৮৫x (ধীরে)</option>
+                      <option value={9}>১.০x (স্বাভাবিক)</option>
+                      <option value={11.25}>১.২৫x (দ্রুত)</option>
+                      <option value={13.5}>১.৫x (সুপার)</option>
+                      <option value={15.75}>১.৭৫x (টার্বো)</option>
+                      <option value={18}>২.০x (ম্যাক্স)</option>
                     </select>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer select-none">

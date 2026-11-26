@@ -10,7 +10,6 @@ export type QuickMemeId =
   | 'aaho_bhatija'
   | 'helicopter_milon'
   | 'gacher_pata'
-  | 'ashraful'
   | 'prank_call';
 
 export type EventMemeId =
@@ -124,24 +123,14 @@ export const MEME_SLOTS: MemeSlotMeta[] = [
     keywords: ['gacher', 'pata', 'sobhuj', '9'],
   },
   {
-    id: 'ashraful',
-    category: 'quick',
-    isVoicePack: true,
-    defaultLabel: 'আশরাফুল ভাই!',
-    banglaHint: 'ভয়েস প্যাক [০] · কমেডি ভয়েস ক্লিপ',
-    shortKey: '0',
-    defaultAudioUrl: '/assets/memes/ashraful.mp3',
-    keywords: ['ashraful', 'bhai', '0'],
-  },
-  {
     id: 'prank_call',
     category: 'quick',
     isVoicePack: true,
     defaultLabel: 'চাঁটগাইয়া প্র্যাংক!',
-    banglaHint: 'ভয়েস প্যাক [-] · প্র্যাংক কল ভয়েস',
-    shortKey: '-',
+    banglaHint: 'ভয়েস প্যাক [০] · প্র্যাংক কল ভয়েস',
+    shortKey: '0',
     defaultAudioUrl: '/assets/memes/file_clip.mp3',
-    keywords: ['prank', 'call', 'chittainga', 'file'],
+    keywords: ['prank', 'call', 'chittainga', 'file', '0'],
   },
 
   // Automatic Game Event Triggers

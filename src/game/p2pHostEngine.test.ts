@@ -444,5 +444,63 @@ test('P2PHostRoomEngine syncs rooftop y elevation and resolves meeting votes cle
   assert.notEqual(engine.getSnapshot().phase, 'meeting', 'Meeting must never hang at 0s');
 });
 
+test('P2PHostRoomEngine supports entering, driving, honking, and auto-dismounting vehicles on start', () => {
+  const broadcasts: ServerMessage[] = [];
+  const engine = new P2PHostRoomEngine('V3H1C', {
+    sendToClient: () => {},
+    broadcast: (msg) => {
+      broadcasts.push(msg);
+    },
+  });
+
+  engine.addClient('h1', 'Driver Mia', 'lal', true);
+  for (let i = 0; i < 4; i++) engine.handleMessage('h1', { type: 'lobby:add_bot' });
+
+  const initialVeh = engine.getSnapshot().vehicles?.[0];
+  assert.ok(initialVeh, 'Expected initial vehicles in snapshot');
+
+  engine.handleMessage('h1', {
+    type: 'player:move',
+    x: initialVeh.x,
+    z: initialVeh.z,
+    vx: 0,
+    vz: 0,
+    yaw: 0,
+  });
+  engine.handleMessage('h1', { type: 'player:vehicle_toggle', vehicleId: initialVeh.id });
+  const afterBoard = engine.getSnapshot();
+  assert.equal(afterBoard.players.find((p) => p.id === 'pl_host')?.vehicleId, initialVeh.id);
+  assert.equal(afterBoard.vehicles?.find((v) => v.id === initialVeh.id)?.driverId, 'pl_host');
+
+  broadcasts.length = 0;
+  engine.handleMessage('h1', {
+    type: 'player:vehicle_drive',
+    vehicleId: initialVeh.id,
+    x: initialVeh.x + 1.5,
+    z: initialVeh.z + 1.5,
+    yaw: 0.4,
+    vx: 4,
+    vz: 4,
+    speed: 5.5,
+    steer: 0.2,
+  });
+  engine.handleMessage('h1', { type: 'player:vehicle_horn' });
+  const drivenVeh = engine.getSnapshot().vehicles?.find((v) => v.id === initialVeh.id);
+  assert.ok(drivenVeh && Math.abs(drivenVeh.x - (initialVeh.x + 1.5)) < 1.0);
+  assert.equal(
+    broadcasts.some((m) => m.type === 'sfx:event' && m.kind === 'vehicle_horn' && m.vehicleKind === initialVeh.kind),
+    true,
+  );
+
+  engine.handleMessage('h1', { type: 'lobby:start' });
+  for (let i = 0; i < 102; i++) engine.step(0.05);
+  for (let i = 0; i < 170; i++) engine.step(0.05);
+  assert.equal(engine.getSnapshot().phase, 'playing');
+
+  const playVeh = engine.getSnapshot().vehicles?.[0];
+  assert.ok(playVeh);
+  assert.equal(playVeh.driverId, null);
+});
+
 
 

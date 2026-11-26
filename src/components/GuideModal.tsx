@@ -163,7 +163,7 @@ export function GuideModal({ onClose }: GuideModalProps) {
                   <div><strong>মাউস ড্র্যাগ / [C]</strong> চারদিকে তাকানো · <strong>[Y]</strong> ক্যামেরা ঠিক</div>
                   <div><strong>[E]</strong> কাজ / মেরামত / ক্যামেরা · <strong>[R]</strong> লাশ রিপোর্ট</div>
                   <div><strong>[F]</strong> আড্ডা ঘণ্টা · <strong>[G]</strong> বিশেষ ক্ষমতা</div>
-                  <div><strong>[Q]</strong> ঘায়েল (বাটপার) · <strong>[V]</strong> ড্রেন</div>
+                  <div><strong>[Q]</strong> গ্যাপে নাও (বাটপার) · <strong>[V]</strong> ড্রেন</div>
                   <div><strong>[Tab]</strong> ম্যাপ ও নাশকতা · <strong>[1–6]</strong> মিম সাউন্ড</div>
                 </div>
               </section>
@@ -250,7 +250,7 @@ export function GuideModal({ onClose }: GuideModalProps) {
               <div className="rounded-xl p-3 bg-slate-900 border border-rose-500/30">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-bold text-rose-300">আসল বাটপার</span>
-                  <span className="text-[11px] font-mono-tabular text-rose-200">ঘায়েল [Q] · ড্রেন [V]</span>
+                  <span className="text-[11px] font-mono-tabular text-rose-200">গ্যাপে নাও [Q] · ড্রেন [V]</span>
                 </div>
                 <p className="text-xs text-slate-300">
                   সুযোগ বুঝে পাড়াবাসীকে ঘায়েল করো, গোপন ড্রেন দিয়ে পালাও আর লোডশেডিং, ওয়াইফাই বা গ্যাস লিক নাশকতা দাও।

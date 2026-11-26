@@ -196,6 +196,8 @@ export function useMultiplayerClient(
         soundEngine.playLobbyTick();
       } else if (msg.kind === 'lobby_start') {
         soundEngine.playStartWhoosh();
+      } else if (msg.kind === 'vehicle_horn') {
+        soundEngine.playVehicleHorn(msg.vehicleKind ?? 'car');
       }
     }
   }, []);
@@ -532,9 +534,11 @@ export function useMultiplayerClient(
       }
       const ws = wsRef.current;
       if (ws) {
+        const isFrequentTransform =
+          payload.type === 'player:move' || payload.type === 'player:vehicle_drive';
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(payload));
-        } else if (ws.readyState === WebSocket.CONNECTING && payload.type !== 'player:move') {
+        } else if (ws.readyState === WebSocket.CONNECTING && !isFrequentTransform) {
           ws.addEventListener(
             'open',
             () => {
@@ -546,7 +550,11 @@ export function useMultiplayerClient(
         return;
       }
 
-      if (confirmedBackendRef.current === 'express' && payload.type !== 'player:move') {
+      if (
+        confirmedBackendRef.current === 'express' &&
+        payload.type !== 'player:move' &&
+        payload.type !== 'player:vehicle_drive'
+      ) {
         openWsAtUrl(getWebSocketUrl(), payload);
       }
     },

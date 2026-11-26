@@ -370,6 +370,23 @@ export function TacticalMapModal({
                   </g>
                 ))}
 
+              {/* Parked & Active Moholla Vehicles */}
+              {snapshot.vehicles?.map((v) => (
+                <rect
+                  key={v.id}
+                  x={v.x - 1.4}
+                  y={v.z - 2.1}
+                  width={2.8}
+                  height={4.2}
+                  rx="0.7"
+                  fill={v.driverId ? '#38bdf8' : '#e2e8f0'}
+                  fillOpacity={v.driverId ? 0.95 : 0.72}
+                  stroke="#0f172a"
+                  strokeWidth="0.55"
+                  transform={`rotate(${-(v.yaw * 180) / Math.PI} ${v.x} ${v.z})`}
+                />
+              ))}
+
               {/* Remaining Task Pins */}
               {incompleteTasks.map((st) => {
                 const label = st.title.length > 17 ? `${st.title.slice(0, 16)}…` : st.title;
@@ -639,6 +656,9 @@ export function TacticalMapModal({
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded bg-amber-400/70 border border-amber-300 inline-block" /> ছাদের সিঁড়ি
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-3.5 rounded-sm bg-slate-200 inline-block" /> রিকশা/গাড়ি [F]
               </span>
               {showVents && (
                 <span className="flex items-center gap-1.5">

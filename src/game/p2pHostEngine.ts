@@ -11,6 +11,7 @@ import {
   type RoomSettings,
   type RoomSnapshot,
   type ServerMessage,
+  type VehicleState,
 } from '../shared/types';
 import {
   BOT_WAYPOINTS,
@@ -19,14 +20,19 @@ import {
   PLAYER_RADIUS,
   SPAWN_RING,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
   WALLS,
+  createInitialVehicles,
   distance2D,
+  findNearestAvailableVehicle,
   getBanglaZoneNameAt,
   getZoneIdAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePedestrianVehicleCollision,
   resolvePlayerMoveWithElevation,
+  resolveVehicleCollision,
 } from '../shared/mapData';
 import {
   BOHURUPI_COOLDOWN_SEC,
@@ -77,6 +83,7 @@ import {
   countAliveChandabazTargets,
   createEmptySabotageState,
   createSabotageState,
+  dismountPlayerFromVehicle,
   evaluateMatchOutcome,
   executeGoyendaScan,
   findGhotokPairCandidates,
@@ -118,6 +125,7 @@ import {
   type BotBrainState,
   type BatchedGeminiChatReply,
   applyBatchedGeminiChats,
+  applyBatchedGeminiReactionChats,
   buildBatchedGeminiMeetingPayload,
   createBotBrainState,
   generateFallbackMeetingChats,
@@ -152,6 +160,11 @@ const BOT_NAMES = [
   'Pata Bhai',
   'Sona Babu',
   'Lal Mia',
+  'Habu Don',
+  'Firoza Vabi',
+  'Sindur Bhai',
+  'Mehedi Mama',
+  'Chandan Dada',
 ];
 
 export function generateP2PRoomCode(length = 5): string {
@@ -215,7 +228,10 @@ export class P2PHostRoomEngine {
   private settings: RoomSettings = { ...DEFAULT_ROOM_SETTINGS };
   private transport: P2PHostTransport;
   private meetingEpoch = 0;
+  private lastGeminiReactionAt = 0;
+  private geminiCooldownUntil = 0;
   private typingPlayers = new Set<string>();
+  private vehicles: VehicleState[] = createInitialVehicles();
 
   constructor(roomCode: string, transport: P2PHostTransport) {
     this.roomCode = normalizeRoomCode(roomCode) || generateP2PRoomCode();
@@ -262,6 +278,7 @@ export class P2PHostRoomEngine {
       prankedLampUntil: this.prankedLampUntil,
       commsJammedUntil: this.commsJammedUntil,
       ghotokLinkedIds: this.ghotokLinkedIds,
+      vehicles: this.vehicles.map((v) => ({ ...v })),
     };
   }
 
@@ -324,7 +341,7 @@ export class P2PHostRoomEngine {
   }
 
   private recordFootprint(p: PlayerState, distMoved: number): void {
-    if (!p.alive || p.inVent || distMoved < 0.05) return;
+    if (!p.alive || p.inVent || p.vehicleId || distMoved < 0.05) return;
     const prev = (this.footprintAccum.get(p.id) ?? 0) + distMoved;
     if (prev >= 2.2) {
       this.footprintAccum.set(p.id, 0);
@@ -498,6 +515,9 @@ export class P2PHostRoomEngine {
     this.clientToPlayer.delete(clientId);
     this.playerToClient.delete(playerId);
     this.holdingFixMap.delete(playerId);
+    if (oldPlayer?.vehicleId) {
+      dismountPlayerFromVehicle(oldPlayer, this.vehicles, this.doorLocks, false);
+    }
     this.players.delete(playerId);
 
     if (this.clientToPlayer.size === 0) {
@@ -590,6 +610,7 @@ export class P2PHostRoomEngine {
     this.ghotokLinkedIds = null;
     this.doorLocks = makeEmptyDoorLocks();
     this.emergencyCooldownRemaining = this.settings.emergencyCooldownSec;
+    this.vehicles = createInitialVehicles();
     this.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
 
     assigned.forEach((p, idx) => {
@@ -601,6 +622,7 @@ export class P2PHostRoomEngine {
       p.yaw = sp.yaw;
       p.alive = true;
       p.inVent = false;
+      p.vehicleId = null;
       p.watchingCams = false;
       p.visualTaskTimer = 0;
       p.abilityCooldown =
@@ -691,6 +713,7 @@ export class P2PHostRoomEngine {
     this.doorLocks = makeEmptyDoorLocks();
 
     for (const p of this.players.values()) {
+      dismountPlayerFromVehicle(p, this.vehicles, this.doorLocks, false);
       p.inVent = false;
       p.watchingCams = false;
       p.disguiseColor = null;
@@ -703,6 +726,13 @@ export class P2PHostRoomEngine {
       p.vz = 0;
       p.hasVoted = false;
       p.votedFor = null;
+    }
+    for (const v of this.vehicles) {
+      v.driverId = null;
+      v.speed = 0;
+      v.vx = 0;
+      v.vz = 0;
+      v.steer = 0;
     }
 
     if (!this.netaRevealedId) {
@@ -719,6 +749,7 @@ export class P2PHostRoomEngine {
 
     resetBotBrainsForMeeting(this.botMemories);
     this.meetingEpoch += 1;
+    this.lastGeminiReactionAt = 0;
     this.typingPlayers.clear();
 
     if (reason === 'body') {
@@ -735,7 +766,7 @@ export class P2PHostRoomEngine {
       meetingReason: reason,
       meetingCallerId: caller.id,
     });
-    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id);
+    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id, 'opening');
 
     this.broadcastState({ type: 'sfx:event', kind: reason === 'body' ? 'report' : 'meeting' });
     this.broadcastState();
@@ -745,8 +776,10 @@ export class P2PHostRoomEngine {
     epoch: number,
     reason: 'body' | 'emergency',
     callerId: string,
+    phase: 'opening' | 'reaction' = 'opening',
   ): Promise<void> {
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    if (Date.now() < this.geminiCooldownUntil) return;
     const players = Array.from(this.players.values());
     const payload = buildBatchedGeminiMeetingPayload({
       roomCode: this.roomCode,
@@ -756,6 +789,7 @@ export class P2PHostRoomEngine {
       chat: this.chat,
       meetingReason: reason,
       meetingCallerId: callerId,
+      phase,
     });
     if (payload.bots.length === 0) return;
 
@@ -769,10 +803,19 @@ export class P2PHostRoomEngine {
         signal: controller.signal,
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { messages?: BatchedGeminiChatReply[] };
+      const data = (await res.json()) as {
+        messages?: BatchedGeminiChatReply[];
+        quotaExceeded?: boolean;
+        retryAfterSec?: number;
+      };
+      if (data?.quotaExceeded || (typeof data?.retryAfterSec === 'number' && data.retryAfterSec > 0)) {
+        const sec = Math.max(15, data.retryAfterSec ?? 60);
+        this.geminiCooldownUntil = Date.now() + sec * 1000;
+      }
       if (this.phase !== 'meeting' || this.meetingEpoch !== epoch) return;
       if (Array.isArray(data?.messages) && data.messages.length > 0) {
-        applyBatchedGeminiChats({
+        const applyFn = phase === 'reaction' ? applyBatchedGeminiReactionChats : applyBatchedGeminiChats;
+        applyFn({
           replies: data.messages,
           players: Array.from(this.players.values()),
           brains: this.botMemories,
@@ -809,7 +852,7 @@ export class P2PHostRoomEngine {
         nowMs: Date.now(),
         onFootprint: (p, distMoved) => this.recordFootprint(p, distMoved),
         onReportBody: (reporter, body) => this.startMeeting(reporter, 'body', body.victimName),
-        onKill: (_killer, victim, shieldBlocked) => {
+        onKill: (killer, victim, shieldBlocked) => {
           if (shieldBlocked) {
             this.broadcastState({ type: 'sfx:event', kind: 'shield' });
             this.sendToPlayer(victim.id, {
@@ -818,7 +861,13 @@ export class P2PHostRoomEngine {
               detail: 'একজন বাটপার হামলা করেছিল, কিন্তু তাবিজ বা ইনজেকশন বাঁচিয়ে দিয়েছে!',
             });
           } else {
-            this.broadcastState({ type: 'sfx:event', kind: 'kill' });
+            if (!killer.isBot) {
+              this.sendToPlayer(killer.id, { type: 'sfx:event', kind: 'kill' });
+            }
+            if (!victim.isBot && victim.id !== killer.id) {
+              this.sendToPlayer(victim.id, { type: 'sfx:event', kind: 'kill' });
+            }
+            dismountPlayerFromVehicle(victim, this.vehicles, this.doorLocks, false);
             this.handleDeathSideEffects(victim);
           }
         },
@@ -932,6 +981,14 @@ export class P2PHostRoomEngine {
       this.updateBots(dt);
       if (this.phase !== 'playing') return;
 
+      for (const bp of this.players.values()) {
+        if (bp.isBot && bp.alive && !bp.inVent && !bp.vehicleId && (bp.y ?? 0) < 0.8) {
+          const pv = resolvePedestrianVehicleCollision(bp.x, bp.z, PLAYER_RADIUS, this.vehicles);
+          bp.x = pv.x;
+          bp.z = pv.z;
+        }
+      }
+
       const sabStep = advanceSabotageState(
         this.sabotage,
         Array.from(this.players.values()),
@@ -984,6 +1041,7 @@ export class P2PHostRoomEngine {
         if (this.ejection?.ejectedId) {
           const ejected = this.players.get(this.ejection.ejectedId);
           if (ejected) {
+            dismountPlayerFromVehicle(ejected, this.vehicles, this.doorLocks, false);
             ejected.alive = false;
             this.justEjectedPlayer = ejected;
             this.handleDeathSideEffects(ejected);
@@ -1204,9 +1262,9 @@ export class P2PHostRoomEngine {
       }
       case 'player:move': {
         if (this.phase !== 'playing' && this.phase !== 'lobby') return;
-        if (player.inVent) return;
+        if (player.inVent || player.vehicleId) return;
         const prevY = player.y ?? 0;
-        const resolved = player.alive
+        let resolved = player.alive
           ? resolvePlayerMoveWithElevation(
               player.x,
               player.z,
@@ -1218,6 +1276,10 @@ export class P2PHostRoomEngine {
               this.doorLocks,
             )
           : { x: msg.x, z: msg.z, y: msg.y ?? prevY };
+        if (player.alive && (resolved.y ?? 0) < 0.8) {
+          const pv = resolvePedestrianVehicleCollision(resolved.x, resolved.z, PLAYER_RADIUS, this.vehicles);
+          resolved = { ...resolved, x: pv.x, z: pv.z };
+        }
         const moved = Math.hypot(resolved.x - player.x, resolved.z - player.z);
         player.x = resolved.x;
         player.z = resolved.z;
@@ -1229,6 +1291,80 @@ export class P2PHostRoomEngine {
           this.recordFootprint(player, moved);
         } else if (this.phase === 'lobby') {
           this.broadcastState();
+        }
+        break;
+      }
+      case 'player:vehicle_toggle': {
+        if ((this.phase !== 'playing' && this.phase !== 'lobby') || !player.alive || player.inVent) return;
+        if (player.vehicleId) {
+          dismountPlayerFromVehicle(player, this.vehicles, this.doorLocks, true);
+          this.broadcastState();
+          return;
+        }
+        if ((player.y ?? 0) > 1.2) return;
+        const target = msg.vehicleId
+          ? this.vehicles.find(
+              (v) => v.id === msg.vehicleId && !v.driverId && distance2D(player.x, player.z, v.x, v.z) <= 5.5,
+            )
+          : findNearestAvailableVehicle(player.x, player.z, this.vehicles);
+        if (!target) return;
+        player.vehicleId = target.id;
+        player.watchingCams = false;
+        player.jharuTargetBodyId = null;
+        player.jharuTimer = 0;
+        this.holdingFixMap.delete(player.id);
+        target.driverId = player.id;
+        target.speed = 0;
+        target.vx = 0;
+        target.vz = 0;
+        target.steer = 0;
+        player.x = target.x;
+        player.z = target.z;
+        player.y = 0;
+        player.vx = 0;
+        player.vz = 0;
+        player.yaw = target.yaw;
+        this.broadcastState();
+        break;
+      }
+      case 'player:vehicle_drive': {
+        if ((this.phase !== 'playing' && this.phase !== 'lobby') || !player.alive || !player.vehicleId) return;
+        if (msg.vehicleId !== player.vehicleId) return;
+        const v = this.vehicles.find((item) => item.id === player.vehicleId && item.driverId === player.id);
+        if (!v) return;
+        const spec = VEHICLE_SPECS[v.kind];
+        const resolved = resolveVehicleCollision(
+          msg.x,
+          msg.z,
+          spec.collisionRadius,
+          this.vehicles,
+          v.id,
+          this.doorLocks,
+        );
+        v.x = resolved.x;
+        v.z = resolved.z;
+        v.yaw = msg.yaw;
+        const maxAllowed = spec.maxSpeed * 1.35;
+        v.speed = Math.max(-spec.reverseSpeed * 1.2, Math.min(maxAllowed, msg.speed));
+        v.vx = msg.vx;
+        v.vz = msg.vz;
+        v.steer = Math.max(-1, Math.min(1, msg.steer));
+        player.x = v.x;
+        player.z = v.z;
+        player.y = 0;
+        player.yaw = msg.yaw;
+        player.vx = msg.vx;
+        player.vz = msg.vz;
+        if (this.phase === 'lobby') {
+          this.broadcastState();
+        }
+        break;
+      }
+      case 'player:vehicle_horn': {
+        if ((this.phase !== 'playing' && this.phase !== 'lobby') || !player.alive || !player.vehicleId) return;
+        const v = this.vehicles.find((item) => item.id === player.vehicleId);
+        if (v) {
+          this.broadcastState({ type: 'sfx:event', kind: 'vehicle_horn', vehicleKind: v.kind });
         }
         break;
       }
@@ -1385,6 +1521,7 @@ export class P2PHostRoomEngine {
           player.shotsLeft = Math.max(0, (player.shotsLeft ?? 1) - 1);
           this.broadcastState({ type: 'sfx:event', kind: 'daroga' });
           if (res.hitVondo) {
+            dismountPlayerFromVehicle(target, this.vehicles, this.doorLocks, false);
             target.alive = false;
             target.watchingCams = false;
             player.abilityCooldown = DAROGA_COOLDOWN_SEC;
@@ -1406,6 +1543,7 @@ export class P2PHostRoomEngine {
               detail: `${target.name} ছিল আসল বাটপার! একেবারে সাইজ করে দিয়েছ!`,
             });
           } else {
+            dismountPlayerFromVehicle(player, this.vehicles, this.doorLocks, false);
             player.alive = false;
             player.watchingCams = false;
             this.bodies.push({
@@ -1760,6 +1898,7 @@ export class P2PHostRoomEngine {
           this.broadcastState();
           return;
         }
+        dismountPlayerFromVehicle(target, this.vehicles, this.doorLocks, false);
         target.alive = false;
         target.watchingCams = false;
         const hitSupari = player.specialRole === 'supari_killer' && target.id === player.supariTargetId;
@@ -1788,7 +1927,12 @@ export class P2PHostRoomEngine {
           killerColorHint: getColorShadeHint(player.color),
           killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
         });
-        this.broadcastState({ type: 'sfx:event', kind: 'kill' });
+        if (!player.isBot) {
+          this.sendToPlayer(player.id, { type: 'sfx:event', kind: 'kill' });
+        }
+        if (!target.isBot && target.id !== player.id) {
+          this.sendToPlayer(target.id, { type: 'sfx:event', kind: 'kill' });
+        }
         this.handleDeathSideEffects(target);
         recordKillWitnesses(
           this.botMemories,
@@ -1935,11 +2079,27 @@ export class P2PHostRoomEngine {
           ghostOnly: !player.alive,
         };
         this.chat.push(chatMsg);
+        const allPlayers = Array.from(this.players.values());
         processChatMessageForBots({
           msg: chatMsg,
-          players: Array.from(this.players.values()),
+          players: allPlayers,
           brains: this.botMemories,
         });
+        if (
+          !player.isBot &&
+          player.alive &&
+          this.meetingReason &&
+          Date.now() - this.lastGeminiReactionAt >= 4000 &&
+          allPlayers.some((pl) => pl.isBot && pl.alive)
+        ) {
+          this.lastGeminiReactionAt = Date.now();
+          void this.fetchGeminiMeetingChats(
+            this.meetingEpoch,
+            this.meetingReason,
+            this.meetingCallerId ?? player.id,
+            'reaction',
+          );
+        }
         this.broadcastState();
         break;
       }
@@ -1975,7 +2135,6 @@ export class P2PHostRoomEngine {
           'aaho_bhatija',
           'helicopter_milon',
           'gacher_pata',
-          'ashraful',
           'prank_call',
         ]);
         if (allowed.has(msg.memeId)) {
@@ -2004,6 +2163,7 @@ export class P2PHostRoomEngine {
         this.commsJammedUntil = 0;
         this.ghotokLinkedIds = null;
         this.emergencyCooldownRemaining = 0;
+        this.vehicles = createInitialVehicles();
         this.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
         this.doorLocks = makeEmptyDoorLocks();
         let idx = 0;
@@ -2017,6 +2177,7 @@ export class P2PHostRoomEngine {
           p.yaw = sp.yaw;
           p.alive = true;
           p.inVent = false;
+          p.vehicleId = null;
           p.watchingCams = false;
           p.visualTaskTimer = 0;
           p.abilityCooldown = 0;

@@ -21,6 +21,11 @@ export const FUNNY_MULTIPLAYER_IDENTITIES: AutoIdentity[] = [
   { name: 'Jam Jasim', color: 'jam' },
   { name: 'Pata Polash', color: 'olive' },
   { name: 'Sona Sohel', color: 'tan' },
+  { name: 'Korolla Kabir', color: 'korolla' },
+  { name: 'Firoza Farhan', color: 'firoza' },
+  { name: 'Sindur Sajjad', color: 'sindur' },
+  { name: 'Mehedi Munna', color: 'mehedi' },
+  { name: 'Chandan Chintu', color: 'chandan' },
 ];
 
 export function pickAutoMultiplayerIdentity(

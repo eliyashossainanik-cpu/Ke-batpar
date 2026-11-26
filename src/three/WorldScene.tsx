@@ -1,16 +1,13 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import {
   PLAYER_COLORS,
   type DoorZoneId,
   type GamePhase,
   type PlayerColorId,
   type RoomSnapshot,
+  type VehicleKind,
 } from '../shared/types';
 import {
   ADMIN_TABLE_POS,
@@ -24,12 +21,16 @@ import {
   SECURITY_CAMERAS,
   STAIR_RAMPS,
   TASK_STATIONS,
+  VEHICLE_SPAWNS,
+  VEHICLE_SPECS,
   VENTS,
   VITALS_POS,
   WALLS,
   ZONES,
   resolveCircleWallCollision,
+  resolvePedestrianVehicleCollision,
   resolvePlayerMoveWithElevation,
+  resolveVehicleCollision,
 } from '../shared/mapData';
 import { BOHURUPI_GLITCH_RANGE, VISUAL_TASK_VISIBLE_RANGE } from '../shared/gameRules';
 import { createProceduralTextures } from './proceduralTextures';
@@ -45,28 +46,23 @@ import {
   createBusStopShelterModel,
   createCharacterRig,
   createClotheslineProp,
-  createCngModel,
   createAlleyProps,
-  createDhakaMiniBusModel,
   createDrainVent,
   createHedgeRow,
   createInstancedGrassTufts,
   createJhalmuriCartModel,
   createKrishnachuraTree,
   createMoricbattiGarlands,
-  createMotorbikeModel,
   createOverheadWires,
   createPalmTree,
-  createParkedCarModel,
-  createPickupTruckModel,
   createPlanterPot,
   createRailCrossingGate,
-  createRickshawModel,
   createRoadDividerCluster,
   createRoadsideTapriStall,
   createRooftopChhilekotha,
   createRooftopMachanProp,
   createSandbagBarricade,
+  createScatteredBouldersInstanced,
   createSecurityCamMesh,
   createShippingContainerModel,
   createShutterDoor,
@@ -76,9 +72,11 @@ import {
   createTerrainSkirt,
   createTwilightSkyline,
   createUtilityPole,
+  createVehicleRig,
   createAdminTableModel,
   createVitalsKioskModel,
   type CharacterRig,
+  type VehicleRig,
 } from './models';
 import {
   createAddaMonument,
@@ -111,6 +109,19 @@ export interface WorldSceneProps {
   isModalOpen: boolean;
   joystickInputRef: React.MutableRefObject<{ x: number; y: number }>;
   onLocalMove: (x: number, z: number, vx: number, vz: number, yaw: number, y?: number) => void;
+  onLocalVehicleDrive?: (
+    vehicleId: string,
+    x: number,
+    z: number,
+    yaw: number,
+    vx: number,
+    vz: number,
+    speed: number,
+    steer: number,
+  ) => void;
+  onDriveSpeedChange?: (speedMs: number) => void;
+  handbrakeRef?: React.MutableRefObject<boolean>;
+  boostRef?: React.MutableRefObject<boolean>;
   onShakeTriggerRef?: React.MutableRefObject<((amount: number) => void) | null>;
   pointerLookEnabled?: boolean;
   onPointerLookChange?: (enabled: boolean) => void;
@@ -188,6 +199,10 @@ export function WorldScene({
   isModalOpen,
   joystickInputRef,
   onLocalMove,
+  onLocalVehicleDrive,
+  onDriveSpeedChange,
+  handbrakeRef,
+  boostRef,
   onShakeTriggerRef,
   pointerLookEnabled = false,
   onPointerLookChange,
@@ -203,6 +218,8 @@ export function WorldScene({
   const moveSpeedRef = useRef(moveSpeed);
   const isModalOpenRef = useRef(isModalOpen);
   const onLocalMoveRef = useRef(onLocalMove);
+  const onLocalVehicleDriveRef = useRef(onLocalVehicleDrive);
+  const onDriveSpeedChangeRef = useRef(onDriveSpeedChange);
   const pointerLookEnabledRef = useRef(pointerLookEnabled);
   const onPointerLookChangeRef = useRef(onPointerLookChange);
   const onCompassYawChangeRef = useRef(onCompassYawChange);
@@ -213,6 +230,8 @@ export function WorldScene({
   moveSpeedRef.current = moveSpeed;
   isModalOpenRef.current = isModalOpen;
   onLocalMoveRef.current = onLocalMove;
+  onLocalVehicleDriveRef.current = onLocalVehicleDrive;
+  onDriveSpeedChangeRef.current = onDriveSpeedChange;
   pointerLookEnabledRef.current = pointerLookEnabled;
   onPointerLookChangeRef.current = onPointerLookChange;
   onCompassYawChangeRef.current = onCompassYawChange;
@@ -247,7 +266,7 @@ export function WorldScene({
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = isMobileGpu ? 1.08 : 1.04;
+    renderer.toneMappingExposure = isMobileGpu ? 1.04 : 1.02;
     renderer.setPixelRatio(currentDpr);
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = !isSoftwareGl;
@@ -267,47 +286,31 @@ export function WorldScene({
     canvas.addEventListener('webglcontextlost', handleContextLost);
 
     const scene = new THREE.Scene();
-    const skyColor = new THREE.Color(0x0c1324);
+    const twilightSkyColor = new THREE.Color(0xb8c8d8);
+    const nightSkyColor = new THREE.Color(0x050811);
+    const skyColor = twilightSkyColor.clone();
+    const normalFogDensity = 0.0013;
     scene.background = skyColor;
-    scene.fog = new THREE.FogExp2(0x0c1324, 0.0024);
+    scene.fog = new THREE.FogExp2(twilightSkyColor.getHex(), normalFogDensity);
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.32;
+    const baseEnvIntensity = 0.72;
+    scene.environmentIntensity = baseEnvIntensity;
     pmremGenerator.dispose();
 
     const camera = new THREE.PerspectiveCamera(54, width / height, 0.2, 640);
     camera.position.set(0, 18, 34);
 
-    // Desktop-GPU HDR Post-Processing at half-res bloom (4x faster fragment pass; auto-disables if FPS dips)
-    let composer: EffectComposer | null = null;
-    let bloomPass: UnrealBloomPass | null = null;
-    let useComposer = false;
-    if (!isSoftwareGl && !isMobileGpu) {
-      composer = new EffectComposer(renderer);
-      composer.setPixelRatio(currentDpr);
-      composer.setSize(width, height);
-      composer.addPass(new RenderPass(scene, camera));
-      bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2))),
-        0.16,
-        0.35,
-        1.38,
-      );
-      composer.addPass(bloomPass);
-      composer.addPass(new OutputPass());
-      useComposer = true;
-    }
-
-    // 3-Point Warm/Cool Lighting Rig + Horizon Warm Bounce Fill + Player-Tracking Shadow Frustum
-    const baseHemiIntensity = isMobileGpu ? 0.58 : 0.48;
-    const baseKeyIntensity = 1.26;
-    const baseBounceIntensity = 0.2;
-    const hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x0f172a, baseHemiIntensity);
+    // Golden-Hour / Late-Afternoon Sunlit Outdoor PBR Lighting Rig + Player-Tracking Shadow Frustum
+    const baseHemiIntensity = isMobileGpu ? 0.82 : 0.76;
+    const baseKeyIntensity = 2.45;
+    const baseBounceIntensity = 0.36;
+    const hemiLight = new THREE.HemisphereLight(0xd4e8ff, 0x6b5848, baseHemiIntensity);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffe1b0, baseKeyIntensity);
-    keyLight.position.set(34, 48, 28);
+    const keyLight = new THREE.DirectionalLight(0xfff1d6, baseKeyIntensity);
+    keyLight.position.set(32, 46, 26);
     keyLight.castShadow = !isSoftwareGl;
     const shadowRes = isSoftwareGl || isMobileGpu ? 1024 : 2048;
     const titleShadowSpan = 48;
@@ -319,23 +322,29 @@ export function WorldScene({
     keyLight.shadow.camera.right = titleShadowSpan;
     keyLight.shadow.camera.top = titleShadowSpan;
     keyLight.shadow.camera.bottom = -titleShadowSpan;
-    keyLight.shadow.bias = -0.0004;
-    keyLight.shadow.normalBias = 0.02;
+    keyLight.shadow.radius = 2.2;
+    keyLight.shadow.bias = -0.0003;
+    keyLight.shadow.normalBias = 0.018;
     scene.add(keyLight);
     scene.add(keyLight.target);
 
-    const bounceLight = new THREE.DirectionalLight(0xffb36b, baseBounceIntensity);
-    bounceLight.position.set(-28, 12, 30);
+    const bounceLight = new THREE.DirectionalLight(0x9bc5f8, baseBounceIntensity);
+    bounceLight.position.set(-28, 14, -26);
     scene.add(bounceLight);
 
-    const rimLight = new THREE.DirectionalLight(0x60a5fa, 0.42);
-    rimLight.position.set(-34, 24, -34);
+    const rimLight = new THREE.DirectionalLight(0xffdfb8, 0.28);
+    rimLight.position.set(-34, 24, 34);
     scene.add(rimLight);
 
-    // Emergency personal lantern (off during normal power so it never glares onto the player; activates during Loadshedding)
+    // Emergency personal lantern (activates during Loadshedding)
     const lanternLight = new THREE.PointLight(0xfbbf24, 0, 15, 1.8);
     lanternLight.position.set(0, 2.9, 0);
     scene.add(lanternLight);
+
+    // Dynamic vehicle headlight SpotLight (illuminates road during Loadshedding when driving)
+    const vehHeadlightSpot = new THREE.SpotLight(0xfff4d6, 0, 26, Math.PI * 0.24, 0.55, 1.4);
+    vehHeadlightSpot.castShadow = false;
+    scene.add(vehHeadlightSpot, vehHeadlightSpot.target);
 
     const textures = createProceduralTextures(renderer, isMobileGpu ? 2 : 8, isMobileGpu || isSoftwareGl);
 
@@ -357,10 +366,10 @@ export function WorldScene({
       new THREE.MeshStandardMaterial({
         map: textures.asphaltMap,
         normalMap: textures.asphaltNormal,
-        normalScale: new THREE.Vector2(0.75, 0.75),
+        normalScale: new THREE.Vector2(1.0, 1.0),
         roughnessMap: textures.asphaltRoughness,
         roughness: 1.0,
-        metalness: 0.08,
+        metalness: 0.02,
       }),
     );
     compoundFloor.rotation.x = -Math.PI / 2;
@@ -369,6 +378,9 @@ export function WorldScene({
     scene.add(compoundFloor);
 
     // Moholla Main Avenues + Inner Ring + Outer Para & Rail Boulevards (320m × 320m Map)
+    const roadMapNS = textures.asphaltMap.clone();
+    roadMapNS.repeat.set(1, 24);
+    roadMapNS.needsUpdate = true;
     const roadNormNS = textures.asphaltNormal.clone();
     roadNormNS.repeat.set(1, 24);
     roadNormNS.needsUpdate = true;
@@ -376,6 +388,9 @@ export function WorldScene({
     roadRoughNS.repeat.set(1, 24);
     roadRoughNS.needsUpdate = true;
 
+    const roadMapEW = textures.asphaltMap.clone();
+    roadMapEW.repeat.set(24, 1);
+    roadMapEW.needsUpdate = true;
     const roadNormEW = textures.asphaltNormal.clone();
     roadNormEW.repeat.set(24, 1);
     roadNormEW.needsUpdate = true;
@@ -384,20 +399,22 @@ export function WorldScene({
     roadRoughEW.needsUpdate = true;
 
     const roadSurfaceMatNS = new THREE.MeshStandardMaterial({
-      color: '#18212f',
+      color: '#ffffff',
+      map: roadMapNS,
       normalMap: roadNormNS,
-      normalScale: new THREE.Vector2(0.45, 0.45),
+      normalScale: new THREE.Vector2(0.95, 0.95),
       roughnessMap: roadRoughNS,
       roughness: 1.0,
-      metalness: 0.08,
+      metalness: 0.02,
     });
     const roadSurfaceMatEW = new THREE.MeshStandardMaterial({
-      color: '#18212f',
+      color: '#ffffff',
+      map: roadMapEW,
       normalMap: roadNormEW,
-      normalScale: new THREE.Vector2(0.45, 0.45),
+      normalScale: new THREE.Vector2(0.95, 0.95),
       roughnessMap: roadRoughEW,
       roughness: 1.0,
-      metalness: 0.08,
+      metalness: 0.02,
     });
     const roadsGroup = new THREE.Group();
     const roadNS = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 316.0), roadSurfaceMatNS);
@@ -456,8 +473,8 @@ export function WorldScene({
     scene.add(optimizeStaticGroup(roadsGroup));
 
     const dashMat = new THREE.MeshStandardMaterial({
-      color: '#94a3b8',
-      roughness: 0.92,
+      color: '#cbd5e1',
+      roughness: 0.86,
       metalness: 0.0,
       polygonOffset: true,
       polygonOffsetFactor: -1,
@@ -521,7 +538,7 @@ export function WorldScene({
     // Yellow Railway Level-Crossing Hazard Bars across all 7 N-S road crossings (x = 0, ±52, ±86, ±118)
     const hazardMat = new THREE.MeshStandardMaterial({
       color: '#eab308',
-      roughness: 0.7,
+      roughness: 0.86,
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
@@ -601,6 +618,8 @@ export function WorldScene({
       new THREE.MeshStandardMaterial({
         color: '#d9c2ae',
         map: textures.terracottaTileMap,
+        normalMap: textures.tileNormal,
+        normalScale: new THREE.Vector2(0.65, 0.65),
         roughness: 0.84,
         metalness: 0.04,
       }),
@@ -660,6 +679,8 @@ export function WorldScene({
                       new THREE.MeshStandardMaterial({
                         color: terraTint,
                         map: textures.terracottaTileMap,
+                        normalMap: textures.tileNormal,
+                        normalScale: new THREE.Vector2(0.65, 0.65),
                         roughness: 0.82,
                         metalness: 0.04,
                       }),
@@ -756,9 +777,13 @@ export function WorldScene({
 
     // Concrete Sidewalk Kerbs + Dhaka Black/Yellow Kerb Edging & Storm Drains (Instanced into 4 draw calls)
     const sidewalkSlabMat = new THREE.MeshStandardMaterial({
-      color: '#64748b',
-      roughness: 0.84,
-      metalness: 0.04,
+      color: '#94a3b8',
+      map: textures.sidewalkMap,
+      normalMap: textures.stuccoNormal,
+      normalScale: new THREE.Vector2(0.8, 0.8),
+      roughnessMap: textures.concreteRoughness,
+      roughness: 0.9,
+      metalness: 0.02,
     });
     const kerbYellowMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.55 });
     const kerbSlateMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.65 });
@@ -854,18 +879,26 @@ export function WorldScene({
     // Animated Shader-Wave Pukur Water + Stone Ghat Steps + Kolshi + Boat + Lotuses
     const waterUniforms = { uTime: { value: 0 } };
     const waterMat = new THREE.MeshStandardMaterial({
+      color: '#0e7490',
       map: textures.waterMap,
       roughness: 0.08,
-      metalness: 0.48,
+      metalness: 0.52,
       emissive: '#0c4a6e',
-      emissiveIntensity: 0.14,
+      emissiveIntensity: 0.16,
     });
     waterMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = waterUniforms.uTime;
-      shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`.replace(
+      shader.vertexShader = `uniform float uTime;\nvarying vec2 vWaterUv;\n${shader.vertexShader}`.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
+         vWaterUv = uv;
          transformed.z += sin(position.x * 1.4 + uTime * 2.2) * 0.045 + cos(position.y * 1.2 + uTime * 1.7) * 0.04;`,
+      );
+      shader.fragmentShader = `uniform float uTime;\nvarying vec2 vWaterUv;\n${shader.fragmentShader}`.replace(
+        '#include <dithering_fragment>',
+        `float wGlint = pow(max(0.0, sin(vWaterUv.x * 26.0 + uTime * 2.1) * cos(vWaterUv.y * 22.0 - uTime * 1.65)), 6.0);
+         gl_FragColor.rgb += vec3(0.14, 0.28, 0.36) * wGlint;
+         #include <dithering_fragment>`,
       );
     };
     const pukurWater = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 16.0, 22, 32), waterMat);
@@ -920,36 +953,164 @@ export function WorldScene({
       map: textures.wallBrickMap,
       normalMap: textures.wallBrickNormal,
       normalScale: new THREE.Vector2(1.0, 1.0),
-      roughness: 0.84,
-      metalness: 0.02,
+      roughness: 0.9,
+      metalness: 0.0,
     });
     const alleyWallMat = new THREE.MeshStandardMaterial({
       map: textures.alleyStuccoMap,
-      roughness: 0.82,
-      metalness: 0.04,
+      normalMap: textures.stuccoNormal,
+      normalScale: new THREE.Vector2(0.85, 0.85),
+      roughness: 0.88,
+      metalness: 0.02,
     });
     const zoneWallMatMap: Record<string, THREE.MeshStandardMaterial> = {
-      cha_dokan: new THREE.MeshStandardMaterial({ map: textures.chaWallMap, roughness: 0.78, metalness: 0.04 }),
-      rickshaw_garage: new THREE.MeshStandardMaterial({ map: textures.garageWallMap, roughness: 0.72, metalness: 0.08 }),
-      desco_power: new THREE.MeshStandardMaterial({ map: textures.descoWallMap, roughness: 0.44, metalness: 0.46 }),
-      dish_roof: new THREE.MeshStandardMaterial({ map: textures.dishWallMap, roughness: 0.62, metalness: 0.14 }),
-      saloon_goli: new THREE.MeshStandardMaterial({ map: textures.saloonWallMap, roughness: 0.32, metalness: 0.1 }),
-      pharmacy_mor: new THREE.MeshStandardMaterial({ map: textures.pharmacyWallMap, roughness: 0.28, metalness: 0.08 }),
-      kakar_bari: new THREE.MeshStandardMaterial({ map: textures.kakaWallMap, roughness: 0.74, metalness: 0.04 }),
-      master_bari: new THREE.MeshStandardMaterial({ map: textures.masterWallMap, roughness: 0.72, metalness: 0.04 }),
-      chacha_bari: new THREE.MeshStandardMaterial({ map: textures.chachaWallMap, roughness: 0.72, metalness: 0.05 }),
-      khalar_bari: new THREE.MeshStandardMaterial({ map: textures.khalaWallMap, roughness: 0.72, metalness: 0.04 }),
-      nanar_bari: new THREE.MeshStandardMaterial({ map: textures.nanaWallMap, roughness: 0.74, metalness: 0.04 }),
-      cinema_hall: new THREE.MeshStandardMaterial({ map: textures.cinemaWallMap, roughness: 0.45, metalness: 0.12 }),
-      bhai_duplex: new THREE.MeshStandardMaterial({ map: textures.bhaiWallMap, roughness: 0.62, metalness: 0.08 }),
-      coaching_center: new THREE.MeshStandardMaterial({ map: textures.coachingWallMap, roughness: 0.68, metalness: 0.04 }),
-      khalur_bari: new THREE.MeshStandardMaterial({ map: textures.khaluWallMap, roughness: 0.72, metalness: 0.04 }),
-      kacchi_house: new THREE.MeshStandardMaterial({ map: textures.kacchiWallMap, roughness: 0.72, metalness: 0.06 }),
-      cyber_cafe: new THREE.MeshStandardMaterial({ map: textures.cyberWallMap, roughness: 0.4, metalness: 0.22 }),
-      dorji_bari: new THREE.MeshStandardMaterial({ map: textures.dorjiWallMap, roughness: 0.68, metalness: 0.06 }),
-      tiger_gym: new THREE.MeshStandardMaterial({ map: textures.gymWallMap, roughness: 0.5, metalness: 0.28 }),
-      rail_colony: new THREE.MeshStandardMaterial({ map: textures.colonyWallMap, roughness: 0.76, metalness: 0.06 }),
-      fufu_bari: new THREE.MeshStandardMaterial({ map: textures.fufuWallMap, roughness: 0.72, metalness: 0.05 }),
+      cha_dokan: new THREE.MeshStandardMaterial({
+        map: textures.chaWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughness: 0.86,
+        metalness: 0.02,
+      }),
+      rickshaw_garage: new THREE.MeshStandardMaterial({
+        map: textures.garageWallMap,
+        normalMap: textures.blockNormal,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughness: 0.84,
+        metalness: 0.04,
+      }),
+      desco_power: new THREE.MeshStandardMaterial({
+        map: textures.descoWallMap,
+        normalMap: textures.tinNormal,
+        normalScale: new THREE.Vector2(0.9, 0.9),
+        roughness: 0.44,
+        metalness: 0.48,
+      }),
+      dish_roof: new THREE.MeshStandardMaterial({
+        map: textures.dishWallMap,
+        normalMap: textures.blockNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.74,
+        metalness: 0.12,
+      }),
+      saloon_goli: new THREE.MeshStandardMaterial({
+        map: textures.saloonWallMap,
+        normalMap: textures.tileNormal,
+        normalScale: new THREE.Vector2(0.7, 0.7),
+        roughness: 0.34,
+        metalness: 0.08,
+      }),
+      pharmacy_mor: new THREE.MeshStandardMaterial({
+        map: textures.pharmacyWallMap,
+        normalMap: textures.tileNormal,
+        normalScale: new THREE.Vector2(0.7, 0.7),
+        roughness: 0.3,
+        metalness: 0.06,
+      }),
+      kakar_bari: new THREE.MeshStandardMaterial({
+        map: textures.kakaWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.02,
+      }),
+      master_bari: new THREE.MeshStandardMaterial({
+        map: textures.masterWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.02,
+      }),
+      chacha_bari: new THREE.MeshStandardMaterial({
+        map: textures.chachaWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.02,
+      }),
+      khalar_bari: new THREE.MeshStandardMaterial({
+        map: textures.khalaWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.02,
+      }),
+      nanar_bari: new THREE.MeshStandardMaterial({
+        map: textures.nanaWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.84,
+        metalness: 0.02,
+      }),
+      cinema_hall: new THREE.MeshStandardMaterial({
+        map: textures.cinemaWallMap,
+        normalMap: textures.tileNormal,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughness: 0.48,
+        metalness: 0.1,
+      }),
+      bhai_duplex: new THREE.MeshStandardMaterial({
+        map: textures.bhaiWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughness: 0.72,
+        metalness: 0.05,
+      }),
+      coaching_center: new THREE.MeshStandardMaterial({
+        map: textures.coachingWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.8,
+        metalness: 0.02,
+      }),
+      khalur_bari: new THREE.MeshStandardMaterial({
+        map: textures.khaluWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.02,
+      }),
+      kacchi_house: new THREE.MeshStandardMaterial({
+        map: textures.kacchiWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.82,
+        metalness: 0.04,
+      }),
+      cyber_cafe: new THREE.MeshStandardMaterial({
+        map: textures.cyberWallMap,
+        normalMap: textures.tileNormal,
+        normalScale: new THREE.Vector2(0.75, 0.75),
+        roughness: 0.42,
+        metalness: 0.18,
+      }),
+      dorji_bari: new THREE.MeshStandardMaterial({
+        map: textures.dorjiWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.78,
+        metalness: 0.04,
+      }),
+      tiger_gym: new THREE.MeshStandardMaterial({
+        map: textures.gymWallMap,
+        normalMap: textures.blockNormal,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughness: 0.56,
+        metalness: 0.22,
+      }),
+      rail_colony: new THREE.MeshStandardMaterial({
+        map: textures.colonyWallMap,
+        normalMap: textures.blockNormal,
+        normalScale: new THREE.Vector2(0.85, 0.85),
+        roughness: 0.84,
+        metalness: 0.04,
+      }),
+      fufu_bari: new THREE.MeshStandardMaterial({
+        map: textures.fufuWallMap,
+        normalMap: textures.stuccoNormal,
+        normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.8,
+        metalness: 0.02,
+      }),
     };
     const zoneCopingMatMap: Record<string, THREE.MeshStandardMaterial> = {
       cha_dokan: new THREE.MeshStandardMaterial({ color: '#92400e', roughness: 0.68 }),
@@ -994,7 +1155,6 @@ export function WorldScene({
       'dish_desk',
       'bazar_counter',
       'tank_core',
-      'cng_parked',
       'supply_rickshaw',
       'supply_desco',
       'supply_dish',
@@ -1045,32 +1205,16 @@ export function WorldScene({
       'cont_se_1',
       'cont_west_yard',
       'cont_east_yard',
-      'car_garage_nw',
-      'car_cinema_lot',
-      'car_bhai_lot',
-      'car_kacchi_lot',
-      'pickup_bazar_e',
-      'pickup_mach_s',
-      'pickup_rail_s',
-      'car_gym_east',
       'airdrop_nw_park',
       'airdrop_ne_park',
       'airdrop_south_plaza',
       'tapri_nw',
       'tapri_ne',
-      'minibus_north',
       'brick_depot_sw',
-      'minibus_sw_1',
       'tapri_sw_1',
       'haat_stall_se_1',
       'haat_stall_se_2',
-      'minibus_se_1',
-      'minibus_sw_far',
       'tapri_se_far',
-      'moto_nw_park',
-      'moto_ne_park',
-      'moto_cyber',
-      'moto_gym',
     ]);
 
     const alleyCopingMat = new THREE.MeshStandardMaterial({
@@ -1416,7 +1560,6 @@ export function WorldScene({
       },
     ];
     const shopTubeMats: THREE.MeshStandardMaterial[] = [];
-    const shopPoolMats: THREE.MeshBasicMaterial[] = [];
     const tubeFrameMat = new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.45, metalness: 0.65 });
     const signFrameMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.45, metalness: 0.55 });
     const buildingStaticGroup = new THREE.Group();
@@ -1425,7 +1568,6 @@ export function WorldScene({
     const eaveMatByHex = new Map<string, THREE.MeshStandardMaterial>();
     const postMatByHex = new Map<string, THREE.MeshStandardMaterial>();
     const tubeMatByTint = new Map<string, THREE.MeshStandardMaterial>();
-    const poolMatByTint = new Map<string, THREE.MeshBasicMaterial>();
 
     const addDoubleSidedBillboard = (
       tex: THREE.CanvasTexture,
@@ -1442,10 +1584,10 @@ export function WorldScene({
       const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, h + 0.2, 0.18), signFrameMat);
       const faceMat = new THREE.MeshStandardMaterial({
         map: tex,
-        roughness: 0.34,
+        roughness: 0.4,
         emissive: '#ffffff',
         emissiveMap: tex,
-        emissiveIntensity: 0.24,
+        emissiveIntensity: 0.04,
       });
       const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), faceMat);
       front.position.z = 0.11;
@@ -1520,7 +1662,12 @@ export function WorldScene({
       // Location-specific architectural exterior flourishes (relative to b.height)
       if (b.id === 'desco_power') {
         const podMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.4, metalness: 0.72 });
-        const beaconMat = new THREE.MeshBasicMaterial({ color: '#ef4444' });
+        const beaconMat = new THREE.MeshStandardMaterial({
+          color: '#ef4444',
+          emissive: '#ef4444',
+          emissiveIntensity: 0.4,
+          roughness: 0.25,
+        });
         for (const px of [bx1 + 3.5, bx2 - 3.5]) {
           const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.78, 0.7, 16), podMat);
           pod.position.set(px, b.height + 0.35, bz2 - 0.8);
@@ -1532,12 +1679,25 @@ export function WorldScene({
         const mastMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.28, metalness: 0.85 });
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 2.4, 12), mastMat);
         mast.position.set(bx2 - 2.0, b.height + 1.15, bz1 + 2.0);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.04, 8, 20), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.42, 0.04, 8, 20),
+          new THREE.MeshStandardMaterial({
+            color: '#38bdf8',
+            emissive: '#0284c7',
+            emissiveIntensity: 0.35,
+            roughness: 0.25,
+          }),
+        );
         ring.rotation.x = Math.PI / 2;
         ring.position.set(bx2 - 2.0, b.height + 2.05, bz1 + 2.0);
         buildingStaticGroup.add(mast, ring);
       } else if (b.id === 'saloon_goli') {
-        const sconceMat = new THREE.MeshBasicMaterial({ color: '#f472b6' });
+        const sconceMat = new THREE.MeshStandardMaterial({
+          color: '#f8fafc',
+          emissive: '#f472b6',
+          emissiveIntensity: 0.35,
+          roughness: 0.22,
+        });
         for (const sz of [-29.0, -23.0]) {
           const globe = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 14), sconceMat);
           globe.position.set(-56.7, 2.45, sz);
@@ -1547,7 +1707,8 @@ export function WorldScene({
         const crossMat = new THREE.MeshStandardMaterial({
           color: '#10b981',
           emissive: '#10b981',
-          emissiveIntensity: 1.4,
+          emissiveIntensity: 0.45,
+          roughness: 0.25,
         });
         const cv = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.05, 0.34), crossMat);
         cv.position.set(-56.7, b.height + 1.55, 26.0);
@@ -1556,13 +1717,13 @@ export function WorldScene({
         buildingStaticGroup.add(cv, ch);
       }
 
-      // Emissive Interior Fluorescent Tube Light Bars under North/South Eaves + Soft Floor Light Pool
+      // Interior Fluorescent Tube Light Bars under North/South Eaves (no fake additive floor pools)
       let tubeMat = tubeMatByTint.get(b.tint);
       if (!tubeMat) {
         tubeMat = new THREE.MeshStandardMaterial({
-          color: '#ffffff',
+          color: '#f8fafc',
           emissive: b.tint,
-          emissiveIntensity: 1.7,
+          emissiveIntensity: 0.35,
           roughness: 0.2,
         });
         tubeMatByTint.set(b.tint, tubeMat);
@@ -1576,50 +1737,55 @@ export function WorldScene({
         bulb.position.set(midX, b.height - 0.37, tz);
         buildingStaticGroup.add(casing, bulb);
       }
-      let poolMat = poolMatByTint.get(b.tint);
-      if (!poolMat) {
-        poolMat = new THREE.MeshBasicMaterial({
-          color: b.tint,
-          transparent: true,
-          opacity: 0.052,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        poolMatByTint.set(b.tint, poolMat);
-        shopPoolMats.push(poolMat);
-      }
-      const interiorPool = new THREE.Mesh(
-        new THREE.PlaneGeometry(bx2 - bx1 - 3.6, bz2 - bz1 - 3.6),
-        poolMat,
-      );
-      interiorPool.rotation.x = -Math.PI / 2;
-      interiorPool.position.set(midX, 0.068, midZ);
-      buildingStaticGroup.add(interiorPool);
     }
 
-    // Architectural Finishing: Plinth Foundation Skirts, Recessed Glowing Windows with Grilles,
+    // Architectural Finishing: Plinth Foundation Skirts, Recessed Reflective Windows with Grilles & Chhajja Sunshades,
     // Walkable Rooftop Terraces, Parapet Railings, Exterior Stepped Staircases & Rooftop Props
     const archGroup = new THREE.Group();
-    const plinthMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.88, metalness: 0.05 });
-    const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.55, metalness: 0.45 });
-    const grilleMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.35, metalness: 0.78 });
-    const windowGlassMat = new THREE.MeshStandardMaterial({
-      color: '#fef08a',
-      emissive: '#fbbf24',
-      emissiveIntensity: 1.15,
-      roughness: 0.25,
+    const plinthMat = new THREE.MeshStandardMaterial({
+      color: '#475569',
+      normalMap: textures.stuccoNormal,
+      normalScale: new THREE.Vector2(0.7, 0.7),
+      roughnessMap: textures.concreteRoughness,
+      roughness: 0.92,
+      metalness: 0.04,
     });
-    shopTubeMats.push(windowGlassMat);
+    const frameMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.55, metalness: 0.45 });
+    const grilleMat = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.45, metalness: 0.75 });
+    const windowGlassMat = new THREE.MeshPhysicalMaterial({
+      color: '#1e293b',
+      roughness: 0.08,
+      metalness: 0.25,
+      clearcoat: 1.0,
+      emissive: '#fef3c7',
+      emissiveIntensity: 0.0,
+    });
+    const roofBulbMat = new THREE.MeshStandardMaterial({
+      color: '#fef9c3',
+      emissive: '#fde68a',
+      emissiveIntensity: 0.18,
+      roughness: 0.22,
+    });
 
     const concreteDeckMat = new THREE.MeshStandardMaterial({
       map: textures.cobbleMap,
+      normalMap: textures.stuccoNormal,
+      normalScale: new THREE.Vector2(0.7, 0.7),
+      roughnessMap: textures.concreteRoughness,
       color: '#cbd5e1',
-      roughness: 0.78,
-      metalness: 0.06,
+      roughness: 0.9,
+      metalness: 0.02,
     });
-    const stairTreadMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.72, metalness: 0.08 });
+    const stairTreadMat = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      normalMap: textures.stuccoNormal,
+      normalScale: new THREE.Vector2(0.65, 0.65),
+      roughnessMap: textures.concreteRoughness,
+      roughness: 0.9,
+      metalness: 0.02,
+    });
     const handrailMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.32, metalness: 0.75 });
-    const sintexMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.38, metalness: 0.15 });
+    const sintexMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.55, metalness: 0.04 });
     const pvcPipeMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.45 });
     const roofAcBodyMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.5, metalness: 0.25 });
     const roofAcFans: THREE.Group[] = [];
@@ -1636,17 +1802,19 @@ export function WorldScene({
       wg.position.set(wx, wy, wz);
       wg.rotation.y = rotY;
       const frame = new THREE.Mesh(new THREE.BoxGeometry(width + 0.24, height + 0.22, 1.06), frameMat);
-      const pane = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, height - 0.12, 1.08), windowGlassMat);
+      const pane = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, height - 0.12, 1.04), windowGlassMat);
       const sill = new THREE.Mesh(new THREE.BoxGeometry(width + 0.38, 0.11, 1.24), plinthMat);
       sill.position.y = -height * 0.5 - 0.06;
-      wg.add(frame, pane, sill);
+      const chhajja = new THREE.Mesh(new THREE.BoxGeometry(width + 0.44, 0.1, 1.46), plinthMat);
+      chhajja.position.y = height * 0.5 + 0.12;
+      wg.add(frame, pane, sill, chhajja);
       // Security grille bars (classic Moholla iron window grills)
       for (const gx of [-width * 0.26, 0, width * 0.26]) {
-        const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.045, height - 0.12, 1.12), grilleMat);
+        const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.045, height - 0.12, 1.1), grilleMat);
         vBar.position.x = gx;
         wg.add(vBar);
       }
-      const hBar = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, 0.045, 1.12), grilleMat);
+      const hBar = new THREE.Mesh(new THREE.BoxGeometry(width - 0.12, 0.045, 1.1), grilleMat);
       wg.add(hBar);
       archGroup.add(wg);
     };
@@ -1933,14 +2101,25 @@ export function WorldScene({
         const tz = deck.minZ + 1.85;
         const plinth = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, 2.0), plinthMat);
         plinth.position.set(tx, topY + 0.13, tz);
-        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 1.55, 16), sintexMat);
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 1.55, 22), sintexMat);
         tank.position.set(tx, topY + 1.03, tz);
-        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.76, 0.18, 16), capMat);
-        lid.position.set(tx, topY + 1.86, tz);
-        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8), pvcPipeMat);
-        pipe.rotation.z = Math.PI / 2;
-        pipe.position.set(tx + 1.15, topY + 0.45, tz);
-        targetRoofGroup.add(plinth, tank, lid, pipe);
+        tank.castShadow = !isSoftwareGl;
+        for (const ry of [0.62, 1.03, 1.44]) {
+          const rib = new THREE.Mesh(new THREE.TorusGeometry(0.79, 0.032, 8, 20), sintexMat);
+          rib.rotation.x = Math.PI / 2;
+          rib.position.set(tx, topY + ry, tz);
+          targetRoofGroup.add(rib);
+        }
+        const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.78, 0.14, 18), sintexMat);
+        collar.position.set(tx, topY + 1.87, tz);
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.52, 0.12, 18), capMat);
+        lid.position.set(tx, topY + 1.98, tz);
+        const pipeH = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1.5, 8), pvcPipeMat);
+        pipeH.rotation.z = Math.PI / 2;
+        pipeH.position.set(tx + 1.1, topY + 0.45, tz);
+        const pipeV = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.5, 8), pvcPipeMat);
+        pipeV.position.set(tx + 1.82, topY + 0.23, tz);
+        targetRoofGroup.add(plinth, tank, collar, lid, pipeH, pipeV);
       }
 
       // Rooftop Props: Clotheslines (Roshi-te Kapor)
@@ -1997,7 +2176,7 @@ export function WorldScene({
         }
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.85, 8), handrailMat);
         post.position.set(bx + 1.9, topY + 0.92, bz);
-        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), windowGlassMat);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), roofBulbMat);
         bulb.position.set(bx + 1.9, topY + 1.88, bz);
         targetRoofGroup.add(bench, post, bulb);
       }
@@ -2040,7 +2219,10 @@ export function WorldScene({
         dishBowl.position.set(dx, topY + 1.28, dz);
         dishBowl.rotation.x = 0.65;
         dishBowl.rotation.z = -0.35;
-        const lnb = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 10), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
+        const lnb = new THREE.Mesh(
+          new THREE.SphereGeometry(0.11, 10, 10),
+          new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.3, metalness: 0.6 }),
+        );
         lnb.position.set(dx + 0.22, topY + 1.72, dz + 0.42);
         targetRoofGroup.add(stand, dishBowl, lnb);
       }
@@ -2220,9 +2402,9 @@ export function WorldScene({
     bazarAwning.rotation.z = 0.15;
     buildingStaticGroup.add(bazarAwning);
     const bazarTubeMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
+      color: '#f8fafc',
       emissive: '#fde68a',
-      emissiveIntensity: 1.75,
+      emissiveIntensity: 0.35,
       roughness: 0.2,
     });
     shopTubeMats.push(bazarTubeMat);
@@ -2230,18 +2412,6 @@ export function WorldScene({
     bazarTube.rotation.x = Math.PI / 2;
     bazarTube.position.set(42.5, 2.86, 0);
     buildingStaticGroup.add(bazarTube);
-    const bazarPoolMat = new THREE.MeshBasicMaterial({
-      color: '#fde68a',
-      transparent: true,
-      opacity: 0.055,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    shopPoolMats.push(bazarPoolMat);
-    const bazarPool = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 10.6), bazarPoolMat);
-    bazarPool.rotation.x = -Math.PI / 2;
-    bazarPool.position.set(41.2, 0.068, 0);
-    buildingStaticGroup.add(bazarPool);
     scene.add(optimizeStaticGroup(buildingStaticGroup));
     scene.add(createBazarProps(textures, isSoftwareGl));
 
@@ -2336,46 +2506,7 @@ export function WorldScene({
       );
     }
 
-    // 5 Parked Dhaka Sedans/Taxis & 3 Pickup Trucks (Matching WALLS AABBs 1:1!)
-    const parkedVehicles: Array<{
-      kind: 'car' | 'taxi' | 'pickup';
-      color: string;
-      x: number;
-      z: number;
-      rotY: number;
-    }> = [
-      { kind: 'taxi', color: '#eab308', x: 21.3, z: -44.9, rotY: 0 },
-      { kind: 'car', color: '#dc2626', x: -77.5, z: -122.4, rotY: 0 },
-      { kind: 'car', color: '#cbd5e1', x: -13.2, z: -131.9, rotY: 0 },
-      { kind: 'car', color: '#1e3a8a', x: -132.3, z: -44.7, rotY: 0 },
-      { kind: 'car', color: '#e11d48', x: 133.3, z: 44.1, rotY: Math.PI },
-      { kind: 'pickup', color: '#0f766e', x: 61.9, z: 61.7, rotY: 0 },
-      { kind: 'pickup', color: '#0284c7', x: -79.8, z: 128.4, rotY: Math.PI / 2 },
-      { kind: 'pickup', color: '#d97706', x: -43.6, z: 103.0, rotY: 0 },
-    ];
-    for (const v of parkedVehicles) {
-      const mesh =
-        v.kind === 'pickup'
-          ? createPickupTruckModel(v.color, isSoftwareGl)
-          : createParkedCarModel(v.color, isSoftwareGl, v.kind === 'taxi');
-      mesh.position.set(v.x, 0, v.z);
-      mesh.rotation.y = v.rotY;
-      scene.add(mesh);
-    }
-
-    // Dhaka Mini-Buses / Legunas, Roadside Tapri Stalls, Brick Depots & Parked Motorbikes
-    for (const [hex, x, z, rotY] of [
-      ['#047857', 134.75, -131.0, 0],
-      ['#dc2626', -95.25, 120.0, Math.PI],
-      ['#0284c7', 96.75, 103.7, 0],
-      ['#ca8a04', -134.0, 126.0, 0],
-    ] as const) {
-      const bus = createDhakaMiniBusModel(hex, isSoftwareGl);
-      bus.position.set(x, 0, z);
-      bus.rotation.y = rotY;
-      scene.add(bus);
-    }
-
+    // Roadside Tapri Stalls & Brick Depots (Vehicles are now dynamic articulated rigs below!)
     for (const [roofHex, x, z, rotY] of [
       ['#0284c7', -102.0, -127.25, 0],
       ['#dc2626', 102.0, -127.25, 0],
@@ -2393,18 +2524,6 @@ export function WorldScene({
     const swDepot = createBrickDepotCluster(isSoftwareGl);
     swDepot.position.set(-104.15, 0, 104.4);
     scene.add(swDepot);
-
-    for (const [hex, x, z, rotY] of [
-      ['#ef4444', -96.0, -34.0, 0.2],
-      ['#2563eb', 96.0, 34.0, -2.9],
-      ['#10b981', -125.0, 39.0, 0.1],
-      ['#f59e0b', 125.0, -39.0, 3.05],
-    ] as const) {
-      const moto = createMotorbikeModel(hex, isSoftwareGl);
-      moto.position.set(x, 0, z);
-      moto.rotation.y = rotY;
-      scene.add(moto);
-    }
 
     // Flowering Bush Clusters & Trimmed Park Hedge Rows across Lawns & Avenues
     instantiateGroupAtTransforms(
@@ -2602,9 +2721,47 @@ export function WorldScene({
       scene,
     );
 
-    // Wind-Swaying Instanced Grass Tufts across Eidgah, Pukur Bank & Outer Verges
+    // Wind-Swaying Instanced Grass Tufts & Outer Rolling Boulders (1 draw call each)
     const instancedGrass = createInstancedGrassTufts();
     scene.add(instancedGrass.mesh);
+    scene.add(createScatteredBouldersInstanced());
+
+    // Instanced Cast-Iron Road Manhole Covers along Main Boulevards (1 draw call)
+    const manholeGeo = new THREE.CylinderGeometry(0.55, 0.58, 0.025, 16);
+    const manholeMat = new THREE.MeshStandardMaterial({
+      color: '#334155',
+      roughness: 0.48,
+      metalness: 0.68,
+    });
+    const manholeCoords: Array<[number, number]> = [
+      [-2.8, -16],
+      [2.8, 16],
+      [-18, 2.8],
+      [18, -2.8],
+      [-52, -24],
+      [52, 24],
+      [-24, -52],
+      [24, 52],
+      [-86, -24],
+      [86, 24],
+      [-118, 0],
+      [118, 0],
+      [0, -72],
+      [0, 112],
+      [-52, 112],
+      [52, -114],
+    ];
+    const manholeInst = new THREE.InstancedMesh(manholeGeo, manholeMat, manholeCoords.length);
+    manholeCoords.forEach(([mx, mz], idx) => {
+      instDummy.position.set(mx, 0.015, mz);
+      instDummy.rotation.set(0, idx * 0.4, 0);
+      instDummy.scale.set(1, 1, 1);
+      instDummy.updateMatrix();
+      manholeInst.setMatrixAt(idx, instDummy.matrix);
+    });
+    manholeInst.instanceMatrix.needsUpdate = true;
+    manholeInst.computeBoundingSphere();
+    scene.add(manholeInst);
 
     // Terracotta Planter Pots flanking plazas, avenues & para entrances (InstancedMesh)
     const planterSpots: Array<[number, number]> = [
@@ -2700,31 +2857,36 @@ export function WorldScene({
     scene.add(banglaTrain.group);
     let lastHornCycle = -1;
 
-    instantiateGroupAtTransforms(
-      createRickshawModel(textures, isSoftwareGl),
-      [
-        { x: 36.5, z: -33.5, rotY: -0.55 },
-        { x: 27.8, z: -32.2, rotY: 0.12 },
-        { x: -10.5, z: -61.5, rotY: 1.45 },
-        { x: -60.5, z: -57.5, rotY: 0.25 },
-        { x: 60.5, z: -57.5, rotY: -0.35 },
-        { x: -10.5, z: 61.5, rotY: -1.52 },
-        { x: 45.0, z: 77.5, rotY: 0.1 },
-      ],
-      scene,
-    );
-
-    // Iconic Dhaka Green CNG Auto-Rickshaws parked along Moholla avenues
-    instantiateGroupAtTransforms(
-      createCngModel(isSoftwareGl),
-      [
-        { x: 11.0, z: 23.0, rotY: -0.38 },
-        { x: -60.2, z: -44.2, rotY: 1.55 },
-        { x: 60.2, z: -44.2, rotY: -1.55 },
-        { x: -110.5, z: -44.5, rotY: 0.15 },
-      ],
-      scene,
-    );
+    // 27 Interactive Drivable Vehicles across the Moholla (Rickshaws, CNGs, Bikes, Cars, Taxis, Pickups, Mini-Buses)
+    const vehicleRigs = new Map<
+      string,
+      {
+        rig: VehicleRig;
+        kind: VehicleKind;
+        spawnX: number;
+        spawnZ: number;
+        spawnYaw: number;
+        targetX: number;
+        targetZ: number;
+        targetYaw: number;
+      }
+    >();
+    for (const vs of VEHICLE_SPAWNS) {
+      const rig = createVehicleRig(vs.kind, vs.color, textures, textures.contactShadowMap, isSoftwareGl);
+      rig.root.position.set(vs.x, 0, vs.z);
+      rig.root.rotation.y = vs.yaw;
+      scene.add(rig.root);
+      vehicleRigs.set(vs.id, {
+        rig,
+        kind: vs.kind,
+        spawnX: vs.x,
+        spawnZ: vs.z,
+        spawnYaw: vs.yaw,
+        targetX: vs.x,
+        targetZ: vs.z,
+        targetYaw: vs.yaw,
+      });
+    }
 
     const desco = createDescoTransformer(textures, isSoftwareGl);
     desco.group.position.set(-38.25, 0, 32.65);
@@ -2977,44 +3139,16 @@ export function WorldScene({
       [6.5, -100.0, Math.PI],
     ];
     const lampBulbs: THREE.PointLight[] = [];
-    const lampNormalPoolOpacity = isMobileGpu ? 0.095 : 0.06;
-    const glowPoolMat = new THREE.MeshBasicMaterial({
-      color: '#fbbf24',
-      transparent: true,
-      opacity: lampNormalPoolOpacity,
-      depthWrite: false,
-    });
-    const lampTemplate = createStreetLamp();
-    lampTemplate.coneMesh.removeFromParent();
-    if (isMobileGpu && lampTemplate.coneMesh.material instanceof THREE.MeshBasicMaterial) {
-      lampTemplate.coneMesh.material.opacity = 0.048;
-    }
     const lampTransforms = lampCoords.map(([x, z, rotY]) => ({ x, z, rotY }));
-    instantiateGroupAtTransforms(lampTemplate.group, lampTransforms, scene);
-
-    const coneHolder = new THREE.Group();
-    coneHolder.add(lampTemplate.coneMesh);
-    const [lampConesInst] = instantiateGroupAtTransforms(coneHolder, lampTransforms, scene);
-
-    const poolGeo = new THREE.CircleGeometry(3.8, 24);
-    poolGeo.rotateX(-Math.PI / 2);
-    const lampGlowInst = new THREE.InstancedMesh(poolGeo, glowPoolMat, lampCoords.length);
+    instantiateGroupAtTransforms(createStreetLamp(), lampTransforms, scene);
     lampCoords.forEach(([lx, lz], idx) => {
-      instDummy.position.set(lx, 0.024, lz);
-      instDummy.rotation.set(0, 0, 0);
-      instDummy.scale.set(1, 1, 1);
-      instDummy.updateMatrix();
-      lampGlowInst.setMatrixAt(idx, instDummy.matrix);
       if (!isMobileGpu && !isSoftwareGl && idx < 4) {
-        const pt = new THREE.PointLight(0xfbbf24, 1.15, 16, 1.8);
+        const pt = new THREE.PointLight(0xfff1d6, 0.15, 16, 1.8);
         pt.position.set(lx, 4.1, lz);
         scene.add(pt);
         lampBulbs.push(pt);
       }
     });
-    lampGlowInst.instanceMatrix.needsUpdate = true;
-    lampGlowInst.computeBoundingSphere();
-    scene.add(lampGlowInst);
 
     // Instanced Drains / Vents across Inner & Outer Districts
     instantiateGroupAtTransforms(
@@ -3235,6 +3369,15 @@ export function WorldScene({
     let localYaw = Math.PI;
     let localTurnBank = 0;
     let landSquash = 0;
+    let lastLocalVehicleId: string | null = null;
+    let vehPosX = 0;
+    let vehPosZ = 0;
+    let vehYaw = 0;
+    let vehSpeed = 0;
+    let vehSteer = 0;
+    let driveCamOffset = 0;
+    let lastVehicleSendAt = 0;
+    let lastSpeedUiAt = 0;
 
     const triggerJump = () => {
       const curPhase = phaseRef.current;
@@ -3244,6 +3387,7 @@ export function WorldScene({
         (curPhase === 'playing' || curPhase === 'lobby') &&
         lp &&
         !lp.inVent &&
+        !lp.vehicleId &&
         !isModalOpenRef.current &&
         localJumpY <= 0.04
       ) {
@@ -3264,7 +3408,13 @@ export function WorldScene({
       if (e.code === 'Space') {
         if (phaseRef.current === 'playing' || phaseRef.current === 'lobby') {
           e.preventDefault();
-          triggerJump();
+          const snap = snapshotRef.current;
+          const lp = snap?.players.find((p) => p.id === localPlayerIdRef.current);
+          if (lp?.vehicleId) {
+            keysPressed.add('Space');
+          } else {
+            triggerJump();
+          }
         }
         return;
       }
@@ -3368,15 +3518,6 @@ export function WorldScene({
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(currentDpr);
       renderer.setSize(w, h);
-      if (composer) {
-        composer.setPixelRatio(currentDpr);
-        composer.setSize(w, h);
-        bloomPass?.resolution.set(Math.max(1, Math.floor(w / 2)), Math.max(1, Math.floor(h / 2)));
-        if (useComposer) {
-          composer.render();
-          return;
-        }
-      }
       renderer.render(scene, camera);
     };
 
@@ -3423,7 +3564,7 @@ export function WorldScene({
       textures: renderer.info.memory.textures,
       dpr: renderer.getPixelRatio(),
       isMobileGpu,
-      hasComposer: Boolean(composer && useComposer),
+      hasComposer: false,
     });
 
     const afterDraw = (cb: () => void) => {
@@ -3589,6 +3730,32 @@ export function WorldScene({
         entry.rig.root.rotation.x = 0;
         entry.rig.root.rotation.z = 0;
 
+        if (p.vehicleId && p.alive && !p.inVent) {
+          const vEntry = vehicleRigs.get(p.vehicleId);
+          const snapVeh = snap.vehicles?.find((v) => v.id === p.vehicleId);
+          const spec = VEHICLE_SPECS[vEntry?.kind ?? snapVeh?.kind ?? 'car'];
+          const vx = isLocal ? vehPosX : vEntry ? vEntry.rig.root.position.x : (snapVeh?.x ?? p.x);
+          const vz = isLocal ? vehPosZ : vEntry ? vEntry.rig.root.position.z : (snapVeh?.z ?? p.z);
+          const vyaw = isLocal ? vehYaw : vEntry ? vEntry.rig.root.rotation.y : (snapVeh?.yaw ?? p.yaw);
+          const vSteer = isLocal ? vehSteer : (snapVeh?.steer ?? 0);
+
+          entry.rig.setSeated(
+            true,
+            spec.seatOffsetY,
+            spec.seatOffsetZ,
+            spec.seatOffsetX,
+            spec.seatTiltX ?? 0.08,
+          );
+          entry.rig.root.position.set(vx, 0, vz);
+          entry.rig.root.rotation.y = vyaw;
+          entry.rig.animateWalk(0, 0, dt, elapsed, vSteer * -0.18, 0, 0, 0);
+          entry.prevX = vx;
+          entry.prevZ = vz;
+          continue;
+        }
+
+        entry.rig.setSeated(false);
+
         if (isLocal) {
           entry.targetX = localPosX;
           entry.targetZ = localPosZ;
@@ -3613,8 +3780,14 @@ export function WorldScene({
 
         const dx = entry.rig.root.position.x - entry.prevX;
         const dz = entry.rig.root.position.z - entry.prevZ;
-        const dist = Math.hypot(dx, dz);
-        const speed = dt > 0 ? dist / dt : 0;
+        const rawDist = Math.hypot(dx, dz);
+        const teleported = rawDist > 2.8;
+        const dist = teleported ? 0 : Math.min(rawDist, 16 * dt);
+        const velSpeed = !isLocal && (p.vx !== undefined || p.vz !== undefined)
+          ? Math.hypot(p.vx ?? 0, p.vz ?? 0)
+          : 0;
+        const posSpeed = dt > 0 ? dist / dt : 0;
+        const speed = !isLocal && velSpeed > 0.15 ? velSpeed * 0.7 + posSpeed * 0.3 : posSpeed;
         entry.rig.animateWalk(
           dist,
           speed,
@@ -3696,9 +3869,7 @@ export function WorldScene({
           slowFrameSum = 0;
           if (!isMobileGpu) {
             if (avgDt > 0.022) {
-              if (useComposer) {
-                useComposer = false;
-              } else if (currentDpr > 1.2) {
+              if (currentDpr > 1.2) {
                 currentDpr = 1.15;
                 renderer.setPixelRatio(currentDpr);
                 const rw = container.clientWidth || window.innerWidth;
@@ -3822,6 +3993,7 @@ export function WorldScene({
           const dist = Math.hypot(dx, dz);
           if (dist < 0.7) {
             actor.wpIdx = (actor.wpIdx + 3) % BOT_WAYPOINTS.length;
+            actor.rig.animateWalk(0, 2.8, dt, elapsed);
           } else {
             const step = Math.min(dist, 2.8 * dt);
             actor.x += (dx / dist) * step;
@@ -3836,6 +4008,17 @@ export function WorldScene({
 
       if (curPhase === 'title') {
         initializedLocalFromSnap = false;
+        if (lastLocalVehicleId !== null) {
+          lastLocalVehicleId = null;
+          vehSpeed = 0;
+          vehSteer = 0;
+          onDriveSpeedChangeRef.current?.(0);
+        }
+        for (const ve of vehicleRigs.values()) {
+          ve.rig.root.position.set(ve.spawnX, 0, ve.spawnZ);
+          ve.rig.root.rotation.y = ve.spawnYaw;
+          ve.rig.setDrivingState(0, 0, false, 0, dt);
+        }
         for (const [id, entry] of playerRigs.entries()) {
           scene.remove(entry.rig.root);
           playerRigs.delete(id);
@@ -3865,10 +4048,24 @@ export function WorldScene({
         keyLight.intensity = baseKeyIntensity;
         bounceLight.intensity = baseBounceIntensity;
         lanternLight.intensity = 0;
-        if (lampConesInst) lampConesInst.visible = true;
+        vehHeadlightSpot.intensity = 0;
+        scene.environmentIntensity = baseEnvIntensity;
+        skyline.skyUniforms.uDarkness.value = 0;
+        skyline.starMat.opacity = 0;
+        skyline.moonGroup.visible = false;
+        fireflyPoints.visible = false;
+        skyColor.copy(twilightSkyColor);
+        if (scene.fog instanceof THREE.FogExp2) {
+          scene.fog.color.copy(twilightSkyColor);
+          scene.fog.density = normalFogDensity;
+        }
+        for (const tm of shopTubeMats) tm.emissiveIntensity = 0.35;
+        windowGlassMat.emissiveIntensity = 0.0;
+        roofBulbMat.emissiveIntensity = 0.18;
+        garlands.group.visible = true;
 
         keyLight.target.position.set(0, 0, 0);
-        keyLight.position.set(34, 48, 28);
+        keyLight.position.set(32, 46, 26);
         keyLight.target.updateMatrixWorld();
         if (keyLight.shadow.camera.right !== titleShadowSpan) {
           keyLight.shadow.camera.left = -titleShadowSpan;
@@ -3943,11 +4140,181 @@ export function WorldScene({
           onCompassYawChangeRef.current(camYaw);
         }
 
-        // Movement: Smoothed Momentum WASD + Joystick + Shift Sprint + 2-Substep Wall & Rooftop Stair Sliding
-        let isSprinting = false;
-        localTurnBank = THREE.MathUtils.damp(localTurnBank, 0, 14, dt);
+        const curLocalVehId = localPlayer?.alive ? (localPlayer.vehicleId ?? null) : null;
+        if (curLocalVehId !== lastLocalVehicleId) {
+          if (curLocalVehId) {
+            const snapVeh = snap.vehicles?.find((v) => v.id === curLocalVehId);
+            const vEntry = vehicleRigs.get(curLocalVehId);
+            vehPosX = snapVeh?.x ?? vEntry?.rig.root.position.x ?? localPosX;
+            vehPosZ = snapVeh?.z ?? vEntry?.rig.root.position.z ?? localPosZ;
+            vehYaw = snapVeh?.yaw ?? vEntry?.rig.root.rotation.y ?? localYaw;
+            vehSpeed = 0;
+            vehSteer = 0;
+            localPosX = vehPosX;
+            localPosZ = vehPosZ;
+            localFloorY = 0;
+            localJumpY = 0;
+            localVelX = 0;
+            localVelZ = 0;
+            localYaw = vehYaw;
+            onDriveSpeedChangeRef.current?.(0);
+          } else {
+            if (localPlayer) {
+              localPosX = localPlayer.x;
+              localPosZ = localPlayer.z;
+              localFloorY = localPlayer.y ?? 0;
+              localYaw = localPlayer.yaw;
+            }
+            localJumpY = 0;
+            localVelX = 0;
+            localVelZ = 0;
+            vehSpeed = 0;
+            vehSteer = 0;
+            onDriveSpeedChangeRef.current?.(0);
+          }
+          lastLocalVehicleId = curLocalVehId;
+        }
 
-        if (
+        // Movement: Arcade Vehicle Driving OR Smoothed Momentum Foot Walk + Rooftop Stairs
+        let isSprinting = false;
+        let isLocalBraking = false;
+        localTurnBank = THREE.MathUtils.damp(localTurnBank, 0, 14, dt);
+        const isDrivingLocal = Boolean(
+          (curPhase === 'playing' || curPhase === 'lobby') &&
+            localPlayer &&
+            localPlayer.alive &&
+            !localPlayer.inVent &&
+            curLocalVehId,
+        );
+
+        if (isDrivingLocal && curLocalVehId) {
+          const vEntry = vehicleRigs.get(curLocalVehId);
+          const spec = VEHICLE_SPECS[vEntry?.kind ?? 'car'];
+          const speedMult = Math.max(0.85, Math.min(1.5, moveSpeedRef.current / 9.0));
+          const isBoosting =
+            !isModalOpenRef.current &&
+            (keysPressed.has('ShiftLeft') || keysPressed.has('ShiftRight') || Boolean(boostRef?.current));
+          const isHandbraking =
+            !isModalOpenRef.current && (keysPressed.has('Space') || Boolean(handbrakeRef?.current));
+
+          let throttle = 0;
+          let steerInput = 0;
+          if (!isModalOpenRef.current) {
+            if (keysPressed.has('KeyW') || keysPressed.has('ArrowUp')) throttle += 1;
+            if (keysPressed.has('KeyS') || keysPressed.has('ArrowDown')) throttle -= 1;
+            if (keysPressed.has('KeyA') || keysPressed.has('ArrowLeft')) steerInput += 1;
+            if (keysPressed.has('KeyD') || keysPressed.has('ArrowRight')) steerInput -= 1;
+            const joy = joystickInputRef.current;
+            if (Math.abs(joy.y) > 0.08) throttle += -joy.y;
+            if (Math.abs(joy.x) > 0.08) steerInput += -joy.x;
+          }
+          throttle = THREE.MathUtils.clamp(throttle, -1, 1);
+          steerInput = THREE.MathUtils.clamp(steerInput, -1, 1);
+
+          const maxFwd = spec.maxSpeed * speedMult * (isBoosting ? 1.22 : 1.0);
+          const maxRev = spec.reverseSpeed * speedMult;
+          const accel = spec.accel * speedMult * (isBoosting ? 1.25 : 1.0);
+          vehSteer = THREE.MathUtils.damp(vehSteer, steerInput, 11, dt);
+
+          if (isHandbraking) {
+            isLocalBraking = true;
+            const decel = accel * 2.1 * dt;
+            if (Math.abs(vehSpeed) <= decel) vehSpeed = 0;
+            else vehSpeed -= Math.sign(vehSpeed) * decel;
+          } else if (throttle > 0.05) {
+            if (vehSpeed < -0.5) {
+              isLocalBraking = true;
+              vehSpeed = Math.min(0, vehSpeed + accel * 2.4 * dt);
+            } else {
+              const targetSpd = throttle * maxFwd;
+              if (vehSpeed < targetSpd) vehSpeed = Math.min(targetSpd, vehSpeed + accel * dt);
+              else vehSpeed = THREE.MathUtils.damp(vehSpeed, targetSpd, 4, dt);
+            }
+          } else if (throttle < -0.05) {
+            if (vehSpeed > 0.5) {
+              isLocalBraking = true;
+              vehSpeed = Math.max(0, vehSpeed - accel * 2.5 * dt);
+            } else {
+              isLocalBraking = true;
+              const targetRev = throttle * maxRev;
+              if (vehSpeed > targetRev) vehSpeed = Math.max(targetRev, vehSpeed - accel * 0.9 * dt);
+              else vehSpeed = THREE.MathUtils.damp(vehSpeed, targetRev, 4, dt);
+            }
+          } else {
+            vehSpeed = THREE.MathUtils.damp(vehSpeed, 0, 2.3, dt);
+            if (Math.abs(vehSpeed) < 0.08) vehSpeed = 0;
+          }
+
+          const absSpd = Math.abs(vehSpeed);
+          if (absSpd > 0.25 && Math.abs(vehSteer) > 0.02) {
+            const speedTurnFactor = Math.min(1, absSpd / Math.max(3.2, maxFwd * 0.24));
+            const turnSign = vehSpeed < -0.25 ? -1 : 1;
+            const driftBoost = isHandbraking && absSpd > 4.0 ? 1.24 : 1.0;
+            vehYaw += vehSteer * spec.turnRate * speedTurnFactor * turnSign * driftBoost * dt;
+          }
+
+          if (absSpd > 0.05) {
+            const subDt = dt * 0.5;
+            let nextX = vehPosX;
+            let nextZ = vehPosZ;
+            for (let sub = 0; sub < 2; sub++) {
+              const fdx = Math.sin(vehYaw) * vehSpeed * subDt;
+              const fdz = Math.cos(vehYaw) * vehSpeed * subDt;
+              const desiredX = nextX + fdx;
+              const desiredZ = nextZ + fdz;
+              const res = resolveVehicleCollision(
+                desiredX,
+                desiredZ,
+                spec.collisionRadius,
+                snap.vehicles,
+                curLocalVehId,
+                snap.doorLocks,
+              );
+              const blockedDist = Math.hypot(res.x - desiredX, res.z - desiredZ);
+              if (blockedDist > 0.08) {
+                vehSpeed *= 0.88;
+              }
+              nextX = res.x;
+              nextZ = res.z;
+            }
+            vehPosX = nextX;
+            vehPosZ = nextZ;
+          }
+
+          // Gentle chase camera auto-align behind moving vehicle when user isn't dragging
+          if (absSpd > 2.2 && activePointers.size === 0 && !keysPressed.has('BracketLeft') && !keysPressed.has('BracketRight')) {
+            const desiredChaseYaw = vehYaw + Math.PI;
+            let yawErr = desiredChaseYaw - targetCamYaw;
+            while (yawErr > Math.PI) yawErr -= Math.PI * 2;
+            while (yawErr < -Math.PI) yawErr += Math.PI * 2;
+            targetCamYaw += yawErr * Math.min(1, dt * 1.9);
+          }
+
+          localPosX = vehPosX;
+          localPosZ = vehPosZ;
+          localFloorY = 0;
+          localYaw = vehYaw;
+          localVelX = Math.sin(vehYaw) * vehSpeed;
+          localVelZ = Math.cos(vehYaw) * vehSpeed;
+
+          if (now - lastVehicleSendAt > 48 || (absSpd < 0.08 && now - lastVehicleSendAt > 150)) {
+            lastVehicleSendAt = now;
+            onLocalVehicleDriveRef.current?.(
+              curLocalVehId,
+              vehPosX,
+              vehPosZ,
+              vehYaw,
+              localVelX,
+              localVelZ,
+              vehSpeed,
+              vehSteer,
+            );
+          }
+          if (now - lastSpeedUiAt > 90) {
+            lastSpeedUiAt = now;
+            onDriveSpeedChangeRef.current?.(absSpd);
+          }
+        } else if (
           (curPhase === 'playing' || curPhase === 'lobby') &&
           localPlayer &&
           !localPlayer.inVent &&
@@ -4014,6 +4381,16 @@ export function WorldScene({
                 nextX = res.x;
                 nextZ = res.z;
                 nextFloorY = res.y;
+                if (nextFloorY < 0.8) {
+                  const pv = resolvePedestrianVehicleCollision(
+                    nextX,
+                    nextZ,
+                    PLAYER_RADIUS,
+                    snap.vehicles,
+                  );
+                  nextX = pv.x;
+                  nextZ = pv.z;
+                }
               } else {
                 nextX = Math.max(-MAP_HALF_SIZE + 1, Math.min(MAP_HALF_SIZE - 1, nextX + localVelX * subDt));
                 nextZ = Math.max(-MAP_HALF_SIZE + 1, Math.min(MAP_HALF_SIZE - 1, nextZ + localVelZ * subDt));
@@ -4060,18 +4437,70 @@ export function WorldScene({
           localVelZ = 0;
         }
 
-        // Safe Non-Lethal Lateral Push if player stands on active tracks while Bangla Express passes
+        // Safe Non-Lethal Lateral Push if player/vehicle is on active tracks while Bangla Express passes
         if (
           isPassing &&
           (curPhase === 'playing' || curPhase === 'lobby') &&
           localPlayer?.alive &&
           localFloorY < 1.5 &&
           Math.abs(localPosX - trainX) < 22.0 &&
-          Math.abs(localPosZ - RAILWAY_TRACK_Z) < 2.2
+          Math.abs(localPosZ - RAILWAY_TRACK_Z) < 2.4
         ) {
-          localPosZ = localPosZ < RAILWAY_TRACK_Z ? RAILWAY_TRACK_Z - 2.35 : RAILWAY_TRACK_Z + 2.35;
+          const pushedZ = localPosZ < RAILWAY_TRACK_Z ? RAILWAY_TRACK_Z - 2.6 : RAILWAY_TRACK_Z + 2.6;
+          localPosZ = pushedZ;
           trauma = Math.min(1, trauma + 0.35);
-          onLocalMoveRef.current(localPosX, localPosZ, 0, 0, localYaw, localFloorY);
+          if (curLocalVehId) {
+            vehPosZ = pushedZ;
+            vehSpeed *= 0.4;
+            onLocalVehicleDriveRef.current?.(curLocalVehId, vehPosX, vehPosZ, vehYaw, 0, 0, vehSpeed, vehSteer);
+          } else {
+            onLocalMoveRef.current(localPosX, localPosZ, 0, 0, localYaw, localFloorY);
+          }
+        }
+
+        // Sync all 27 3D Vehicle Rigs (direct 60fps for local driver, damped sync for others)
+        const nightHeadlightBlend = snap.sabotage.active === 'loadshedding' ? 1.0 : 0.15;
+        if (snap.vehicles) {
+          for (const sv of snap.vehicles) {
+            const vEntry = vehicleRigs.get(sv.id);
+            if (!vEntry) continue;
+            if (sv.id === curLocalVehId && isDrivingLocal) {
+              vEntry.rig.root.position.set(vehPosX, 0, vehPosZ);
+              vEntry.rig.root.rotation.y = vehYaw;
+              vEntry.rig.setDrivingState(
+                vehSpeed,
+                vehSteer,
+                isLocalBraking,
+                nightHeadlightBlend,
+                dt,
+              );
+            } else {
+              vEntry.rig.root.position.x = THREE.MathUtils.damp(vEntry.rig.root.position.x, sv.x, 14, dt);
+              vEntry.rig.root.position.z = THREE.MathUtils.damp(vEntry.rig.root.position.z, sv.z, 14, dt);
+              let yDiff = sv.yaw - vEntry.rig.root.rotation.y;
+              while (yDiff > Math.PI) yDiff -= Math.PI * 2;
+              while (yDiff < -Math.PI) yDiff += Math.PI * 2;
+              vEntry.rig.root.rotation.y += yDiff * Math.min(1, dt * 14);
+              const lightsOn = sv.driverId ? nightHeadlightBlend : 0;
+              vEntry.rig.setDrivingState(sv.speed, sv.steer, false, lightsOn, dt);
+            }
+          }
+        }
+        if (isDrivingLocal && snap.sabotage.active === 'loadshedding') {
+          vehHeadlightSpot.position.set(
+            vehPosX + Math.sin(vehYaw) * 1.5,
+            1.0,
+            vehPosZ + Math.cos(vehYaw) * 1.5,
+          );
+          vehHeadlightSpot.target.position.set(
+            vehPosX + Math.sin(vehYaw) * 14,
+            0.2,
+            vehPosZ + Math.cos(vehYaw) * 14,
+          );
+          vehHeadlightSpot.target.updateMatrixWorld();
+          vehHeadlightSpot.intensity = 2.2;
+        } else {
+          vehHeadlightSpot.intensity = 0;
         }
 
         // Toggle ONLY the roof of the single building the local player is standing inside on ground floor
@@ -4101,12 +4530,17 @@ export function WorldScene({
         }
 
         const baseFov = camera.aspect < 1 ? 62 : 54;
-        const targetFov =
-          baseFov + (isSprinting && Math.hypot(localVelX, localVelZ) > 1.2 ? 3.5 : 0);
+        const speedFovBoost = curLocalVehId
+          ? Math.min(8.5, Math.abs(vehSpeed) * 0.32)
+          : isSprinting && Math.hypot(localVelX, localVelZ) > 1.2
+            ? 3.5
+            : 0;
+        const targetFov = baseFov + speedFovBoost;
         if (Math.abs(camera.fov - targetFov) > 0.04) {
           camera.fov = THREE.MathUtils.damp(camera.fov, targetFov, 10, dt);
           camera.updateProjectionMatrix();
         }
+        driveCamOffset = THREE.MathUtils.damp(driveCamOffset, curLocalVehId ? 2.8 : 0, 8, dt);
 
         syncActorsFromSnapshot(snap, dt);
 
@@ -4133,19 +4567,37 @@ export function WorldScene({
         const isLoadshedding = snap.sabotage.active === 'loadshedding';
         const crewBlinded =
           isLoadshedding && Boolean(localPlayer && localPlayer.alive && localPlayer.role !== 'vondo');
-        const targetHemi = isLoadshedding ? (crewBlinded ? 0.06 : 0.28) : baseHemiIntensity;
-        const targetKey = isLoadshedding ? (crewBlinded ? 0.1 : 0.72) : baseKeyIntensity;
-        const targetBounce = isLoadshedding ? (crewBlinded ? 0.02 : 0.08) : baseBounceIntensity;
-        const targetLamp = isLoadshedding ? 0.08 : 1.15;
+        const targetHemi = isLoadshedding ? (crewBlinded ? 0.08 : 0.34) : baseHemiIntensity;
+        const targetKey = isLoadshedding ? (crewBlinded ? 0.14 : 0.82) : baseKeyIntensity;
+        const targetBounce = isLoadshedding ? (crewBlinded ? 0.02 : 0.1) : baseBounceIntensity;
+        const targetEnv = isLoadshedding ? (crewBlinded ? 0.16 : 0.28) : baseEnvIntensity;
+        const targetDarkness = isLoadshedding ? 1.0 : 0.0;
+        const targetLamp = isLoadshedding ? 0.02 : 0.15;
         const targetLantern = isLoadshedding ? (crewBlinded ? 1.45 : 2.15) : 0.0;
-        const targetFogDensity = isLoadshedding ? (crewBlinded ? 0.068 : 0.0075) : 0.0024;
+        const targetFogDensity = isLoadshedding ? (crewBlinded ? 0.068 : 0.0075) : normalFogDensity;
 
         hemiLight.intensity = THREE.MathUtils.damp(hemiLight.intensity, targetHemi, 5, dt);
         keyLight.intensity = THREE.MathUtils.damp(keyLight.intensity, targetKey, 5, dt);
         bounceLight.intensity = THREE.MathUtils.damp(bounceLight.intensity, targetBounce, 5, dt);
+        scene.environmentIntensity = THREE.MathUtils.damp(scene.environmentIntensity, targetEnv, 5, dt);
         lanternLight.intensity = THREE.MathUtils.damp(lanternLight.intensity, targetLantern, 6, dt);
         lanternLight.distance = crewBlinded ? 9.5 : 20;
+
+        skyline.skyUniforms.uDarkness.value = THREE.MathUtils.damp(
+          skyline.skyUniforms.uDarkness.value,
+          targetDarkness,
+          4.5,
+          dt,
+        );
+        const darkVal = skyline.skyUniforms.uDarkness.value;
+        skyline.starMat.opacity =
+          THREE.MathUtils.lerp(0.0, 0.92, darkVal) * (0.94 + Math.sin(elapsed * 2.3) * 0.06);
+        skyline.moonGroup.visible = darkVal > 0.35;
+        fireflyPoints.visible = darkVal > 0.35;
+        fireflyMat.opacity = darkVal * 0.85;
+        skyColor.copy(twilightSkyColor).lerp(nightSkyColor, darkVal);
         if (scene.fog instanceof THREE.FogExp2) {
+          scene.fog.color.copy(skyColor);
           scene.fog.density = THREE.MathUtils.damp(scene.fog.density, targetFogDensity, 5, dt);
         }
         const isLampPranked = !isLoadshedding && (snap.prankedLampUntil ?? 0) > Date.now();
@@ -4154,11 +4606,10 @@ export function WorldScene({
             ? 1.0
             : 0.14
           : 1.0;
-        glowPoolMat.opacity = isLoadshedding ? 0.015 : lampNormalPoolOpacity * prankFlicker;
-        for (const tm of shopTubeMats) tm.emissiveIntensity = isLoadshedding ? 0.05 : 1.7;
-        for (const pm of shopPoolMats) pm.opacity = isLoadshedding ? 0.008 : 0.052;
+        for (const tm of shopTubeMats) tm.emissiveIntensity = isLoadshedding ? 0.02 : 0.35;
+        windowGlassMat.emissiveIntensity = isLoadshedding ? 0.45 : 0.0;
+        roofBulbMat.emissiveIntensity = isLoadshedding ? 0.02 : 0.18;
         garlands.group.visible = !isLoadshedding;
-        if (lampConesInst) lampConesInst.visible = !isLoadshedding && (!isLampPranked || prankFlicker > 0.5);
         for (const lb of lampBulbs) {
           lb.intensity = THREE.MathUtils.damp(lb.intensity, targetLamp * prankFlicker, 12, dt);
         }
@@ -4169,7 +4620,7 @@ export function WorldScene({
         const sx = Math.round(localPosX);
         const sz = Math.round(localPosZ);
         keyLight.target.position.set(sx, localFloorY, sz);
-        keyLight.position.set(sx + 24, localFloorY + 38, sz + 20);
+        keyLight.position.set(sx + 28, localFloorY + 42, sz + 22);
         keyLight.target.updateMatrixWorld();
         if (keyLight.shadow.camera.right !== playShadowSpan) {
           keyLight.shadow.camera.left = -playShadowSpan;
@@ -4252,13 +4703,14 @@ export function WorldScene({
           splashRing.visible = false;
           for (const d of splashDroplets) d.mesh.visible = false;
 
-          const horizDist = camDist * Math.cos(camPitch);
+          const effectiveCamDist = camDist + driveCamOffset;
+          const horizDist = effectiveCamDist * Math.cos(camPitch);
           const skyLift = camPitch < 0.08 ? (0.08 - camPitch) * 9.5 : 0;
           const playerCamY = localFloorY + localJumpY * 0.42;
           _desiredLook.set(localPosX, 1.32 + playerCamY + skyLift, localPosZ);
           _desiredCamPos.set(
             localPosX + Math.sin(camYaw) * horizDist,
-            1.32 + playerCamY + camDist * Math.sin(camPitch),
+            1.32 + playerCamY + effectiveCamDist * Math.sin(camPitch),
             localPosZ + Math.cos(camYaw) * horizDist,
           );
 
@@ -4298,11 +4750,7 @@ export function WorldScene({
         }
       }
 
-      if (useComposer && composer) {
-        composer.render();
-      } else {
-        renderer.render(scene, camera);
-      }
+      renderer.render(scene, camera);
 
       if (isSoftwareGl) {
         afterDraw(tick);
@@ -4351,15 +4799,18 @@ export function WorldScene({
       dashUnitGeo.dispose();
       borderCurbGeo.dispose();
       unitBoxGeo.dispose();
-      poolGeo.dispose();
       fireflyGeo.dispose();
       fireflyGlowMap.dispose();
       fireflyMat.dispose();
-      composer?.dispose();
+      manholeGeo.dispose();
+      manholeMat.dispose();
+      roadMapNS.dispose();
       roadNormNS.dispose();
       roadRoughNS.dispose();
+      roadMapEW.dispose();
       roadNormEW.dispose();
       roadRoughEW.dispose();
+      vehicleRigs.clear();
       textures.dispose();
       renderer.dispose();
     };

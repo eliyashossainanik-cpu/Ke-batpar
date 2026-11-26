@@ -6,6 +6,7 @@ import {
   type MemeSlotId,
   type QuickMemeId,
 } from './memePackStore';
+import type { VehicleKind } from '../shared/types';
 
 export type MemeSoundId = QuickMemeId;
 
@@ -360,7 +361,6 @@ class SoundEngine {
         case 'aaho_bhatija':
         case 'helicopter_milon':
         case 'gacher_pata':
-        case 'ashraful':
         case 'prank_call':
           this.playVineBoom();
           break;
@@ -456,7 +456,6 @@ class SoundEngine {
         case 'aaho_bhatija':
         case 'helicopter_milon':
         case 'gacher_pata':
-        case 'ashraful':
         case 'prank_call':
           this.playVineBoom();
           break;
@@ -1171,6 +1170,159 @@ class SoundEngine {
       osc.connect(filter);
       osc.start(t);
       osc.stop(t + 0.98);
+    }
+  }
+
+  public playVehicleEnter(kind: VehicleKind): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    if (kind === 'rickshaw') {
+      // Bicycle bell + seat creak
+      const bell = ctx.createOscillator();
+      const bGain = ctx.createGain();
+      bell.type = 'sine';
+      bell.frequency.setValueAtTime(1680, t);
+      bell.frequency.setValueAtTime(1920, t + 0.06);
+      bGain.gain.setValueAtTime(0.09, t);
+      bGain.gain.exponentialRampToValueAtTime(0.001, t + 0.19);
+      bell.connect(bGain).connect(ctx.destination);
+      bell.start(t);
+      bell.stop(t + 0.2);
+      return;
+    }
+    // Mechanical door / ignition rev
+    const rev = ctx.createOscillator();
+    const rGain = ctx.createGain();
+    rev.type = kind === 'motorbike' || kind === 'cng' ? 'sawtooth' : 'triangle';
+    const baseF = kind === 'minibus' || kind === 'pickup' ? 68 : kind === 'motorbike' ? 145 : 98;
+    rev.frequency.setValueAtTime(baseF, t);
+    rev.frequency.exponentialRampToValueAtTime(baseF * 2.1, t + 0.14);
+    rev.frequency.exponentialRampToValueAtTime(baseF * 1.15, t + 0.34);
+    rGain.gain.setValueAtTime(0.001, t);
+    rGain.gain.linearRampToValueAtTime(0.14, t + 0.04);
+    rGain.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+    rev.connect(rGain).connect(ctx.destination);
+    rev.start(t);
+    rev.stop(t + 0.38);
+  }
+
+  public playVehicleExit(kind: VehicleKind): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    const startF = kind === 'rickshaw' || kind === 'motorbike' ? 220 : 140;
+    osc.frequency.setValueAtTime(startF, t);
+    osc.frequency.exponentialRampToValueAtTime(52, t + 0.11);
+    gain.gain.setValueAtTime(0.14, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.13);
+  }
+
+  public playVehicleHorn(kind: VehicleKind): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+
+    if (kind === 'rickshaw') {
+      // Classic Bangla rickshaw "tring-tring!" brass bell
+      [0, 0.11].forEach((offset) => {
+        [1850, 2790].forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = idx === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(f, t + offset);
+          gain.gain.setValueAtTime(idx === 0 ? 0.12 : 0.06, t + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.16);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t + offset);
+          osc.stop(t + offset + 0.17);
+        });
+      });
+      return;
+    }
+
+    if (kind === 'motorbike') {
+      // Sharp scooter/bike "peep-peep!"
+      [0, 0.11].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(640, t + offset);
+        gain.gain.setValueAtTime(0.09, t + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.085);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t + offset);
+        osc.stop(t + offset + 0.095);
+      });
+      return;
+    }
+
+    if (kind === 'cng') {
+      // Dhaka CNG double nasal honk "pom-pom"
+      [0, 0.14].forEach((offset) => {
+        const osc = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(470, t + offset);
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(980, t + offset);
+        filter.Q.value = 1.6;
+        gain.gain.setValueAtTime(0.14, t + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.11);
+        osc.connect(filter).connect(gain).connect(ctx.destination);
+        osc.start(t + offset);
+        osc.stop(t + offset + 0.12);
+      });
+      return;
+    }
+
+    if (kind === 'minibus' || kind === 'pickup') {
+      // Deep Dhaka bus/pickup dual air-horn
+      const freqs = kind === 'minibus' ? [220, 277.18] : [261.63, 329.63];
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1250, t);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.14, t + 0.03);
+      gain.gain.setValueAtTime(0.13, t + 0.26);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+      filter.connect(gain).connect(ctx.destination);
+      for (const f of freqs) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f, t);
+        osc.connect(filter);
+        osc.start(t);
+        osc.stop(t + 0.44);
+      }
+      return;
+    }
+
+    // Car / Taxi dual-tone horn
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1600, t);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.11, t + 0.02);
+    gain.gain.setValueAtTime(0.1, t + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    filter.connect(gain).connect(ctx.destination);
+    for (const f of [392.0, 493.88]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, t);
+      osc.connect(filter);
+      osc.start(t);
+      osc.stop(t + 0.3);
     }
   }
 

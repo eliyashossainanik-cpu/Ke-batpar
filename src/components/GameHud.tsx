@@ -5,6 +5,7 @@ import {
   type DoorZoneId,
   type RoomSnapshot,
   type SabotageType,
+  type VehicleState,
 } from '../shared/types';
 import {
   ADMIN_TABLE_POS,
@@ -17,6 +18,7 @@ import {
   SECURITY_CAMS_POS,
   STAIR_RAMPS,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
   VITALS_POS,
   WALLS,
@@ -97,6 +99,8 @@ import {
   UserCheck,
   DollarSign,
   Camera,
+  Car,
+  Gauge,
 } from 'lucide-react';
 import {
   enterMobileFullscreenAndLandscape,
@@ -133,6 +137,11 @@ export interface GameHudProps {
   onUseAbility: (targetId?: string) => void;
   onPlayMeme: (memeId: MemeSoundId) => void;
   onOpenMemePack?: () => void;
+  drivingVehicle?: VehicleState | null;
+  nearbyVehicle?: VehicleState | null;
+  driveSpeedMs?: number;
+  onToggleVehicle?: (vehicleId?: string) => void;
+  onVehicleHorn?: () => void;
 }
 
 const DOOR_OPTIONS: Array<{ zoneId: DoorZoneId; label: string }> = [
@@ -572,6 +581,7 @@ const FreeFireMinimap = memo(function FreeFireMinimap({
   tasks,
   sabotage,
   doorLocks,
+  vehicles,
   sizeClass,
   compact,
   onOpenTacticalMap,
@@ -585,6 +595,7 @@ const FreeFireMinimap = memo(function FreeFireMinimap({
   tasks: Array<{ taskId: string; completed: boolean }>;
   sabotage: RoomSnapshot['sabotage'];
   doorLocks: Record<DoorZoneId, number>;
+  vehicles?: VehicleState[];
   sizeClass: string;
   compact: boolean;
   onOpenTacticalMap: () => void;
@@ -661,6 +672,26 @@ const FreeFireMinimap = memo(function FreeFireMinimap({
             })}
 
             <MinimapStaticLabels />
+
+            {/* Vehicle Pips on Minimap Radar */}
+            {vehicles?.map((v) => {
+              if (Math.hypot(v.x - px, v.z - pz) > FF_RADAR_RADIUS + 4) return null;
+              return (
+                <rect
+                  key={v.id}
+                  x={v.x - 1.2}
+                  y={v.z - 1.8}
+                  width={2.4}
+                  height={3.6}
+                  rx={0.6}
+                  fill={v.driverId ? '#38bdf8' : '#cbd5e1'}
+                  fillOpacity={v.driverId ? 0.95 : 0.65}
+                  stroke="#090f1d"
+                  strokeWidth="0.45"
+                  transform={`rotate(${-(v.yaw * 180) / Math.PI} ${v.x} ${v.z})`}
+                />
+              );
+            })}
 
             {/* Subtle Radar Concentric Range Ring & Crosshair Centered on Player */}
             <circle
@@ -845,6 +876,11 @@ export function GameHud({
   onUseAbility,
   onPlayMeme,
   onOpenMemePack,
+  drivingVehicle = null,
+  nearbyVehicle = null,
+  driveSpeedMs = 0,
+  onToggleVehicle,
+  onVehicleHorn,
 }: GameHudProps) {
   const [viewport, setViewport] = useState(() => ({
     w: typeof window !== 'undefined' ? window.innerWidth : 1280,
@@ -1151,6 +1187,7 @@ export function GameHud({
               tasks={localPlayer.tasks}
               sabotage={snapshot.sabotage}
               doorLocks={snapshot.doorLocks}
+              vehicles={snapshot.vehicles}
               sizeClass={
                 isLandscapeCompact
                   ? 'w-[84px] h-[84px]'
@@ -1763,9 +1800,22 @@ export function GameHud({
         </div>
       )}
 
-      {/* Bottom Row: Compact Hint Strip + PUBG/Free Fire Circular Tactical Controls */}
+      {/* Bottom Row: Compact Hint Strip / Speedometer + PUBG/Free Fire Circular Tactical Controls */}
       <div className="flex items-end justify-between gap-2 sm:gap-4">
-        {!isMobileHud && (
+        {drivingVehicle ? (
+          <div className="pointer-events-none flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border border-amber-400/50 bg-slate-950/85 backdrop-blur-md shadow-2xl">
+            <Gauge className="w-5 h-5 text-amber-300 shrink-0" />
+            <div className="leading-none">
+              <div className="font-mono-tabular text-lg sm:text-xl font-black text-white">
+                {Math.round(driveSpeedMs * 3.6)} <span className="text-[11px] font-bold text-amber-300">km/h</span>
+              </div>
+              <div className="text-[10px] font-semibold text-slate-300 mt-0.5">
+                {VEHICLE_SPECS[drivingVehicle.kind].banglaName}
+                {!isMobileHud && ' · Shift গতি · Space ব্রেক · K হর্ন · F নামো'}
+              </div>
+            </div>
+          </div>
+        ) : !isMobileHud ? (
           <div className="hidden lg:flex items-center gap-2 text-[11px] text-slate-300/90 px-3 py-1.5 rounded-full border border-white/10 bg-slate-950/65 backdrop-blur-md whitespace-nowrap shadow">
             <span>WASD হাঁটা</span>
             <span className="text-slate-500">·</span>
@@ -1777,9 +1827,9 @@ export function GameHud({
             <span className="text-slate-500">·</span>
             <span>R রিপোর্ট</span>
             <span className="text-slate-500">·</span>
-            <span>F সালিশ</span>
+            <span>F {nearbyVehicle ? 'গাড়ি/' : ''}সালিশ</span>
           </div>
-        )}
+        ) : null}
 
         <div
           className={`flex flex-col items-end gap-2.5 ml-auto ${
@@ -2290,6 +2340,41 @@ export function GameHud({
             }
             if (abilitySlot) {
               arcQueue.push(abilitySlot);
+            }
+            if (drivingVehicle && onToggleVehicle) {
+              arcQueue.push({
+                id: 'vehicle_exit',
+                label: 'নামো',
+                hotkey: 'F',
+                subLabel: VEHICLE_SPECS[drivingVehicle.kind].banglaName,
+                icon: <Car className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#fbbf24',
+                bgClass: 'bg-amber-400/95 border-2 border-amber-100 text-slate-950',
+                onClick: () => onToggleVehicle(),
+              });
+              if (onVehicleHorn) {
+                arcQueue.push({
+                  id: 'vehicle_horn',
+                  label: 'হর্ন',
+                  hotkey: 'K',
+                  icon: <Volume2 className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                  accentHex: '#38bdf8',
+                  bgClass: 'bg-sky-500/92 border-2 border-sky-100 text-slate-950',
+                  onClick: onVehicleHorn,
+                });
+              }
+            } else if (nearbyVehicle && onToggleVehicle) {
+              arcQueue.push({
+                id: 'vehicle_enter',
+                label: 'গাড়ি',
+                hotkey: 'F',
+                subLabel: VEHICLE_SPECS[nearbyVehicle.kind].banglaName,
+                icon: <Car className={isMobileHud ? 'w-4 h-4' : 'w-[18px] h-[18px]'} />,
+                accentHex: '#fbbf24',
+                bgClass: 'bg-amber-400/95 border-2 border-amber-100 text-slate-950',
+                pulse: true,
+                onClick: () => onToggleVehicle(nearbyVehicle.id),
+              });
             }
             if (nearBell) {
               arcQueue.push({

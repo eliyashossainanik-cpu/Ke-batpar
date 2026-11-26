@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   BOT_AI_CONFIG,
   applyBatchedGeminiChats,
+  applyBatchedGeminiReactionChats,
   buildBatchedGeminiMeetingPayload,
   createBotBrainState,
   decideBotVote,
@@ -10,6 +11,7 @@ import {
   getMeetingTypingBotIds,
   processChatMessageForBots,
   stepBotsMeeting,
+  stepBotsPlaying,
   type BotBrainState,
 } from './botAi';
 import {
@@ -391,3 +393,89 @@ test('bots do not blindly pile all votes onto one suspect from a single unproven
   assert.ok(maxOnOneTarget < 4, `Expected bots to split/skip rather than unanimous 4/4 pile-on (got ${maxOnOneTarget})`);
   assert.ok((votes.get('skip') ?? 0) >= 1, 'Expected cautious/skeptic bots to skip on a single unproven rumor');
 });
+
+test('applyBatchedGeminiReactionChats schedules 1-3 safe staggered replies and suspectName updates', () => {
+  const players = makePlayers();
+  const brains = new Map<string, BotBrainState>();
+  for (const p of players) {
+    if (p.isBot) {
+      const br = createBotBrainState(makeRng(12));
+      br.meetingElapsedSec = 4.0;
+      brains.set(p.id, br);
+    }
+  }
+
+  // Mark b2 as actively typing so it is skipped without interruption
+  brains.get('b2')!.isTypingInMeeting = true;
+
+  const payload = buildBatchedGeminiMeetingPayload({
+    roomCode: 'TEST',
+    players,
+    bodies: [],
+    brains,
+    chat: [],
+    meetingReason: 'emergency',
+    meetingCallerId: 'p_human',
+    phase: 'reaction',
+  });
+  assert.equal(payload.phase, 'reaction');
+  assert.equal(JSON.stringify(payload).includes('isBot'), false);
+
+  applyBatchedGeminiReactionChats({
+    replies: [
+      { botId: 'b1', text: 'বাবুকে গ্যারেজে দেখছি তো একটু আগে!', delaySec: 2.0, suspectName: 'Babu Bhai' },
+      { botId: 'b2', text: 'এইটা স্কিপ করা উচিত', delaySec: 2.5 },
+      { botId: 'b4', text: 'সত্যি বলতে আমিও সন্দেহ করতেছি', delaySec: 3.1, suspectName: 'Babu' },
+    ],
+    players,
+    brains,
+    rng: makeRng(55),
+  });
+
+  const b1 = brains.get('b1')!;
+  const b2 = brains.get('b2')!;
+  const b4 = brains.get('b4')!;
+
+  assert.equal(b1.pendingChats.length, 1);
+  assert.ok(b1.pendingChats[0].sendAtSec >= 5.6 && b1.pendingChats[0].sendAtSec <= 8.5);
+  assert.ok((b1.suspicion['b2'] ?? 0) >= 1.1, 'Expected suspectName to increase suspicion');
+  assert.equal(b2.pendingChats.length, 0, 'Typing bot should not be interrupted');
+  assert.equal(b4.pendingChats.length, 1);
+  assert.ok((b4.suspicion['b2'] ?? 0) >= 1.1);
+});
+
+test('stepBotsPlaying distributes 15-task selection beyond just the single closest station', () => {
+  const players = makePlayers();
+  assignMatchTasks(players, 15, makeRng(19));
+  const brains = new Map<string, BotBrainState>();
+  for (const p of players) {
+    if (p.isBot) brains.set(p.id, createBotBrainState(makeRng(71)));
+  }
+
+  const chosenTasks = new Set<string>();
+  const sab = createEmptySabotageState();
+  const doors = makeEmptyDoorLocks();
+  const holdingFixMap = new Map();
+
+  for (let sample = 0; sample < 24; sample++) {
+    const b1 = brains.get('b1')!;
+    b1.activeTaskId = null;
+    b1.pauseTimer = 0;
+    stepBotsPlaying({
+      players,
+      bodies: [],
+      sabotage: sab,
+      doorLocks: doors,
+      settings: { ...DEFAULT_ROOM_SETTINGS, tasksPerPlayer: 15 },
+      holdingFixMap,
+      brains,
+      dt: 0.05,
+      nowMs: 1000 + sample * 100,
+      rng: makeRng(100 + sample),
+    });
+    if (b1.activeTaskId) chosenTasks.add(b1.activeTaskId);
+  }
+
+  assert.ok(chosenTasks.size >= 3, `Expected varied multi-zone task picking across runs, got ${chosenTasks.size}`);
+});
+

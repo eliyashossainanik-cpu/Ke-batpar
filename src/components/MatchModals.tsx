@@ -192,7 +192,7 @@ function ChibiRolePortrait({
 function getRoleHowToPlay(isVondo: boolean, specialRole: SpecialRole): string[] {
   if (isVondo) {
     const lines = [
-      'একা থাকা পাড়াবাসীকে [Q / ঘায়েল] দিয়ে আঘাত করো আর [V] চেপে ড্রেন দিয়ে পালিয়ে যাও!',
+      'একা থাকা পাড়াবাসীকে [Q / গ্যাপে নাও] দিয়ে আঘাত করো আর [V] চেপে ড্রেন দিয়ে পালিয়ে যাও!',
       '[Tab / ম্যাপ] থেকে ডেসকো বিদ্যুৎ, ওয়াইফাই বা গ্যাস লিক নাশকতা দাও যাতে সবাই দৌড়াদৌড়ি করে।',
     ];
     if (specialRole === 'bohurupi') {

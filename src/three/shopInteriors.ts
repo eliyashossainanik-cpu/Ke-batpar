@@ -303,7 +303,12 @@ export function createChaStallProps(
   }
   const stallBulb = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 16, 16),
-    new THREE.MeshBasicMaterial({ color: '#fde047' }),
+    new THREE.MeshStandardMaterial({
+      color: '#fef9c3',
+      emissive: '#fde047',
+      emissiveIntensity: 0.32,
+      roughness: 0.22,
+    }),
   );
   stallBulb.position.set(-35.5, 2.75, -34.6);
   group.add(stallBulb);
@@ -495,7 +500,12 @@ export function createBazarProps(textures: ProceduralTextureSet, isSoftwareGl: b
   group.add(iceTray);
 
   // Hanging Enamel Warm Market Bulbs under Striped Awning
-  const bulbMat = new THREE.MeshBasicMaterial({ color: '#fde047' });
+  const bulbMat = new THREE.MeshStandardMaterial({
+    color: '#fef9c3',
+    emissive: '#fde047',
+    emissiveIntensity: 0.32,
+    roughness: 0.22,
+  });
   const shadeMat = new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.4 });
   for (const lz of [-3.2, 0, 3.2]) {
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 6), rackWood);
@@ -656,8 +666,18 @@ export function createDescoTransformer(
   const finMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.35, metalness: 0.82 });
   const dangerMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.45 });
   const copperMat = new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.25, metalness: 0.88 });
-  const glowRed = new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#ef4444', emissiveIntensity: 1.5 });
-  const glowGreen = new THREE.MeshStandardMaterial({ color: '#22c55e', emissive: '#16a34a', emissiveIntensity: 1.3 });
+  const glowRed = new THREE.MeshStandardMaterial({
+    color: '#ef4444',
+    emissive: '#ef4444',
+    emissiveIntensity: 0.45,
+    roughness: 0.25,
+  });
+  const glowGreen = new THREE.MeshStandardMaterial({
+    color: '#22c55e',
+    emissive: '#16a34a',
+    emissiveIntensity: 0.35,
+    roughness: 0.25,
+  });
 
   // Main Transformer Core (positioned at local origin -> placed at -38.25, 0, 32.65 in WorldScene)
   const body = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.15, 3.8), cabinetMat);
@@ -746,7 +766,7 @@ export function createDishHub(
   const screenMat = new THREE.MeshStandardMaterial({
     color: '#38bdf8',
     emissive: '#0284c7',
-    emissiveIntensity: 0.95,
+    emissiveIntensity: 0.45,
     roughness: 0.18,
   });
   const metalMat = new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.2, metalness: 0.88 });
@@ -836,14 +856,15 @@ export function createFuchkaCartModel(textures: ProceduralTextureSet, isSoftware
   const redFrame = new THREE.MeshStandardMaterial({ color: '#b91c1c', roughness: 0.36, metalness: 0.45 });
   const brassMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.2, metalness: 0.85 });
   const steelMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.2, metalness: 0.88 });
-  const glassMat = new THREE.MeshStandardMaterial({
+  const glassMat = new THREE.MeshPhysicalMaterial({
     color: '#e0f2fe',
-    roughness: 0.1,
-    metalness: 0.18,
+    roughness: 0.08,
+    metalness: 0.1,
+    clearcoat: 1.0,
     transparent: true,
-    opacity: 0.52,
+    opacity: 0.48,
   });
-  const tireMat = new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.88 });
+  const tireMat = new THREE.MeshStandardMaterial({ color: '#18181b', roughness: 0.92, metalness: 0.0 });
   const rimMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.25, metalness: 0.82 });
   const purisMat = new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.65 });
   const tokMat = new THREE.MeshStandardMaterial({ color: '#4d7c0f', roughness: 0.25 });
@@ -968,7 +989,12 @@ export function createFuchkaCartModel(textures: ProceduralTextureSet, isSoftware
 
   const bulb = new THREE.Mesh(
     new THREE.SphereGeometry(0.16, 14, 14),
-    new THREE.MeshBasicMaterial({ color: '#fde047' }),
+    new THREE.MeshStandardMaterial({
+      color: '#fef9c3',
+      emissive: '#fde047',
+      emissiveIntensity: 0.32,
+      roughness: 0.22,
+    }),
   );
   bulb.position.set(0, 3.25, 0.2);
   group.add(bulb);
@@ -1028,7 +1054,12 @@ export function createSaloonProps(
     frame.position.set(-74.0, 2.1, mz);
     const sconce = new THREE.Mesh(
       new THREE.BoxGeometry(0.14, 0.12, 1.4),
-      new THREE.MeshBasicMaterial({ color: '#fef9c3' }),
+      new THREE.MeshStandardMaterial({
+        color: '#fef9c3',
+        emissive: '#fde047',
+        emissiveIntensity: 0.32,
+        roughness: 0.22,
+      }),
     );
     sconce.position.set(-73.82, 2.95, mz);
     group.add(mirror, frame, sconce);
@@ -1138,7 +1169,12 @@ export function createCricketMathProps(textures: ProceduralTextureSet, isSoftwar
   const lineMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.5 });
   const woodMat = new THREE.MeshStandardMaterial({ color: '#eab308', roughness: 0.5 });
   const darkWood = new THREE.MeshStandardMaterial({ color: '#78350f', roughness: 0.8 });
-  const neonMat = new THREE.MeshBasicMaterial({ color: '#fef9c3' });
+  const neonMat = new THREE.MeshStandardMaterial({
+    color: '#f8fafc',
+    emissive: '#fde68a',
+    emissiveIntensity: 0.28,
+    roughness: 0.25,
+  });
   const towerMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.42, metalness: 0.72 });
   const benchGreen = new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.48 });
   const ropeMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.7 });
@@ -1267,7 +1303,8 @@ export function createPharmacyProps(textures: ProceduralTextureSet, isSoftwareGl
   const crossGreen = new THREE.MeshStandardMaterial({
     color: '#22c55e',
     emissive: '#16a34a',
-    emissiveIntensity: 1.2,
+    emissiveIntensity: 0.4,
+    roughness: 0.25,
   });
   const bottleMats = [
     new THREE.MeshStandardMaterial({ color: '#38bdf8', roughness: 0.18 }),
@@ -1339,7 +1376,12 @@ export function createPharmacyProps(textures: ProceduralTextureSet, isSoftwareGl
   vFridge.castShadow = !isSoftwareGl;
   const vDoor = new THREE.Mesh(
     new THREE.BoxGeometry(0.1, 1.55, 0.85),
-    new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#0ea5e9', emissiveIntensity: 0.55 }),
+    new THREE.MeshStandardMaterial({
+      color: '#e0f2fe',
+      emissive: '#0ea5e9',
+      emissiveIntensity: 0.25,
+      roughness: 0.18,
+    }),
   );
   vDoor.position.set(-71.88, 1.1, 18.6);
   group.add(vFridge, vDoor);
@@ -1384,7 +1426,8 @@ export function createBiyerPandalProps(
   const coneMat = new THREE.MeshStandardMaterial({
     color: '#38bdf8',
     emissive: '#0284c7',
-    emissiveIntensity: 0.55,
+    emissiveIntensity: 0.1,
+    roughness: 0.35,
   });
   const wooferCones: THREE.Mesh[] = [];
 
@@ -1455,7 +1498,7 @@ export function createBiyerPandalProps(
 
   const marigoldOrange = new THREE.MeshStandardMaterial({ color: '#f97316', roughness: 0.45 });
   const marigoldYellow = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.42 });
-  const bulbMat = new THREE.MeshBasicMaterial({ color: '#fb7185' });
+  const bulbMat = new THREE.MeshStandardMaterial({ color: '#be123c', roughness: 0.45 });
   const garGeo = new THREE.SphereGeometry(0.16, 10, 10);
 
   for (const gz of [17.8, 26.0, 34.2]) {
@@ -1742,7 +1785,7 @@ export function createJheelParDetails(): {
   const lampGlow = new THREE.MeshStandardMaterial({
     color: '#fef08a',
     emissive: '#fbbf24',
-    emissiveIntensity: 1.4,
+    emissiveIntensity: 0.35,
     roughness: 0.2,
   });
 
@@ -1835,7 +1878,7 @@ export function createShishuParkProps(
       new THREE.MeshStandardMaterial({
         color: hex,
         emissive: hex,
-        emissiveIntensity: 0.55,
+        emissiveIntensity: 0.08,
         roughness: 0.32,
       }),
   );
@@ -1925,8 +1968,8 @@ export function createShishuParkProps(
     map: textures.parkSignMap,
     emissive: '#ffffff',
     emissiveMap: textures.parkSignMap,
-    emissiveIntensity: 0.25,
-    roughness: 0.35,
+    emissiveIntensity: 0.04,
+    roughness: 0.4,
   });
   const signBoard = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.35, 4.6), signFaceMat);
   signBoard.position.set(128.2, 4.15, -82.0);
@@ -1948,7 +1991,8 @@ export function createOuterShopProps(
   const emberMat = new THREE.MeshStandardMaterial({
     color: '#fb923c',
     emissive: '#ea580c',
-    emissiveIntensity: 1.6,
+    emissiveIntensity: 0.75,
+    roughness: 0.65,
   });
 
   // 1. Nawab Kacchi Ghor: Chula Counter + 3 Copper Kacchi Deg Pots (kacchi_deg_counter -145.6..-142.2, -34.5..-21.5)
@@ -1982,8 +2026,8 @@ export function createOuterShopProps(
   cyberDesk.castShadow = !isSoftwareGl;
   group.add(cyberDesk);
   const rgbScreens = [
-    new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0284c7', emissiveIntensity: 1.4 }),
-    new THREE.MeshStandardMaterial({ color: '#f472b6', emissive: '#db2777', emissiveIntensity: 1.4 }),
+    new THREE.MeshStandardMaterial({ color: '#38bdf8', emissive: '#0284c7', emissiveIntensity: 0.55, roughness: 0.2 }),
+    new THREE.MeshStandardMaterial({ color: '#f472b6', emissive: '#db2777', emissiveIntensity: 0.55, roughness: 0.2 }),
   ];
   for (let i = 0; i < 4; i++) {
     const pz = 22.8 + i * 3.45;
@@ -2048,7 +2092,12 @@ export function createOuterShopProps(
   // 5. Balaka Cineplex: Glowing Silver Screen & Tiered Red Velvet Seats (cinema_seats -74.5..-63.5, -140.5..-138.2)
   const cineScreen = new THREE.Mesh(
     new THREE.BoxGeometry(12.2, 2.25, 0.14),
-    new THREE.MeshStandardMaterial({ color: '#e0f2fe', emissive: '#7dd3fc', emissiveIntensity: 0.72 }),
+    new THREE.MeshStandardMaterial({
+      color: '#e0f2fe',
+      emissive: '#7dd3fc',
+      emissiveIntensity: 0.25,
+      roughness: 0.3,
+    }),
   );
   cineScreen.position.set(-69.0, 1.65, -142.85);
   for (const cx of [-75.5, -62.5]) {
@@ -2122,12 +2171,12 @@ export function createOuterShopProps(
   semMast.position.set(31.8, 3.8, 124.9);
   const sigGreen = new THREE.Mesh(
     new THREE.SphereGeometry(0.26, 12, 12),
-    new THREE.MeshStandardMaterial({ color: '#22c55e', emissive: '#16a34a', emissiveIntensity: 1.8 }),
+    new THREE.MeshStandardMaterial({ color: '#22c55e', emissive: '#16a34a', emissiveIntensity: 0.55, roughness: 0.25 }),
   );
   sigGreen.position.set(31.35, 7.2, 124.9);
   const sigRed = new THREE.Mesh(
     new THREE.SphereGeometry(0.26, 12, 12),
-    new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#dc2626', emissiveIntensity: 1.5 }),
+    new THREE.MeshStandardMaterial({ color: '#ef4444', emissive: '#dc2626', emissiveIntensity: 0.55, roughness: 0.25 }),
   );
   sigRed.position.set(31.35, 6.4, 124.9);
   group.add(gantryBase, towerCab, cabRoof, semMast, sigGreen, sigRed);

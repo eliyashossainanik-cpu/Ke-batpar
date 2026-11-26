@@ -186,6 +186,7 @@ export interface BotBrainState {
   cachedHopZ?: number;
   cachedGoalX?: number;
   cachedGoalZ?: number;
+  cachedDoorMask?: number;
   pathRefreshTimer?: number;
   processedMeetingClues?: boolean;
   zoneHistory: string[];
@@ -249,6 +250,7 @@ export interface BotGeminiMeetingBotContext {
 
 export interface BatchedGeminiMeetingPayload {
   roomCode: string;
+  phase?: 'opening' | 'reaction';
   reason: 'body' | 'emergency' | null;
   callerName: string | null;
   victimName: string | null;
@@ -262,6 +264,7 @@ export interface BatchedGeminiChatReply {
   botId: string;
   text: string;
   delaySec: number;
+  suspectName?: string;
 }
 
 export const BOT_BANTER_LINES = [
@@ -642,16 +645,23 @@ export function computeNextMoveTarget(
     }
     if (bestFirst >= 0 && bestGoal >= 0) {
       let hopIdx = bestFirst;
-      if (
-        distance2D(fromX, fromZ, NAV_NODES[bestFirst].x, NAV_NODES[bestFirst].z) < 2.2 &&
-        bestFirst !== bestGoal
-      ) {
-        const nextIdx = STATIC_ALL_PAIRS.nextHop[bestFirst][bestGoal];
+      let steps = 0;
+      while (hopIdx !== bestGoal && steps++ < 6) {
+        const nextIdx = STATIC_ALL_PAIRS.nextHop[hopIdx][bestGoal];
+        if (nextIdx < 0 || nextIdx === hopIdx) break;
         if (
-          nextIdx >= 0 &&
-          isPathSegmentWalkable(fromX, fromZ, NAV_NODES[nextIdx].x, NAV_NODES[nextIdx].z, doorLocks, PLAYER_RADIUS + 0.08)
+          isPathSegmentWalkable(
+            fromX,
+            fromZ,
+            NAV_NODES[nextIdx].x,
+            NAV_NODES[nextIdx].z,
+            doorLocks,
+            PLAYER_RADIUS + 0.08,
+          )
         ) {
           hopIdx = nextIdx;
+        } else {
+          break;
         }
       }
       return NAV_NODES[hopIdx];
@@ -717,20 +727,31 @@ export function computeNextMoveTarget(
 
   const targetNode = bestGoalNode >= 0 ? bestGoalNode : closestReachableNode;
   if (targetNode >= 0 && firstHop[targetNode] >= 0) {
-    let hopIdx = firstHop[targetNode];
-    if (
-      distance2D(fromX, fromZ, NAV_NODES[hopIdx].x, NAV_NODES[hopIdx].z) < 2.2 &&
-      targetNode !== hopIdx
-    ) {
-      let cur = targetNode;
-      while (parent[cur] >= 0 && parent[cur] !== hopIdx) {
-        cur = parent[cur];
-      }
+    const path: number[] = [];
+    let cur = targetNode;
+    let guard = 0;
+    while (cur >= 0 && guard++ < n) {
+      path.push(cur);
+      if (parent[cur] < 0) break;
+      cur = parent[cur];
+    }
+    path.reverse();
+    let hopIdx = path[0];
+    for (let k = 1; k < path.length && k <= 6; k++) {
+      const nextIdx = path[k];
       if (
-        cur !== hopIdx &&
-        isPathSegmentWalkable(fromX, fromZ, NAV_NODES[cur].x, NAV_NODES[cur].z, doorLocks, PLAYER_RADIUS + 0.08)
+        isPathSegmentWalkable(
+          fromX,
+          fromZ,
+          NAV_NODES[nextIdx].x,
+          NAV_NODES[nextIdx].z,
+          doorLocks,
+          PLAYER_RADIUS + 0.08,
+        )
       ) {
-        hopIdx = cur;
+        hopIdx = nextIdx;
+      } else {
+        break;
       }
     }
     return NAV_NODES[hopIdx];
@@ -845,7 +866,7 @@ export function resetBotBrainsForMeeting(
     brain.pauseTimer = 0.3 + rng() * 0.6;
     brain.detourNodeIdx = null;
     brain.detourTimer = 0;
-    brain.killWaitTimer = 40 + rng() * 18;
+    brain.killWaitTimer = 41 + rng() * 16;
     brain.processedMeetingClues = false;
     brain.ventTimer = 0;
     brain.ventTargetId = null;
@@ -1009,8 +1030,8 @@ function updateBotPerception(
 
     // Audible drain vent check for Mistri/nearby vents
     if (other.inVent && isMistriVentAudibleTo(other, p)) {
-      if (other.specialRole !== 'mistri') {
-        brain.suspicion[other.id] = (brain.suspicion[other.id] ?? 0) + 1.8;
+      if (p.role === 'parabasi' && other.specialRole !== 'mistri') {
+        brain.suspicion[other.id] = (brain.suspicion[other.id] ?? 0) + 2.4;
       }
       continue;
     }
@@ -1024,6 +1045,21 @@ function updateBotPerception(
     const actualZone = getZoneNameAt(other.x, other.z);
     const noisy = (d > sightRange * 0.72 || sabotage.active === 'loadshedding') && rng() < BOT_AI_CONFIG.memoryErrorChance;
     const recordedZone = noisy ? getAdjacentNoisyZoneName(actualZone, rng) : actualZone;
+
+    // Sharp Crewmate deduction: catch someone popping right out of a distant vent/manhole
+    if (p.role === 'parabasi' && !isNeutralRole(p.specialRole) && d <= 16 && other.specialRole !== 'mistri') {
+      const prevSight = [...sights].reverse().find((sg) => sg.id === perceived.perceivedId);
+      const nearVentNow = VENTS.some((vn) => distance2D(other.x, other.z, vn.x, vn.z) <= 4.8);
+      if (
+        prevSight &&
+        nearVentNow &&
+        nowMs - prevSight.atMs <= 3400 &&
+        distance2D(prevSight.x, prevSight.z, other.x, other.z) > 22 &&
+        !cleared.has(perceived.perceivedId)
+      ) {
+        brain.suspicion[perceived.perceivedId] = (brain.suspicion[perceived.perceivedId] ?? 0) + 2.6;
+      }
+    }
 
     sights.push({
       id: perceived.perceivedId,
@@ -1276,11 +1312,23 @@ function decideBotGoal(
       })
       .sort((a, b) => b.atMs - a.atMs)[0];
     if (recentMem && distance2D(p.x, p.z, recentMem.x, recentMem.z) > 3.5) {
-      return { goalX: recentMem.x, goalZ: recentMem.z, activeStationTarget: null, sprintBoost: false, tookVent: false };
+      return {
+        goalX: recentMem.x,
+        goalZ: recentMem.z,
+        activeStationTarget: null,
+        sprintBoost: false,
+        tookVent: false,
+      };
     }
     const patrolHub = TASK_STATIONS[brain.targetWaypointIdx % TASK_STATIONS.length];
     if (patrolHub) {
-      return { goalX: patrolHub.x, goalZ: patrolHub.z, activeStationTarget: null, sprintBoost: false, tookVent: false };
+      return {
+        goalX: patrolHub.x,
+        goalZ: patrolHub.z,
+        activeStationTarget: null,
+        sprintBoost: false,
+        tookVent: false,
+      };
     }
   }
 
@@ -1350,7 +1398,29 @@ function decideBotGoal(
           distance2D(p.x, p.z, b.station.x, b.station.z),
       );
     if (candidates.length > 0) {
-      const idx = candidates.length > 1 && rng() > 0.72 ? 1 : 0;
+      let idx = 0;
+      if (candidates.length > 2) {
+        const roll = rng();
+        if (roll < 0.62) {
+          idx = 0;
+        } else if (roll < 0.88) {
+          idx = 1 + Math.floor(rng() * Math.min(2, candidates.length - 1));
+        } else {
+          const curZone = getZoneIdAt(p.x, p.z);
+          const distantStart = Math.min(2, candidates.length - 1);
+          const outerPool = candidates
+            .map((c, i) => ({ c, i }))
+            .slice(distantStart)
+            .filter(({ c }) => getZoneIdAt(c.station.x, c.station.z) !== curZone);
+          if (outerPool.length > 0) {
+            idx = outerPool[Math.floor(rng() * outerPool.length)].i;
+          } else {
+            idx = distantStart + Math.floor(rng() * (candidates.length - distantStart));
+          }
+        }
+      } else if (candidates.length === 2 && rng() < 0.3) {
+        idx = 1;
+      }
       st = candidates[idx].station;
       brain.activeTaskId = st.id;
     }
@@ -1359,7 +1429,7 @@ function decideBotGoal(
     activeStationTarget = st;
     goalX = st.x;
     goalZ = st.z;
-    if (p.role === 'parabasi' && distance2D(p.x, p.z, st.x, st.z) > 62) {
+    if (p.role === 'parabasi' && distance2D(p.x, p.z, st.x, st.z) > 36) {
       sprintBoost = true;
     }
   }
@@ -1442,6 +1512,12 @@ function stepHumanizedMovement(
     brain.pathRefreshTimer = Math.max(0, brain.pathRefreshTimer - dt);
   }
 
+  const doorMask =
+    (doorLocks.cha_dokan > 0 ? 1 : 0) |
+    (doorLocks.rickshaw_garage > 0 ? 2 : 0) |
+    (doorLocks.desco_power > 0 ? 4 : 0) |
+    (doorLocks.dish_roof > 0 ? 8 : 0);
+
   let nextHop: { x: number; z: number };
   const goalSame =
     brain.cachedGoalX !== undefined &&
@@ -1454,7 +1530,7 @@ function stepHumanizedMovement(
     brain.cachedHopZ !== undefined &&
     (brain.pathRefreshTimer ?? 0) > 0 &&
     distance2D(p.x, p.z, brain.cachedHopX, brain.cachedHopZ) > hopRefreshDist &&
-    !hasAnyLockedDoor(doorLocks);
+    brain.cachedDoorMask === doorMask;
 
   if (hopValid) {
     nextHop = { x: brain.cachedHopX!, z: brain.cachedHopZ! };
@@ -1464,6 +1540,7 @@ function stepHumanizedMovement(
     brain.cachedHopZ = nextHop.z;
     brain.cachedGoalX = goalX;
     brain.cachedGoalZ = goalZ;
+    brain.cachedDoorMask = doorMask;
     brain.pathRefreshTimer = 0.85;
   }
 
@@ -1499,7 +1576,16 @@ function stepHumanizedMovement(
   const steerZ = dirZ + perpZ * lateralAmt;
   const steerLen = Math.hypot(steerX, steerZ) || 1;
 
-  const baseRate = sprintBoost ? 1.05 : brain.personality === 'chill' ? 0.83 : 0.9;
+  const isHuntingVondo =
+    p.role === 'vondo' &&
+    p.killCooldownRemaining <= 2.5 &&
+    (brain.killWaitTimer ?? 0) <= 1.2 &&
+    brain.postKillCoverTimer <= 0;
+  const baseRate = sprintBoost
+    ? 1.05
+    : !isHuntingVondo && brain.personality === 'chill'
+      ? 0.83
+      : 0.9;
   const maxStepSpeed = Math.min(settings.moveSpeed * baseRate, hopDist / Math.max(0.016, dt));
   const speed = hopDist < settings.moveSpeed * baseRate * dt ? maxStepSpeed : settings.moveSpeed * baseRate;
   p.vx = (steerX / steerLen) * speed;
@@ -1664,11 +1750,17 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
           if (dest) {
             p.x = dest.x;
             p.z = dest.z;
+            if (p.role === 'vondo') {
+              brain.fakeStoryZone = getZoneNameAt(dest.x, dest.z);
+            }
           }
           brain.ventTargetId = null;
           brain.ventTimer = 0.42;
         } else {
           p.inVent = false;
+          if (p.role === 'vondo') {
+            brain.fakeStoryZone = getZoneNameAt(p.x, p.z);
+          }
           if (p.specialRole === 'mistri') {
             p.abilityCooldown = MISTRI_VENT_COOLDOWN_SEC;
           }
@@ -1908,9 +2000,34 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         sabotage.cooldownRemaining <= 0 &&
         brain.sabotageDelayTimer <= 0
       ) {
+        const camWatchers = players.some((pl) => pl.alive && pl.role !== 'vondo' && pl.watchingCams);
+        const crowdNearKiller = players.filter(
+          (pl) =>
+            pl.alive &&
+            pl.role !== 'vondo' &&
+            distance2D(p.x, p.z, pl.x, pl.z) <= 20 &&
+            hasLineOfSight(p.x, p.z, pl.x, pl.z, WALLS, doorLocks),
+        ).length;
+        let totalT = 0;
+        let doneT = 0;
+        for (const pl of players) {
+          if (!canCompleteTasks(pl)) continue;
+          totalT += pl.tasks.length;
+          doneT += pl.tasks.filter((t) => t.completed).length;
+        }
+        const taskProg = totalT > 0 ? doneT / totalT : 0;
+
         const roll = rng();
-        const sabType: SabotageType =
-          roll < 0.52 ? 'loadshedding' : roll < 0.90 ? 'wifi_down' : 'gas_leak';
+        let sabType: SabotageType;
+        if (camWatchers && roll < 0.6) {
+          sabType = 'wifi_down';
+        } else if (crowdNearKiller >= 2 && p.killCooldownRemaining <= 4 && roll < 0.68) {
+          sabType = 'loadshedding';
+        } else if (taskProg >= 0.78 && roll < 0.22) {
+          sabType = 'gas_leak';
+        } else {
+          sabType = roll < 0.52 ? 'loadshedding' : roll < 0.9 ? 'wifi_down' : 'gas_leak';
+        }
         const newSab = createSabotageState(sabType, SABOTAGE_COOLDOWN_SEC);
         Object.assign(sabotage, newSab);
         for (const other of players) {
@@ -1970,7 +2087,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             if (p.specialRole === 'supari_killer') {
               p.supariTargetId = pickSupariContractTarget(p, players, p.supariTargetId)?.id ?? null;
             }
-            brain.killWaitTimer = 44 + rng() * 18;
+            brain.killWaitTimer = 47 + rng() * 18;
             const killerColorForClue = p.disguiseColor ?? p.color;
             bodies.push({
               id: `body_${nowMs}_${victim.id}_${Math.floor(rng() * 1000)}`,
@@ -1989,10 +2106,21 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
             brain.pauseTimer = 0;
             brain.postKillCoverTimer = 8.0 + rng() * 6.0;
 
-            // Smart Vent Escape if near a manhole & unwitnessed
+            // Smart Vent Escape if near a manhole & zero witnesses watching the grate
             if (!witnessed && p.specialRole !== 'jharudar') {
               const nearVent = VENTS.find((v) => distance2D(p.x, p.z, v.x, v.z) <= 5.5);
-              if (nearVent && rng() < 0.45) {
+              const ventWatched =
+                nearVent &&
+                players.some(
+                  (o) =>
+                    o.alive &&
+                    o.id !== p.id &&
+                    o.id !== victim.id &&
+                    o.role !== 'vondo' &&
+                    distance2D(o.x, o.z, nearVent.x, nearVent.z) <= 13.0 &&
+                    hasLineOfSight(o.x, o.z, nearVent.x, nearVent.z, WALLS, doorLocks),
+                );
+              if (nearVent && !ventWatched && rng() < 0.45) {
                 const links = getConnectedVents(nearVent.x, nearVent.z).targets;
                 if (links.length > 0) {
                   const pickHop = links[Math.floor(rng() * links.length)];
@@ -2001,6 +2129,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
                   p.z = nearVent.z;
                   brain.ventTargetId = pickHop.id;
                   brain.ventTimer = 0.65;
+                  brain.fakeStoryZone = getZoneNameAt(pickHop.x, pickHop.z);
                 }
               }
             }
@@ -2022,7 +2151,23 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
     }
 
     if (brain.pauseTimer > 0) {
-      if (sabotage.active === 'gas_leak' && p.role === 'parabasi' && !isNeutralRole(p.specialRole)) {
+      const readyHuntOpportunity =
+        p.role === 'vondo' &&
+        p.killCooldownRemaining <= 0.5 &&
+        (brain.killWaitTimer ?? 0) <= 0 &&
+        brain.postKillCoverTimer <= 0 &&
+        players.some(
+          (o) =>
+            o.alive &&
+            o.role !== 'vondo' &&
+            !o.inVent &&
+            distance2D(p.x, p.z, o.x, o.z) <= 14 &&
+            hasLineOfSight(p.x, p.z, o.x, o.z, WALLS, doorLocks),
+        );
+      if (
+        (sabotage.active === 'gas_leak' && p.role === 'parabasi' && !isNeutralRole(p.specialRole)) ||
+        readyHuntOpportunity
+      ) {
         brain.pauseTimer = 0;
         brain.activeTaskId = null;
         brain.pathRefreshTimer = 0;
@@ -2082,7 +2227,7 @@ export function stepBotsPlaying(ctx: BotPlayContext): boolean {
         brain.pauseTimer =
           p.role === 'vondo'
             ? Math.max(1.8, goal.activeStationTarget.holdDurationSec * (0.65 + rng() * 0.55))
-            : goal.activeStationTarget.holdDurationSec + 1.15 + rng() * 0.6;
+            : goal.activeStationTarget.holdDurationSec + 0.8 + rng() * 0.5;
         if (canCompleteTasks(p) && goal.activeStationTarget.isVisual && settings.visualTasks) {
           p.visualTaskTimer = 2.6;
         }
@@ -2566,8 +2711,9 @@ export function buildBatchedGeminiMeetingPayload(params: {
   chat: ChatMessage[];
   meetingReason: 'body' | 'emergency' | null;
   meetingCallerId: string | null;
+  phase?: 'opening' | 'reaction';
 }): BatchedGeminiMeetingPayload {
-  const { roomCode, players, bodies, brains, chat, meetingReason, meetingCallerId } = params;
+  const { roomCode, players, bodies, brains, chat, meetingReason, meetingCallerId, phase = 'opening' } = params;
   const caller = players.find((p) => p.id === meetingCallerId) ?? null;
   const reportedBody = meetingReason === 'body' ? bodies.find((b) => b.reported) ?? bodies.at(-1) : undefined;
   const bodyZone = reportedBody ? getZoneNameAt(reportedBody.x, reportedBody.z) : null;
@@ -2637,6 +2783,7 @@ export function buildBatchedGeminiMeetingPayload(params: {
 
   return {
     roomCode,
+    phase,
     reason: meetingReason,
     callerName: caller?.name ?? null,
     victimName: reportedBody?.victimName ?? null,
@@ -2645,6 +2792,26 @@ export function buildBatchedGeminiMeetingPayload(params: {
     chatHistory: recentChat,
     bots: botContexts,
   };
+}
+
+function resolveGeminiSuspect(
+  suspectName: string | undefined,
+  players: PlayerState[],
+  excludeBotId: string,
+): PlayerState | null {
+  if (typeof suspectName !== 'string') return null;
+  const clean = suspectName.trim().toLowerCase();
+  if (clean.length < 2) return null;
+  const first = clean.split(/\s+/)[0] ?? '';
+  return (
+    players.find(
+      (pl) =>
+        pl.alive &&
+        pl.id !== excludeBotId &&
+        (pl.name.toLowerCase() === clean ||
+          (first.length >= 2 && pl.name.toLowerCase().split(/\s+/)[0] === first)),
+    ) ?? null
+  );
 }
 
 /**
@@ -2687,6 +2854,10 @@ export function applyBatchedGeminiChats(params: {
     const typingDur = tMin + rng() * (tMax - tMin);
     const typingStartSec = Math.max(brain.meetingElapsedSec + 0.2, sendAtSec - typingDur);
     const mentioned = findMentionedPlayer(cleanText, players, bot.id);
+    const suspectPl = resolveGeminiSuspect(r.suspectName, players, bot.id);
+    if (suspectPl && !brain.clearedIds.includes(suspectPl.id)) {
+      brain.suspicion[suspectPl.id] = (brain.suspicion[suspectPl.id] ?? 0) + 1.15;
+    }
 
     brain.pendingChats = [
       {
@@ -2694,11 +2865,69 @@ export function applyBatchedGeminiChats(params: {
         typingStartSec,
         sendAtSec,
         text: cleanText,
-        accusedId: mentioned && isAccusationText(cleanText) ? mentioned.id : undefined,
+        accusedId:
+          mentioned && isAccusationText(cleanText)
+            ? mentioned.id
+            : suspectPl?.id,
       },
     ];
     brain.geminiApplied = true;
     brain.hasChatted = true;
+  }
+}
+
+/**
+ * Schedules 1-3 live Gemini reactive replies after a human sends a meeting message,
+ * without overwriting already-sent lines or interrupting bots currently typing.
+ */
+export function applyBatchedGeminiReactionChats(params: {
+  replies: BatchedGeminiChatReply[];
+  players: PlayerState[];
+  brains: Map<string, BotBrainState>;
+  rng?: () => number;
+}): void {
+  const { replies, players, brains } = params;
+  const rng = params.rng ?? Math.random;
+  if (!Array.isArray(replies) || replies.length === 0) return;
+
+  let scheduledCount = 0;
+  for (const r of replies) {
+    if (scheduledCount >= 3) break;
+    if (!r || typeof r.botId !== 'string' || typeof r.text !== 'string') continue;
+    const cleanText = r.text.trim().replace(/\s+/g, ' ').slice(0, 130);
+    if (!cleanText) continue;
+
+    const bot = players.find((p) => p.id === r.botId && p.isBot && p.alive);
+    const brain = brains.get(r.botId);
+    if (!bot || !brain) continue;
+    if (brain.isTypingInMeeting) continue;
+    const hasImminentUnsent = brain.pendingChats.some(
+      (c) => !c.sent && c.sendAtSec <= brain.meetingElapsedSec + 1.5,
+    );
+    if (hasImminentUnsent) continue;
+
+    const delay = Math.min(4.5, Math.max(1.6, 1.6 + scheduledCount * 1.1 + rng() * 0.85));
+    const sendAtSec = brain.meetingElapsedSec + delay;
+    const typingDur = 0.85 + rng() * 0.9;
+    const typingStartSec = Math.max(brain.meetingElapsedSec + 0.15, sendAtSec - typingDur);
+    const mentioned = findMentionedPlayer(cleanText, players, bot.id);
+    const suspectPl = resolveGeminiSuspect(r.suspectName, players, bot.id);
+    if (suspectPl && !brain.clearedIds.includes(suspectPl.id)) {
+      brain.suspicion[suspectPl.id] = (brain.suspicion[suspectPl.id] ?? 0) + 1.15;
+    }
+
+    brain.pendingChats.push({
+      id: `gem_react_${bot.id}_${Math.floor(sendAtSec * 100)}_${scheduledCount}`,
+      typingStartSec,
+      sendAtSec,
+      text: cleanText,
+      accusedId:
+        mentioned && isAccusationText(cleanText)
+          ? mentioned.id
+          : suspectPl?.id,
+    });
+    brain.hasChatted = true;
+    scheduledCount++;
   }
 }
 

@@ -18,6 +18,7 @@ import {
   type RoomSettings,
   type RoomSnapshot,
   type ServerMessage,
+  type VehicleState,
 } from './src/shared/types.ts';
 import {
   BOT_WAYPOINTS,
@@ -26,14 +27,19 @@ import {
   PLAYER_RADIUS,
   SPAWN_RING,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
   WALLS,
+  createInitialVehicles,
   distance2D,
+  findNearestAvailableVehicle,
   getBanglaZoneNameAt,
   getZoneIdAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePedestrianVehicleCollision,
   resolvePlayerMoveWithElevation,
+  resolveVehicleCollision,
 } from './src/shared/mapData.ts';
 import {
   BOHURUPI_COOLDOWN_SEC,
@@ -95,6 +101,7 @@ import {
   computeTaskProgress,
   createEmptySabotageState,
   createSabotageState,
+  dismountPlayerFromVehicle,
   evaluateMatchOutcome,
   executeGoyendaScan,
   findNearestCleanableBody,
@@ -126,6 +133,7 @@ import {
   type BatchedGeminiMeetingPayload,
   type BotBrainState,
   applyBatchedGeminiChats,
+  applyBatchedGeminiReactionChats,
   buildBatchedGeminiMeetingPayload,
   createBotBrainState,
   generateFallbackMeetingChats,
@@ -166,50 +174,115 @@ function getGeminiClient(): GoogleGenAI | null {
   return cachedGeminiClient;
 }
 
+let geminiQuotaCooldownUntil = 0;
+let geminiCooldownLoggedUntil = 0;
+
+function classifyGeminiError(err: unknown): {
+  isQuotaOrRateLimit: boolean;
+  isZeroQuota: boolean;
+  isTransient: boolean;
+  summary: string;
+} {
+  const raw =
+    err instanceof Error
+      ? `${err.name}: ${err.message}`
+      : typeof err === 'string'
+        ? err
+        : JSON.stringify(err ?? {});
+  const lower = raw.toLowerCase();
+  const isZeroQuota =
+    lower.includes('"quota_limit_value":"0"') ||
+    lower.includes('"quota_limit_value": "0"');
+  const isQuotaOrRateLimit =
+    isZeroQuota ||
+    lower.includes('resource_exhausted') ||
+    lower.includes('rate_limit_exceeded') ||
+    lower.includes('quota exceeded') ||
+    lower.includes('"code":429') ||
+    lower.includes(' 429 ');
+  const isTransient =
+    !isZeroQuota &&
+    (isQuotaOrRateLimit ||
+      lower.includes('503') ||
+      lower.includes('unavailable') ||
+      lower.includes('timeout'));
+  const summary = isZeroQuota
+    ? 'Gemini regional API quota is 0 RPM (429 RESOURCE_EXHAUSTED)'
+    : isQuotaOrRateLimit
+      ? 'Gemini API rate limit reached (429 RESOURCE_EXHAUSTED)'
+      : 'Gemini API request failed';
+  return { isQuotaOrRateLimit, isZeroQuota, isTransient, summary };
+}
+
 async function generateGeminiBotMeetingChats(
   payload: BatchedGeminiMeetingPayload,
-): Promise<{ messages: BatchedGeminiChatReply[]; fallback: boolean }> {
+): Promise<{
+  messages: BatchedGeminiChatReply[];
+  fallback: boolean;
+  quotaExceeded?: boolean;
+  retryAfterSec?: number;
+}> {
   const ai = getGeminiClient();
   if (!ai || payload.bots.length === 0) {
     return { messages: [], fallback: true };
   }
 
-  try {
-    const promptPayload = {
-      meetingReason: payload.reason,
-      callerName: payload.callerName,
-      victimName: payload.victimName,
-      bodyZone: payload.bodyZone,
-      alivePlayers: payload.aliveNames,
-      recentChat: payload.chatHistory.slice(-10),
-      bots: payload.bots.map((b) => ({
-        botId: b.id,
-        name: b.name,
-        personality: b.personality,
-        role: b.role,
-        specialRole: b.specialRole,
-        partnerName: b.partnerName ?? null,
-        ownRecentZones: b.ownRecentZones,
-        fakeAlibiZone: b.fakeAlibiZone ?? null,
-        privateMemory: b.privateMemory,
-        topSuspectName: b.topSuspectName ?? null,
-        shouldBeSilent: b.shouldBeSilent,
-      })),
+  const now = Date.now();
+  if (now < geminiQuotaCooldownUntil) {
+    return {
+      messages: [],
+      fallback: true,
+      quotaExceeded: true,
+      retryAfterSec: Math.max(1, Math.ceil((geminiQuotaCooldownUntil - now) / 1000)),
     };
+  }
 
-    const response = await ai.models.generateContent({
+  const isReaction = payload.phase === 'reaction';
+  const promptPayload = {
+    phase: payload.phase ?? 'opening',
+    meetingReason: payload.reason,
+    callerName: payload.callerName,
+    victimName: payload.victimName,
+    bodyZone: payload.bodyZone,
+    alivePlayers: payload.aliveNames,
+    recentChat: payload.chatHistory.slice(-10),
+    bots: payload.bots.map((b) => ({
+      botId: b.id,
+      name: b.name,
+      personality: b.personality,
+      role: b.role,
+      specialRole: b.specialRole,
+      partnerName: b.partnerName ?? null,
+      ownRecentZones: b.ownRecentZones,
+      fakeAlibiZone: b.fakeAlibiZone ?? null,
+      privateMemory: b.privateMemory,
+      topSuspectName: b.topSuspectName ?? null,
+      shouldBeSilent: b.shouldBeSilent,
+    })),
+  };
+
+  const userPrompt = isReaction
+    ? `A player just spoke in the meeting chat. Pick 1-3 relevant non-silent bots to react naturally right now in Bangla.\nContext JSON:\n${JSON.stringify(promptPayload)}`
+    : `Generate one natural meeting round of short, casual chat lines for the non-silent bots below.\nContext JSON:\n${JSON.stringify(promptPayload)}`;
+
+  const systemInstruction =
+    'You write realistic human player chat messages in an Among Us-style Dhaka neighborhood game ("কে বাটপার?"). ' +
+    'Each bot MUST ONLY know its own privateMemory, ownRecentZones, personality, role, partnerName (if vondo), and recentChat. ' +
+    'Never leak hidden roles or cheat. Never treat any player specially. ' +
+    'Write short, natural 4-14 word lines in pure natural casual Bangla script (বাংলা অক্ষরে, যেমন: "ভাই", "মামা", "কসম", "সন্দেহ লাগতেছে", "কেন", "আরেহ", "পুকুরে ফ্যালো") with realistic casual phrasing, mild conversational quirks, and personality fit. ' +
+    'Skip bots where shouldBeSilent is true (or output fewer messages so some stay quiet). ' +
+    'Vondo bots lie using fakeAlibiZone, deflect naturally, or bus a heavily suspected partner. ' +
+    'Parabasi bots share honest (slightly uncertain) observations, ask sharp questions, or call out contradictions. ' +
+    'If phase is "reaction", only output 1 to 3 short replies from bots reacting to the latest message in recentChat, with delaySec between 1.6 and 4.2. ' +
+    'Otherwise set delaySec staggered between 2.2 and 12.5 seconds (never 0 or instant). ' +
+    'If a bot points suspicion at a specific alive player, optionally include suspectName matching that player name in alivePlayers.';
+
+  const callModel = () =>
+    ai.models.generateContent({
       model: 'gemini-4-hydrogen',
-      contents: `Generate one natural meeting round of short, casual chat lines for the non-silent bots below.\nContext JSON:\n${JSON.stringify(promptPayload)}`,
+      contents: userPrompt,
       config: {
-        systemInstruction:
-          'You write realistic human player chat messages in an Among Us-style Dhaka neighborhood game ("কে বাটপার?"). ' +
-          'Each bot MUST ONLY know its own privateMemory, ownRecentZones, personality, role, partnerName (if vondo), and recentChat. ' +
-          'Never leak hidden roles or cheat. Never treat any player specially. ' +
-          'Write short, natural 4-14 word lines in pure natural casual Bangla script (বাংলা অক্ষরে, যেমন: "ভাই", "মামা", "কসম", "সন্দেহ লাগতেছে", "কেন", "আরেহ", "পুকুরে ফ্যালো") with realistic casual phrasing, mild conversational quirks, and personality fit. ' +
-          'Skip bots where shouldBeSilent is true (or output fewer messages so some stay quiet). ' +
-          'Vondo bots lie using fakeAlibiZone, deflect naturally, or bus a heavily suspected partner. ' +
-          'Parabasi bots share honest (slightly uncertain) observations, ask sharp questions, or call out contradictions. ' +
-          'Set delaySec staggered between 2.2 and 12.5 seconds (never 0 or instant).',
+        systemInstruction,
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
         responseMimeType: 'application/json',
         responseSchema: {
@@ -223,6 +296,7 @@ async function generateGeminiBotMeetingChats(
                   botId: { type: Type.STRING },
                   text: { type: Type.STRING },
                   delaySec: { type: Type.NUMBER },
+                  suspectName: { type: Type.STRING },
                 },
                 required: ['botId', 'text', 'delaySec'],
               },
@@ -233,25 +307,59 @@ async function generateGeminiBotMeetingChats(
       },
     });
 
-    const parsed = JSON.parse((response.text ?? '{}').trim()) as {
-      messages?: Array<{ botId?: unknown; text?: unknown; delaySec?: unknown }>;
-    };
-    const messages: BatchedGeminiChatReply[] = Array.isArray(parsed.messages)
-      ? parsed.messages
-          .filter(
-            (m): m is { botId: string; text: string; delaySec: number } =>
-              typeof m?.botId === 'string' &&
-              typeof m?.text === 'string' &&
-              typeof m?.delaySec === 'number',
-          )
-          .slice(0, payload.bots.length)
-      : [];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await callModel();
+      const parsed = JSON.parse((response.text ?? '{}').trim()) as {
+        messages?: Array<{ botId?: unknown; text?: unknown; delaySec?: unknown; suspectName?: unknown }>;
+      };
+      const messages: BatchedGeminiChatReply[] = Array.isArray(parsed.messages)
+        ? parsed.messages
+            .filter(
+              (m): m is { botId: string; text: string; delaySec: number; suspectName?: unknown } =>
+                typeof m?.botId === 'string' &&
+                typeof m?.text === 'string' &&
+                typeof m?.delaySec === 'number',
+            )
+            .map((m) => ({
+              botId: m.botId,
+              text: m.text,
+              delaySec: m.delaySec,
+              ...(typeof m.suspectName === 'string' && m.suspectName.trim()
+                ? { suspectName: m.suspectName.trim() }
+                : {}),
+            }))
+            .slice(0, payload.bots.length)
+        : [];
 
-    return { messages, fallback: messages.length === 0 };
-  } catch (err) {
-    console.warn('Gemini bot meeting chat fallback triggered:', err);
-    return { messages: [], fallback: true };
+      return { messages, fallback: messages.length === 0 };
+    } catch (err) {
+      lastErr = err;
+      const info = classifyGeminiError(err);
+      if (attempt === 0 && info.isTransient && !info.isZeroQuota) {
+        await new Promise((resolve) => setTimeout(resolve, 850));
+        continue;
+      }
+      break;
+    }
   }
+
+  const info = classifyGeminiError(lastErr);
+  const cooldownMs = info.isZeroQuota ? 5 * 60_000 : info.isQuotaOrRateLimit ? 60_000 : 30_000;
+  geminiQuotaCooldownUntil = Date.now() + cooldownMs;
+  if (Date.now() >= geminiCooldownLoggedUntil) {
+    geminiCooldownLoggedUntil = geminiQuotaCooldownUntil;
+    console.info(
+      `[bot-chat] ${info.summary}; using built-in Bangla bot chat fallback for ${Math.round(cooldownMs / 1000)}s.`,
+    );
+  }
+  return {
+    messages: [],
+    fallback: true,
+    quotaExceeded: info.isQuotaOrRateLimit,
+    retryAfterSec: Math.round(cooldownMs / 1000),
+  };
 }
 
 const BOT_NAMES = [
@@ -270,6 +378,11 @@ const BOT_NAMES = [
   'পাতা ভাই',
   'সোনা বাবু',
   'লাল মিয়া',
+  'হাবু ডন',
+  'ফিরোজা ভাবি',
+  'সিঁদুর ভাই',
+  'মেহেদী মামা',
+  'চন্দন দাদা',
 ];
 
 interface RoomInternal {
@@ -306,7 +419,9 @@ interface RoomInternal {
   ghotokLinkedIds: [string, string] | null;
   settings: RoomSettings;
   meetingEpoch: number;
+  lastGeminiReactionAt: number;
   typingPlayers: Set<string>;
+  vehicles: VehicleState[];
 }
 
 const rooms = new Map<string, RoomInternal>();
@@ -373,11 +488,12 @@ function buildSnapshot(room: RoomInternal): RoomSnapshot {
     totalTasks: taskStats.totalTasks,
     completedTasks: taskStats.completedTasks,
     typingPlayerIds,
+    vehicles: room.vehicles.map((v) => ({ ...v })),
   };
 }
 
 function recordFootprint(room: RoomInternal, p: PlayerState, distMoved: number): void {
-  if (!p.alive || p.inVent || distMoved < 0.05) return;
+  if (!p.alive || p.inVent || p.vehicleId || distMoved < 0.05) return;
   const prev = (room.footprintAccum.get(p.id) ?? 0) + distMoved;
   if (prev >= 2.2) {
     room.footprintAccum.set(p.id, 0);
@@ -478,7 +594,9 @@ function createEmptyRoom(code: string): RoomInternal {
     ghotokLinkedIds: null,
     settings: { ...DEFAULT_ROOM_SETTINGS },
     meetingEpoch: 0,
+    lastGeminiReactionAt: 0,
     typingPlayers: new Set(),
+    vehicles: createInitialVehicles(),
   };
 }
 
@@ -534,6 +652,9 @@ function removeRoomPlayer(room: RoomInternal, playerId: string, intentional: boo
 
   room.clients.delete(playerId);
   room.holdingFixMap.delete(playerId);
+  if (oldPlayer?.vehicleId) {
+    dismountPlayerFromVehicle(oldPlayer, room.vehicles, room.doorLocks, false);
+  }
   room.players.delete(playerId);
 
   if (room.clients.size === 0) {
@@ -611,6 +732,7 @@ function startMatch(room: RoomInternal): void {
   room.discussionTimer = 0;
   room.doorLocks = makeEmptyDoorLocks();
   room.emergencyCooldownRemaining = room.settings.emergencyCooldownSec;
+  room.vehicles = createInitialVehicles();
   room.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
 
   assigned.forEach((p, idx) => {
@@ -622,6 +744,7 @@ function startMatch(room: RoomInternal): void {
     p.yaw = sp.yaw;
     p.alive = true;
     p.inVent = false;
+    p.vehicleId = null;
     p.watchingCams = false;
     p.visualTaskTimer = 0;
     p.abilityCooldown =
@@ -718,6 +841,7 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
   room.doorLocks = makeEmptyDoorLocks();
 
   for (const p of room.players.values()) {
+    dismountPlayerFromVehicle(p, room.vehicles, room.doorLocks, false);
     p.inVent = false;
     p.watchingCams = false;
     p.disguiseColor = null;
@@ -730,6 +854,13 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
     p.vz = 0;
     p.hasVoted = false;
     p.votedFor = null;
+  }
+  for (const v of room.vehicles) {
+    v.driverId = null;
+    v.speed = 0;
+    v.vx = 0;
+    v.vz = 0;
+    v.steer = 0;
   }
 
   if (!room.netaRevealedId) {
@@ -747,6 +878,7 @@ function startMeeting(room: RoomInternal, caller: PlayerState, reason: 'body' | 
 
   resetBotBrainsForMeeting(room.botMemories);
   room.meetingEpoch += 1;
+  room.lastGeminiReactionAt = 0;
   room.typingPlayers.clear();
 
   if (reason === 'body') {
@@ -836,7 +968,7 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
       nowMs: Date.now(),
       onFootprint: (p, distMoved) => recordFootprint(room, p, distMoved),
       onReportBody: (reporter, body) => startMeeting(room, reporter, 'body', body.victimName),
-      onKill: (_killer, victim, shieldBlocked) => {
+      onKill: (killer, victim, shieldBlocked) => {
         if (shieldBlocked) {
           broadcastRoom(room, { type: 'sfx:event', kind: 'shield' });
           const targetWs = room.clients.get(victim.id);
@@ -848,7 +980,11 @@ function updateRoomBots(room: RoomInternal, dt: number): void {
             });
           }
         } else {
-          broadcastRoom(room, { type: 'sfx:event', kind: 'kill' });
+          sendToPlayer(room, killer.id, { type: 'sfx:event', kind: 'kill' });
+          if (victim.id !== killer.id) {
+            sendToPlayer(room, victim.id, { type: 'sfx:event', kind: 'kill' });
+          }
+          dismountPlayerFromVehicle(victim, room.vehicles, room.doorLocks, false);
           handleRoomDeathSideEffects(room, victim);
         }
       },
@@ -974,6 +1110,14 @@ setInterval(() => {
       updateRoomBots(room, dt);
       if (room.phase !== 'playing') continue;
 
+      for (const bp of room.players.values()) {
+        if (bp.isBot && bp.alive && !bp.inVent && !bp.vehicleId && (bp.y ?? 0) < 0.8) {
+          const pv = resolvePedestrianVehicleCollision(bp.x, bp.z, PLAYER_RADIUS, room.vehicles);
+          bp.x = pv.x;
+          bp.z = pv.z;
+        }
+      }
+
       const sabStep = advanceSabotageState(
         room.sabotage,
         Array.from(room.players.values()),
@@ -1027,6 +1171,7 @@ setInterval(() => {
         if (room.ejection?.ejectedId) {
           const ejected = room.players.get(room.ejection.ejectedId);
           if (ejected) {
+            dismountPlayerFromVehicle(ejected, room.vehicles, room.doorLocks, false);
             ejected.alive = false;
             room.justEjectedPlayer = ejected;
             handleRoomDeathSideEffects(room, ejected);
@@ -1365,9 +1510,9 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
     }
     case 'player:move': {
       if (room.phase !== 'playing' && room.phase !== 'lobby') return;
-      if (player.inVent) return;
+      if (player.inVent || player.vehicleId) return;
       const prevY = player.y ?? 0;
-      const resolved = player.alive
+      let resolved = player.alive
         ? resolvePlayerMoveWithElevation(
             player.x,
             player.z,
@@ -1379,6 +1524,10 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
             room.doorLocks,
           )
         : { x: msg.x, z: msg.z, y: msg.y ?? prevY };
+      if (player.alive && (resolved.y ?? 0) < 0.8) {
+        const pv = resolvePedestrianVehicleCollision(resolved.x, resolved.z, PLAYER_RADIUS, room.vehicles);
+        resolved = { ...resolved, x: pv.x, z: pv.z };
+      }
       const moved = Math.hypot(resolved.x - player.x, resolved.z - player.z);
       player.x = resolved.x;
       player.z = resolved.z;
@@ -1390,6 +1539,80 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         recordFootprint(room, player, moved);
       } else if (room.phase === 'lobby') {
         broadcastRoom(room);
+      }
+      break;
+    }
+    case 'player:vehicle_toggle': {
+      if ((room.phase !== 'playing' && room.phase !== 'lobby') || !player.alive || player.inVent) return;
+      if (player.vehicleId) {
+        dismountPlayerFromVehicle(player, room.vehicles, room.doorLocks, true);
+        broadcastRoom(room);
+        return;
+      }
+      if ((player.y ?? 0) > 1.2) return;
+      const target = msg.vehicleId
+        ? room.vehicles.find(
+            (v) => v.id === msg.vehicleId && !v.driverId && distance2D(player.x, player.z, v.x, v.z) <= 5.5,
+          )
+        : findNearestAvailableVehicle(player.x, player.z, room.vehicles);
+      if (!target) return;
+      player.vehicleId = target.id;
+      player.watchingCams = false;
+      player.jharuTargetBodyId = null;
+      player.jharuTimer = 0;
+      room.holdingFixMap.delete(player.id);
+      target.driverId = player.id;
+      target.speed = 0;
+      target.vx = 0;
+      target.vz = 0;
+      target.steer = 0;
+      player.x = target.x;
+      player.z = target.z;
+      player.y = 0;
+      player.vx = 0;
+      player.vz = 0;
+      player.yaw = target.yaw;
+      broadcastRoom(room);
+      break;
+    }
+    case 'player:vehicle_drive': {
+      if ((room.phase !== 'playing' && room.phase !== 'lobby') || !player.alive || !player.vehicleId) return;
+      if (msg.vehicleId !== player.vehicleId) return;
+      const v = room.vehicles.find((item) => item.id === player.vehicleId && item.driverId === player.id);
+      if (!v) return;
+      const spec = VEHICLE_SPECS[v.kind];
+      const resolved = resolveVehicleCollision(
+        msg.x,
+        msg.z,
+        spec.collisionRadius,
+        room.vehicles,
+        v.id,
+        room.doorLocks,
+      );
+      v.x = resolved.x;
+      v.z = resolved.z;
+      v.yaw = msg.yaw;
+      const maxAllowed = spec.maxSpeed * 1.35;
+      v.speed = Math.max(-spec.reverseSpeed * 1.2, Math.min(maxAllowed, msg.speed));
+      v.vx = msg.vx;
+      v.vz = msg.vz;
+      v.steer = Math.max(-1, Math.min(1, msg.steer));
+      player.x = v.x;
+      player.z = v.z;
+      player.y = 0;
+      player.yaw = msg.yaw;
+      player.vx = msg.vx;
+      player.vz = msg.vz;
+      if (room.phase === 'lobby') {
+        broadcastRoom(room);
+      }
+      break;
+    }
+    case 'player:vehicle_horn': {
+      if ((room.phase !== 'playing' && room.phase !== 'lobby') || !player.alive || !player.vehicleId) return;
+      const v = room.vehicles.find((item) => item.id === player.vehicleId);
+      if (v) {
+        broadcastRoom(room, { type: 'sfx:event', kind: 'vehicle_horn', vehicleKind: v.kind });
       }
       break;
     }
@@ -1542,6 +1765,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         player.shotsLeft = Math.max(0, (player.shotsLeft ?? 1) - 1);
         broadcastRoom(room, { type: 'sfx:event', kind: 'daroga' });
         if (res.hitVondo) {
+          dismountPlayerFromVehicle(target, room.vehicles, room.doorLocks, false);
           target.alive = false;
           target.watchingCams = false;
           player.abilityCooldown = DAROGA_COOLDOWN_SEC;
@@ -1563,6 +1787,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
             detail: `${target.name} ছিল আসল বাটপার! একেবারে সাইজ করে দিয়েছ!`,
           });
         } else {
+          dismountPlayerFromVehicle(player, room.vehicles, room.doorLocks, false);
           player.alive = false;
           player.watchingCams = false;
           room.bodies.push({
@@ -1922,6 +2147,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         broadcastRoom(room);
         return;
       }
+      dismountPlayerFromVehicle(target, room.vehicles, room.doorLocks, false);
       target.alive = false;
       target.watchingCams = false;
       const hitSupari = player.specialRole === 'supari_killer' && target.id === player.supariTargetId;
@@ -1950,7 +2176,10 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         killerColorHint: getColorShadeHint(player.color),
         killerZoneHint: getBanglaZoneNameAt(target.x, target.z),
       });
-      broadcastRoom(room, { type: 'sfx:event', kind: 'kill' });
+      sendToSocket(ws, { type: 'sfx:event', kind: 'kill' });
+      if (target.id !== player.id) {
+        sendToPlayer(room, target.id, { type: 'sfx:event', kind: 'kill' });
+      }
       handleRoomDeathSideEffects(room, target);
       recordKillWitnesses(
         room.botMemories,
@@ -2095,11 +2324,43 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         ghostOnly: !player.alive,
       };
       room.chat.push(chatMsg);
+      const allPlayers = Array.from(room.players.values());
       processChatMessageForBots({
         msg: chatMsg,
-        players: Array.from(room.players.values()),
+        players: allPlayers,
         brains: room.botMemories,
       });
+      if (
+        !player.isBot &&
+        player.alive &&
+        Date.now() - room.lastGeminiReactionAt >= 4000 &&
+        allPlayers.some((pl) => pl.isBot && pl.alive)
+      ) {
+        room.lastGeminiReactionAt = Date.now();
+        const epoch = room.meetingEpoch;
+        const reactPayload = buildBatchedGeminiMeetingPayload({
+          roomCode: room.code,
+          players: allPlayers,
+          bodies: room.bodies,
+          brains: room.botMemories,
+          chat: room.chat,
+          meetingReason: room.meetingReason,
+          meetingCallerId: room.meetingCallerId,
+          phase: 'reaction',
+        });
+        if (reactPayload.bots.length > 0) {
+          void generateGeminiBotMeetingChats(reactPayload).then((res) => {
+            if (room.phase !== 'meeting' || room.meetingEpoch !== epoch) return;
+            if (res.messages.length > 0) {
+              applyBatchedGeminiReactionChats({
+                replies: res.messages,
+                players: Array.from(room.players.values()),
+                brains: room.botMemories,
+              });
+            }
+          });
+        }
+      }
       broadcastRoom(room);
       break;
     }
@@ -2135,7 +2396,6 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         'aaho_bhatija',
         'helicopter_milon',
         'gacher_pata',
-        'ashraful',
         'prank_call',
       ]);
       if (allowed.has(msg.memeId)) {
@@ -2164,6 +2424,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
       room.commsJammedUntil = 0;
       room.ghotokLinkedIds = null;
       room.emergencyCooldownRemaining = 0;
+      room.vehicles = createInitialVehicles();
       room.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
       room.doorLocks = makeEmptyDoorLocks();
       let idx = 0;
@@ -2177,6 +2438,7 @@ function handleSocketMessage(ws: WebSocket, raw: string): void {
         p.yaw = sp.yaw;
         p.alive = true;
         p.inVent = false;
+        p.vehicleId = null;
         p.watchingCams = false;
         p.visualTaskTimer = 0;
         p.abilityCooldown = 0;
@@ -2236,7 +2498,6 @@ const VALID_MEME_SLOTS = new Set([
   'aaho_bhatija',
   'helicopter_milon',
   'gacher_pata',
-  'ashraful',
   'prank_call',
   'event_kill',
   'event_report',
@@ -2341,12 +2602,13 @@ async function bootstrap(): Promise<void> {
     }
     const payload: BatchedGeminiMeetingPayload = {
       roomCode: typeof body.roomCode === 'string' ? body.roomCode.slice(0, 16) : 'ROOM',
+      phase: body.phase === 'reaction' ? 'reaction' : 'opening',
       reason: body.reason === 'body' ? 'body' : body.reason === 'emergency' ? 'emergency' : null,
       callerName: typeof body.callerName === 'string' ? body.callerName.slice(0, 24) : null,
       victimName: typeof body.victimName === 'string' ? body.victimName.slice(0, 24) : null,
       bodyZone: typeof body.bodyZone === 'string' ? body.bodyZone.slice(0, 32) : null,
       aliveNames: Array.isArray(body.aliveNames)
-        ? body.aliveNames.slice(0, 15).map((n) => String(n).slice(0, 24))
+        ? body.aliveNames.slice(0, 20).map((n) => String(n).slice(0, 24))
         : [],
       chatHistory: Array.isArray(body.chatHistory) ? body.chatHistory : [],
       bots: body.bots,

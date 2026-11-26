@@ -8,6 +8,9 @@ import type {
   SecurityCamDef,
   StairRampDef,
   TaskStation,
+  VehicleKind,
+  VehicleSpec,
+  VehicleState,
   VentNode,
   WallAABB,
   ZoneDef,
@@ -422,9 +425,6 @@ export const WALLS: WallAABB[] = [
   // South WASA Water Tower Core
   { id: 'tank_core', minX: -2.4, maxX: 2.4, minZ: 36.5, maxZ: 41.5, height: 4.5, zone: 'south_tank' },
 
-  // Parked Green CNG Auto-Rickshaw along South-East Avenue
-  { id: 'cng_parked', minX: 10.0, maxX: 12.0, minZ: 21.4, maxZ: 24.6, height: 1.9 },
-
   // Tactical Supply Crate & Drum Clusters + Perimeter Sandbag Barricades
   { id: 'supply_rickshaw', minX: 39.8, maxX: 42.8, minZ: -38.4, maxZ: -36.0, height: 1.85, zone: 'rickshaw_garage' },
   { id: 'supply_desco', minX: -43.0, maxX: -39.8, minZ: 36.4, maxZ: 38.8, height: 1.85, zone: 'desco_power' },
@@ -627,35 +627,18 @@ export const WALLS: WallAABB[] = [
   { id: 'cont_west_yard', minX: -144.0, maxX: -137.5, minZ: -64.5, maxZ: -61.9, height: 2.9 },
   { id: 'cont_east_yard', minX: 137.5, maxX: 144.0, minZ: -64.5, maxZ: -61.9, height: 2.9 },
 
-  { id: 'car_garage_nw', minX: 19.0, maxX: 23.6, minZ: -46.0, maxZ: -43.8, height: 1.65 },
-  { id: 'car_cinema_lot', minX: -79.8, maxX: -75.2, minZ: -123.5, maxZ: -121.3, height: 1.65 },
-  { id: 'car_bhai_lot', minX: -15.5, maxX: -10.9, minZ: -133.0, maxZ: -130.8, height: 1.65 },
-  { id: 'car_kacchi_lot', minX: -134.5, maxX: -130.1, minZ: -45.8, maxZ: -43.6, height: 1.65 },
-  { id: 'pickup_bazar_e', minX: 59.5, maxX: 64.3, minZ: 60.5, maxZ: 62.9, height: 1.75 },
-  { id: 'pickup_mach_s', minX: -81.0, maxX: -78.6, minZ: 126.0, maxZ: 130.8, height: 1.75 },
-  { id: 'pickup_rail_s', minX: -46.0, maxX: -41.2, minZ: 101.8, maxZ: 104.2, height: 1.75 },
-  { id: 'car_gym_east', minX: 131.0, maxX: 135.6, minZ: 43.0, maxZ: 45.2, height: 1.65 },
-
   { id: 'airdrop_nw_park', minX: -101.2, maxX: -99.4, minZ: -18.8, maxZ: -17.0, height: 1.65 },
   { id: 'airdrop_ne_park', minX: 99.4, maxX: 101.2, minZ: 17.0, maxZ: 18.8, height: 1.65 },
   { id: 'airdrop_south_plaza', minX: -4.2, maxX: -2.4, minZ: 125.0, maxZ: 126.8, height: 1.65 },
 
-  // Outer Moholla & Opar Para Street Props (Tapri Stalls, Mini-Buses, Brick Depots, Motorbikes)
+  // Outer Moholla & Opar Para Street Props (Tapri Stalls, Brick Depots, Haat Stalls)
   { id: 'tapri_nw', minX: -104.1, maxX: -99.9, minZ: -128.6, maxZ: -125.9, height: 2.55 },
   { id: 'tapri_ne', minX: 99.9, maxX: 104.1, minZ: -128.6, maxZ: -125.9, height: 2.55 },
-  { id: 'minibus_north', minX: 132.0, maxX: 137.5, minZ: -132.2, maxZ: -129.8, height: 2.85 },
   { id: 'brick_depot_sw', minX: -106.5, maxX: -101.8, minZ: 103.0, maxZ: 105.8, height: 1.6 },
-  { id: 'minibus_sw_1', minX: -98.0, maxX: -92.5, minZ: 118.8, maxZ: 121.2, height: 2.85 },
   { id: 'tapri_sw_1', minX: -108.1, maxX: -103.9, minZ: 118.8, maxZ: 121.4, height: 2.55 },
   { id: 'haat_stall_se_1', minX: 94.0, maxX: 98.2, minZ: 118.8, maxZ: 121.4, height: 2.55 },
   { id: 'haat_stall_se_2', minX: 103.4, maxX: 107.6, minZ: 118.8, maxZ: 121.4, height: 2.55 },
-  { id: 'minibus_se_1', minX: 94.0, maxX: 99.5, minZ: 102.5, maxZ: 104.9, height: 2.85 },
-  { id: 'minibus_sw_far', minX: -136.75, maxX: -131.25, minZ: 124.8, maxZ: 127.2, height: 2.85 },
   { id: 'tapri_se_far', minX: 131.9, maxX: 136.1, minZ: 124.7, maxZ: 127.3, height: 2.55 },
-  { id: 'moto_nw_park', minX: -96.9, maxX: -95.1, minZ: -34.5, maxZ: -33.5, height: 1.1 },
-  { id: 'moto_ne_park', minX: 95.1, maxX: 96.9, minZ: 33.5, maxZ: 34.5, height: 1.1 },
-  { id: 'moto_cyber', minX: -125.9, maxX: -124.1, minZ: 38.5, maxZ: 39.5, height: 1.1 },
-  { id: 'moto_gym', minX: 124.1, maxX: 125.9, minZ: -39.5, maxZ: -38.5, height: 1.1 },
 ];
 
 // Rolling Tin Shutters across building doorways when Vondo triggers Door Lock Sabotage
@@ -1626,6 +1609,99 @@ export const TASK_STATIONS: TaskStation[] = [
     medium: 'physical',
     holdDurationSec: 4,
   },
+  // 7 Additional Outer & Residential Moholla Tasks so tasks spread across ALL zones
+  {
+    id: 'task_master',
+    kind: 'book_sort',
+    title: 'মাস্টারের খাতা গোছানো',
+    banglaTitle: 'মাস্টারের খাতা গোছানো',
+    zoneName: 'মাস্টার বাড়ি',
+    x: -30.5,
+    z: -89.5,
+    radius: 3.0,
+    category: 'short',
+    medium: 'physical',
+    holdDurationSec: 4,
+  },
+  {
+    id: 'task_chacha',
+    kind: 'cha_mix',
+    title: 'চাচার বাড়ির রঙ-চা বানানো',
+    banglaTitle: 'চাচার রঙ-চা বানানো',
+    zoneName: 'চাচার বাড়ি',
+    x: 30.0,
+    z: -88.5,
+    radius: 3.0,
+    category: 'common',
+    medium: 'physical',
+    holdDurationSec: 4,
+  },
+  {
+    id: 'task_khala',
+    kind: 'kacchi_cook',
+    title: 'খালার পোলাও রান্না দেখা',
+    banglaTitle: 'খালার পোলাও চেক',
+    zoneName: 'খালার বাড়ি',
+    x: 72.0,
+    z: -89.0,
+    radius: 3.0,
+    category: 'long',
+    medium: 'physical',
+    holdDurationSec: 5,
+  },
+  {
+    id: 'task_bhai_duplex',
+    kind: 'cyber_pc',
+    title: 'বড় ভাই ডুপ্লেক্স সার্ভার সেট',
+    banglaTitle: 'ডুপ্লেক্স সার্ভার সেট',
+    zoneName: 'বড় ভাই ডুপ্লেক্স',
+    x: -26.5,
+    z: -135.0,
+    radius: 3.1,
+    category: 'long',
+    medium: 'digital',
+    holdDurationSec: 5,
+    isVisual: true,
+  },
+  {
+    id: 'task_khalu',
+    kind: 'dish_tune',
+    title: 'খালুর টিভি ডিশ সেট করা',
+    banglaTitle: 'খালুর ডিশ টিউনিং',
+    zoneName: 'খালুর বাড়ি',
+    x: 67.5,
+    z: -134.5,
+    radius: 3.0,
+    category: 'short',
+    medium: 'digital',
+    holdDurationSec: 4,
+  },
+  {
+    id: 'task_rail_colony',
+    kind: 'fuse_fix',
+    title: 'রেল কলোনির মিটার বক্স ঠিক',
+    banglaTitle: 'কলোনি মিটার বক্স ঠিক',
+    zoneName: 'রেল কলোনি কোয়ার্টার',
+    x: -26.5,
+    z: 128.0,
+    radius: 3.1,
+    category: 'short',
+    medium: 'digital',
+    holdDurationSec: 4,
+  },
+  {
+    id: 'task_fufu',
+    kind: 'dorji_stitch',
+    title: 'ফুফুর শাড়ি ভাঁজ ও সেলাই',
+    banglaTitle: 'ফুফুর শাড়ি সেলাই',
+    zoneName: 'ফুফুর বাড়ি',
+    x: 67.5,
+    z: 128.0,
+    radius: 3.0,
+    category: 'long',
+    medium: 'physical',
+    holdDurationSec: 5,
+  },
 ];
 
 // Official Utility Stations: Security Cams, Admin Radar Table, Vitals ECG Monitor
@@ -1999,10 +2075,10 @@ export const SABOTAGE_TARGETS: Record<
 };
 
 export const SPAWN_RING: Array<{ x: number; z: number; yaw: number }> = Array.from(
-  { length: 15 },
+  { length: 20 },
   (_, idx) => {
-    const theta = (idx * Math.PI * 2) / 15;
-    const radius = 5.2;
+    const theta = (idx * Math.PI * 2) / 20;
+    const radius = 5.8;
     const x = Number((Math.sin(theta) * radius).toFixed(2));
     const z = Number((Math.cos(theta) * radius).toFixed(2));
     const yaw = Number(Math.atan2(-x, -z).toFixed(3));
@@ -2125,6 +2201,14 @@ export const BOT_WAYPOINTS: Array<{ x: number; z: number }> = [
   { x: -52.0, z: 144.0 },
   { x: 0, z: 144.0 },
   { x: 52.0, z: 144.0 },
+  // 7 Additional Task Station Interior Anchors
+  { x: -30.5, z: -89.5 },
+  { x: 30.0, z: -88.5 },
+  { x: 72.0, z: -89.0 },
+  { x: -26.5, z: -135.0 },
+  { x: 67.5, z: -134.5 },
+  { x: -26.5, z: 128.0 },
+  { x: 67.5, z: 128.0 },
 ];
 
 export function resolveCircleWallCollision(
@@ -2514,3 +2598,256 @@ export function hasLineOfSight(
   }
   return true;
 }
+
+export const VEHICLE_SPECS: Record<VehicleKind, VehicleSpec> = {
+  motorbike: {
+    kind: 'motorbike',
+    label: 'Hero Bike',
+    banglaName: 'হিরো মোটরবাইক',
+    maxSpeed: 23.0,
+    reverseSpeed: 7.5,
+    accel: 24.0,
+    turnRate: 3.15,
+    collisionRadius: 1.0,
+    seatOffsetX: 0,
+    seatOffsetY: 0.72,
+    seatOffsetZ: -0.22,
+    seatTiltX: 0.22,
+  },
+  rickshaw: {
+    kind: 'rickshaw',
+    label: 'Deshi Rickshaw',
+    banglaName: 'দেশি রিকশা',
+    maxSpeed: 13.5,
+    reverseSpeed: 5.0,
+    accel: 14.0,
+    turnRate: 2.85,
+    collisionRadius: 1.25,
+    seatOffsetX: 0,
+    seatOffsetY: 0.85,
+    seatOffsetZ: 0.35,
+    seatTiltX: 0.14,
+  },
+  cng: {
+    kind: 'cng',
+    label: 'CNG Auto',
+    banglaName: 'সিএনজি অটো',
+    maxSpeed: 17.5,
+    reverseSpeed: 6.5,
+    accel: 16.5,
+    turnRate: 2.95,
+    collisionRadius: 1.35,
+    seatOffsetX: 0,
+    seatOffsetY: 0.65,
+    seatOffsetZ: 0.42,
+    seatTiltX: 0.08,
+  },
+  car: {
+    kind: 'car',
+    label: 'Sports Sedan',
+    banglaName: 'স্পোর্টস সেডান',
+    maxSpeed: 22.0,
+    reverseSpeed: 8.5,
+    accel: 19.5,
+    turnRate: 2.55,
+    collisionRadius: 1.75,
+    seatOffsetX: -0.35,
+    seatOffsetY: 0.46,
+    seatOffsetZ: -0.15,
+    seatTiltX: 0.05,
+  },
+  taxi: {
+    kind: 'taxi',
+    label: 'Moholla Taxi',
+    banglaName: 'হলুদ ট্যাক্সি',
+    maxSpeed: 22.5,
+    reverseSpeed: 8.5,
+    accel: 20.0,
+    turnRate: 2.6,
+    collisionRadius: 1.75,
+    seatOffsetX: -0.35,
+    seatOffsetY: 0.46,
+    seatOffsetZ: -0.15,
+    seatTiltX: 0.05,
+  },
+  pickup: {
+    kind: 'pickup',
+    label: '4x4 Pickup',
+    banglaName: '৪×৪ পিকআপ ট্রাক',
+    maxSpeed: 19.5,
+    reverseSpeed: 8.0,
+    accel: 16.0,
+    turnRate: 2.2,
+    collisionRadius: 1.9,
+    seatOffsetX: -0.38,
+    seatOffsetY: 0.85,
+    seatOffsetZ: 0.28,
+    seatTiltX: 0.04,
+  },
+  minibus: {
+    kind: 'minibus',
+    label: 'Dhaka Mini-Bus',
+    banglaName: 'ঢাকা মিনিবাস',
+    maxSpeed: 16.5,
+    reverseSpeed: 6.5,
+    accel: 12.5,
+    turnRate: 1.9,
+    collisionRadius: 2.2,
+    seatOffsetX: -0.45,
+    seatOffsetY: 1.05,
+    seatOffsetZ: 1.78,
+    seatTiltX: 0.04,
+  },
+};
+
+export interface VehicleSpawnDef {
+  id: string;
+  kind: VehicleKind;
+  color: string;
+  x: number;
+  z: number;
+  yaw: number;
+}
+
+export const VEHICLE_SPAWNS: VehicleSpawnDef[] = [
+  // 5 Sedans / Taxis
+  { id: 'veh_taxi_garage', kind: 'taxi', color: '#eab308', x: 21.3, z: -44.9, yaw: Math.PI / 2 },
+  { id: 'veh_car_cinema', kind: 'car', color: '#dc2626', x: -77.5, z: -122.4, yaw: Math.PI / 2 },
+  { id: 'veh_car_bhai', kind: 'car', color: '#cbd5e1', x: -13.2, z: -131.9, yaw: Math.PI / 2 },
+  { id: 'veh_car_kacchi', kind: 'car', color: '#1e3a8a', x: -132.3, z: -44.7, yaw: Math.PI / 2 },
+  { id: 'veh_car_gym', kind: 'car', color: '#e11d48', x: 133.3, z: 44.1, yaw: Math.PI * 1.5 },
+  // 3 Pickup Trucks
+  { id: 'veh_pickup_bazar', kind: 'pickup', color: '#0f766e', x: 61.9, z: 61.7, yaw: Math.PI / 2 },
+  { id: 'veh_pickup_mach', kind: 'pickup', color: '#0284c7', x: -79.8, z: 128.4, yaw: Math.PI },
+  { id: 'veh_pickup_rail', kind: 'pickup', color: '#d97706', x: -43.6, z: 103.0, yaw: Math.PI / 2 },
+  // 4 Dhaka Mini-Buses
+  { id: 'veh_bus_north', kind: 'minibus', color: '#047857', x: 134.75, z: -131.0, yaw: Math.PI / 2 },
+  { id: 'veh_bus_sw', kind: 'minibus', color: '#dc2626', x: -95.25, z: 120.0, yaw: Math.PI * 1.5 },
+  { id: 'veh_bus_se', kind: 'minibus', color: '#0284c7', x: 96.75, z: 103.7, yaw: Math.PI / 2 },
+  { id: 'veh_bus_sw_far', kind: 'minibus', color: '#ca8a04', x: -134.0, z: 126.0, yaw: Math.PI / 2 },
+  // 4 Motorbikes
+  { id: 'veh_moto_nw', kind: 'motorbike', color: '#ef4444', x: -96.0, z: -34.0, yaw: 0.2 + Math.PI / 2 },
+  { id: 'veh_moto_ne', kind: 'motorbike', color: '#2563eb', x: 96.0, z: 34.0, yaw: -2.9 + Math.PI / 2 },
+  { id: 'veh_moto_cyber', kind: 'motorbike', color: '#10b981', x: -125.0, z: 39.0, yaw: 0.1 + Math.PI / 2 },
+  { id: 'veh_moto_gym', kind: 'motorbike', color: '#f59e0b', x: 125.0, z: -39.0, yaw: 3.05 + Math.PI / 2 },
+  // 7 Rickshaws
+  { id: 'veh_rick_1', kind: 'rickshaw', color: '#047857', x: 36.5, z: -33.5, yaw: -0.55 },
+  { id: 'veh_rick_2', kind: 'rickshaw', color: '#047857', x: 27.8, z: -32.2, yaw: 0.12 },
+  { id: 'veh_rick_3', kind: 'rickshaw', color: '#047857', x: -10.5, z: -61.5, yaw: 1.45 },
+  { id: 'veh_rick_4', kind: 'rickshaw', color: '#047857', x: -60.5, z: -57.5, yaw: 0.25 },
+  { id: 'veh_rick_5', kind: 'rickshaw', color: '#047857', x: 60.5, z: -57.5, yaw: -0.35 },
+  { id: 'veh_rick_6', kind: 'rickshaw', color: '#047857', x: -10.5, z: 61.5, yaw: -1.52 },
+  { id: 'veh_rick_7', kind: 'rickshaw', color: '#047857', x: 45.0, z: 77.5, yaw: 0.1 },
+  // 4 Green CNG Auto-Rickshaws
+  { id: 'veh_cng_avenue', kind: 'cng', color: '#15803d', x: 11.0, z: 23.0, yaw: -0.38 },
+  { id: 'veh_cng_west', kind: 'cng', color: '#15803d', x: -60.2, z: -44.2, yaw: 1.55 },
+  { id: 'veh_cng_east', kind: 'cng', color: '#15803d', x: 60.2, z: -44.2, yaw: -1.55 },
+  { id: 'veh_cng_nw', kind: 'cng', color: '#15803d', x: -110.5, z: -44.5, yaw: 0.15 },
+];
+
+export function createInitialVehicles(): VehicleState[] {
+  return VEHICLE_SPAWNS.map((s) => ({
+    id: s.id,
+    kind: s.kind,
+    x: s.x,
+    z: s.z,
+    yaw: s.yaw,
+    vx: 0,
+    vz: 0,
+    speed: 0,
+    steer: 0,
+    driverId: null,
+    color: s.color,
+  }));
+}
+
+export function findNearestAvailableVehicle(
+  x: number,
+  z: number,
+  vehicles: VehicleState[] | undefined,
+  maxDist = 4.2,
+): VehicleState | null {
+  if (!vehicles || vehicles.length === 0) return null;
+  let best: VehicleState | null = null;
+  let bestDist = Infinity;
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    if (v.driverId) continue;
+    const spec = VEHICLE_SPECS[v.kind];
+    const effectiveMax = maxDist + (spec.collisionRadius - 1.2) * 0.45;
+    const d = distance2D(x, z, v.x, v.z);
+    if (d <= Math.max(maxDist, effectiveMax) && d < bestDist) {
+      bestDist = d;
+      best = v;
+    }
+  }
+  return best;
+}
+
+export function resolveVehicleCollision(
+  x: number,
+  z: number,
+  radius: number,
+  vehicles?: VehicleState[],
+  ignoreVehicleId?: string,
+  doorLocks?: DoorLockState,
+): { x: number; z: number } {
+  const res = resolveCircleWallCollision(x, z, radius, WALLS, doorLocks);
+  let nx = res.x;
+  let nz = res.z;
+  if (vehicles && vehicles.length > 0) {
+    for (let i = 0; i < vehicles.length; i++) {
+      const other = vehicles[i];
+      if (other.id === ignoreVehicleId) continue;
+      const otherRadius = VEHICLE_SPECS[other.kind].collisionRadius;
+      const minSep = radius + otherRadius * 0.85;
+      const dx = nx - other.x;
+      const dz = nz - other.z;
+      const dSq = dx * dx + dz * dz;
+      if (dSq < minSep * minSep) {
+        if (dSq > 1e-6) {
+          const d = Math.sqrt(dSq);
+          const push = minSep - d;
+          nx += (dx / d) * push;
+          nz += (dz / d) * push;
+        } else {
+          nx += minSep;
+        }
+      }
+    }
+  }
+  return resolveCircleWallCollision(nx, nz, radius, WALLS, doorLocks);
+}
+
+export function resolvePedestrianVehicleCollision(
+  x: number,
+  z: number,
+  radius: number = PLAYER_RADIUS,
+  vehicles?: VehicleState[],
+  ignoreVehicleId?: string | null,
+): { x: number; z: number } {
+  let nx = x;
+  let nz = z;
+  if (!vehicles || vehicles.length === 0) return { x: nx, z: nz };
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    if (v.id === ignoreVehicleId) continue;
+    const vRad = VEHICLE_SPECS[v.kind].collisionRadius * 0.78;
+    const minSep = radius + vRad;
+    const dx = nx - v.x;
+    const dz = nz - v.z;
+    const dSq = dx * dx + dz * dz;
+    if (dSq < minSep * minSep) {
+      if (dSq > 1e-6) {
+        const d = Math.sqrt(dSq);
+        const push = minSep - d;
+        nx += (dx / d) * push;
+        nz += (dz / d) * push;
+      } else {
+        nx += minSep;
+      }
+    }
+  }
+  return { x: nx, z: nz };
+}
+

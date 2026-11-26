@@ -15,6 +15,7 @@ import {
   TASK_STATIONS,
   VITALS_POS,
   distance2D,
+  findNearestAvailableVehicle,
 } from './shared/mapData';
 import {
   DEFAULT_ROOM_SETTINGS,
@@ -76,6 +77,7 @@ export default function App() {
   const [showOutcomeModal, setShowOutcomeModal] = useState(false);
   const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const [compassYaw, setCompassYaw] = useState(0);
+  const [driveSpeedMs, setDriveSpeedMs] = useState(0);
   const touchOverrideRef = useRef(false);
   const recordedOutcomeRef = useRef(false);
   const loadingTimerRef = useRef<number | null>(null);
@@ -133,6 +135,8 @@ export default function App() {
   const resetCameraRef = useRef<(() => void) | null>(null);
   const jumpTriggerRef = useRef<(() => void) | null>(null);
   const joystickInputRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const handbrakeRef = useRef(false);
+  const boostRef = useRef(false);
   const holdingFixKeyRef = useRef(false);
   const clueTimerRef = useRef<number | null>(null);
 
@@ -321,6 +325,46 @@ export default function App() {
     },
     [mode, mp],
   );
+
+  const handleLocalVehicleDrive = useCallback(
+    (
+      vehicleId: string,
+      x: number,
+      z: number,
+      yaw: number,
+      vx: number,
+      vz: number,
+      speed: number,
+      steer: number,
+    ) => {
+      if (mode === 'solo') {
+        soloEngineRef.current?.driveLocalVehicle(x, z, yaw, vx, vz, speed, steer);
+      } else if (mode === 'multi') {
+        mp.send({ type: 'player:vehicle_drive', vehicleId, x, z, yaw, vx, vz, speed, steer });
+      }
+    },
+    [mode, mp],
+  );
+
+  const handleToggleVehicle = useCallback(
+    (vehicleId?: string) => {
+      if (mode === 'solo' && soloEngineRef.current) {
+        soloEngineRef.current.toggleLocalVehicle(vehicleId);
+        setSoloSnapshot(soloEngineRef.current.getSnapshot());
+      } else if (mode === 'multi') {
+        mp.send({ type: 'player:vehicle_toggle', vehicleId });
+      }
+    },
+    [mode, mp],
+  );
+
+  const handleVehicleHorn = useCallback(() => {
+    if (mode === 'solo') {
+      soloEngineRef.current?.honkLocalVehicle();
+    } else if (mode === 'multi') {
+      mp.send({ type: 'player:vehicle_horn' });
+    }
+  }, [mode, mp]);
 
   const handleOpenStation = useCallback(
     (kind: StationModalKind) => {
@@ -614,6 +658,20 @@ export default function App() {
         return;
       }
 
+      if (derivedPhase === 'lobby' && !showMemePack && !showGuide && activeSnapshot && activePlayerId) {
+        const lpLobby = activeSnapshot.players.find((p) => p.id === activePlayerId);
+        if (lpLobby) {
+          if (e.code === 'KeyF' && !e.repeat) {
+            handleToggleVehicle();
+            return;
+          }
+          if (e.code === 'KeyK' && lpLobby.vehicleId && !e.repeat) {
+            handleVehicleHorn();
+            return;
+          }
+        }
+      }
+
       if (
         derivedPhase !== 'playing' ||
         showMemePack ||
@@ -681,6 +739,10 @@ export default function App() {
         const body = findNearestReportableBody(lp, activeSnapshot.bodies, activeSnapshot.doorLocks);
         if (body) handleReportBody(body.id);
       } else if (e.code === 'KeyF') {
+        if (lp.vehicleId) {
+          if (!e.repeat) handleToggleVehicle();
+          return;
+        }
         if (
           lp.alive &&
           !isCriticalSabotage(activeSnapshot.sabotage.active) &&
@@ -690,6 +752,12 @@ export default function App() {
             EMERGENCY_BELL_POS.interactRadius
         ) {
           handleEmergencyMeeting();
+        } else if (!e.repeat) {
+          handleToggleVehicle();
+        }
+      } else if (e.code === 'KeyK') {
+        if (lp.vehicleId && !e.repeat) {
+          handleVehicleHorn();
         }
       } else if (e.code === 'KeyG') {
         if (!lp.alive) {
@@ -764,10 +832,28 @@ export default function App() {
     handleVentToggle,
     handleSabotage,
     handlePlayMeme,
+    handleToggleVehicle,
+    handleVehicleHorn,
     showClueNotice,
   ]);
 
   const activeTaskStation = activeTaskId ? TASK_STATIONS.find((s) => s.id === activeTaskId) ?? null : null;
+  const localActivePlayer =
+    activeSnapshot && activePlayerId
+      ? activeSnapshot.players.find((p) => p.id === activePlayerId) ?? null
+      : null;
+  const drivingVehicle =
+    localActivePlayer?.vehicleId && activeSnapshot?.vehicles
+      ? activeSnapshot.vehicles.find((v) => v.id === localActivePlayer.vehicleId) ?? null
+      : null;
+  const nearbyVehicle =
+    localActivePlayer &&
+    localActivePlayer.alive &&
+    !localActivePlayer.inVent &&
+    !localActivePlayer.vehicleId &&
+    (localActivePlayer.y ?? 0) <= 1.2
+      ? findNearestAvailableVehicle(localActivePlayer.x, localActivePlayer.z, activeSnapshot?.vehicles)
+      : null;
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -776,7 +862,7 @@ export default function App() {
         phase={derivedPhase}
         snapshot={activeSnapshot}
         localPlayerId={activePlayerId}
-        moveSpeed={activeSnapshot?.settings.moveSpeed ?? 8.6}
+        moveSpeed={activeSnapshot?.settings.moveSpeed ?? 9.0}
         isModalOpen={
           showMemePack ||
           showTacticalMap ||
@@ -791,6 +877,10 @@ export default function App() {
         }
         joystickInputRef={joystickInputRef}
         onLocalMove={handleLocalMove}
+        onLocalVehicleDrive={handleLocalVehicleDrive}
+        onDriveSpeedChange={setDriveSpeedMs}
+        handbrakeRef={handbrakeRef}
+        boostRef={boostRef}
         onShakeTriggerRef={shakeTriggerRef}
         pointerLookEnabled={pointerLookEnabled}
         onPointerLookChange={setPointerLookEnabled}
@@ -923,6 +1013,11 @@ export default function App() {
           }}
           onOpenGuide={() => setShowGuide(true)}
           onLeaveRoom={handleReturnToTitle}
+          drivingVehicle={drivingVehicle}
+          nearbyVehicle={nearbyVehicle}
+          driveSpeedMs={driveSpeedMs}
+          onToggleVehicle={handleToggleVehicle}
+          onVehicleHorn={handleVehicleHorn}
         />
       )}
 
@@ -983,6 +1078,11 @@ export default function App() {
             onUseAbility={handleUseAbility}
             onPlayMeme={handlePlayMeme}
             onOpenMemePack={isAdminMode ? () => setShowMemePack(true) : undefined}
+            drivingVehicle={drivingVehicle}
+            nearbyVehicle={nearbyVehicle}
+            driveSpeedMs={driveSpeedMs}
+            onToggleVehicle={handleToggleVehicle}
+            onVehicleHorn={handleVehicleHorn}
           />
           <MobileControls
             visible={
@@ -995,6 +1095,14 @@ export default function App() {
             }
             joystickInputRef={joystickInputRef}
             onJump={() => jumpTriggerRef.current?.()}
+            isDriving={Boolean(drivingVehicle)}
+            onHorn={handleVehicleHorn}
+            onHandbrakeChange={(active) => {
+              handbrakeRef.current = active;
+            }}
+            onBoostChange={(active) => {
+              boostRef.current = active;
+            }}
           />
         </>
       )}

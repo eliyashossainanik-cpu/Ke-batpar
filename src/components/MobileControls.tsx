@@ -1,15 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, OctagonAlert, Volume2, Zap } from 'lucide-react';
 
 export interface MobileControlsProps {
   visible: boolean;
   joystickInputRef: React.MutableRefObject<{ x: number; y: number }>;
   onJump?: () => void;
+  isDriving?: boolean;
+  onHorn?: () => void;
+  onHandbrakeChange?: (active: boolean) => void;
+  onBoostChange?: (active: boolean) => void;
 }
 
 const MAX_RADIUS = 38;
 
-export function MobileControls({ visible, joystickInputRef, onJump }: MobileControlsProps) {
+export function MobileControls({
+  visible,
+  joystickInputRef,
+  onJump,
+  isDriving = false,
+  onHorn,
+  onHandbrakeChange,
+  onBoostChange,
+}: MobileControlsProps) {
   const [sprinting, setSprinting] = useState(false);
   const [isLandscapeCompact, setIsLandscapeCompact] = useState(() =>
     typeof window !== 'undefined' ? window.innerHeight <= 540 : false,
@@ -183,28 +195,100 @@ export function MobileControls({ visible, joystickInputRef, onJump }: MobileCont
         )}
       </div>
 
-      {onJump && (
-        <button
-          type="button"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onJump();
-          }}
-          aria-label="লাফ দাও"
-          className={`fixed z-20 pointer-events-auto select-none ${
-            isLandscapeCompact ? 'w-[48px] h-[48px] bottom-[5.05rem]' : 'w-[54px] h-[54px] bottom-[5.85rem]'
-          } rounded-full border-2 border-amber-300/75 flex flex-col items-center justify-center text-amber-200 active:scale-90 transition-transform shadow-[0_6px_20px_rgba(0,0,0,0.65)]`}
+      {isDriving ? (
+        <div
+          className="fixed z-20 pointer-events-auto select-none flex flex-col items-center gap-2"
           style={{
             right: 'max(0.75rem, env(safe-area-inset-right))',
-            backgroundColor: 'rgba(10, 16, 28, 0.88)',
+            bottom: isLandscapeCompact ? '5.05rem' : '5.85rem',
             touchAction: 'none',
           }}
         >
-          <span className="absolute inset-[3px] rounded-full border border-white/15 pointer-events-none" />
-          <ArrowUp className={isLandscapeCompact ? 'w-4 h-4' : 'w-5 h-5'} />
-          <span className="text-[9px] font-display font-black tracking-wider leading-none mt-0.5">লাফ</span>
-        </button>
+          {onHorn && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onHorn();
+              }}
+              aria-label="গাড়ির হর্ন"
+              className={`${
+                isLandscapeCompact ? 'w-[44px] h-[44px]' : 'w-[48px] h-[48px]'
+              } rounded-full border-2 border-sky-300/80 flex flex-col items-center justify-center text-sky-200 active:scale-90 transition-transform shadow-lg`}
+              style={{ backgroundColor: 'rgba(10, 16, 28, 0.88)', touchAction: 'none' }}
+            >
+              <Volume2 className="w-4 h-4" />
+              <span className="text-[8px] font-display font-black leading-none mt-0.5">হর্ন</span>
+            </button>
+          )}
+          {onBoostChange && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onBoostChange(true);
+              }}
+              onPointerUp={() => onBoostChange(false)}
+              onPointerLeave={() => onBoostChange(false)}
+              onPointerCancel={() => onBoostChange(false)}
+              aria-label="গতি বাড়াও"
+              className={`${
+                isLandscapeCompact ? 'w-[46px] h-[46px]' : 'w-[52px] h-[52px]'
+              } rounded-full border-2 border-emerald-300/80 flex flex-col items-center justify-center text-emerald-200 active:scale-90 transition-transform shadow-lg`}
+              style={{ backgroundColor: 'rgba(6, 40, 32, 0.9)', touchAction: 'none' }}
+            >
+              <Zap className="w-4 h-4" />
+              <span className="text-[8.5px] font-display font-black leading-none mt-0.5">নাইট্রো</span>
+            </button>
+          )}
+          {onHandbrakeChange && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onHandbrakeChange(true);
+              }}
+              onPointerUp={() => onHandbrakeChange(false)}
+              onPointerLeave={() => onHandbrakeChange(false)}
+              onPointerCancel={() => onHandbrakeChange(false)}
+              aria-label="হ্যান্ডব্রেক"
+              className={`${
+                isLandscapeCompact ? 'w-[48px] h-[48px]' : 'w-[54px] h-[54px]'
+              } rounded-full border-2 border-rose-400/80 flex flex-col items-center justify-center text-rose-200 active:scale-90 transition-transform shadow-lg`}
+              style={{ backgroundColor: 'rgba(42, 12, 20, 0.9)', touchAction: 'none' }}
+            >
+              <OctagonAlert className="w-4 h-4" />
+              <span className="text-[8.5px] font-display font-black leading-none mt-0.5">ব্রেক</span>
+            </button>
+          )}
+        </div>
+      ) : (
+        onJump && (
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onJump();
+            }}
+            aria-label="লাফ দাও"
+            className={`fixed z-20 pointer-events-auto select-none ${
+              isLandscapeCompact ? 'w-[48px] h-[48px] bottom-[5.05rem]' : 'w-[54px] h-[54px] bottom-[5.85rem]'
+            } rounded-full border-2 border-amber-300/75 flex flex-col items-center justify-center text-amber-200 active:scale-90 transition-transform shadow-[0_6px_20px_rgba(0,0,0,0.65)]`}
+            style={{
+              right: 'max(0.75rem, env(safe-area-inset-right))',
+              backgroundColor: 'rgba(10, 16, 28, 0.88)',
+              touchAction: 'none',
+            }}
+          >
+            <span className="absolute inset-[3px] rounded-full border border-white/15 pointer-events-none" />
+            <ArrowUp className={isLandscapeCompact ? 'w-4 h-4' : 'w-5 h-5'} />
+            <span className="text-[9px] font-display font-black tracking-wider leading-none mt-0.5">লাফ</span>
+          </button>
+        )
       )}
     </>
   );

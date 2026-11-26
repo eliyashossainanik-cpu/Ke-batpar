@@ -7,6 +7,7 @@ import {
   type RoomSnapshot,
   type SabotageType,
   type SpecialRole,
+  type VehicleState,
 } from '../shared/types';
 import {
   BOT_WAYPOINTS,
@@ -15,14 +16,19 @@ import {
   PLAYER_RADIUS,
   SPAWN_RING,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
   WALLS,
+  createInitialVehicles,
   distance2D,
+  findNearestAvailableVehicle,
   getBanglaZoneNameAt,
   getZoneIdAt,
   hasLineOfSight,
   resolveCircleWallCollision,
+  resolvePedestrianVehicleCollision,
   resolvePlayerMoveWithElevation,
+  resolveVehicleCollision,
 } from '../shared/mapData';
 import {
   BOHURUPI_COOLDOWN_SEC,
@@ -72,6 +78,7 @@ import {
   countAliveChandabazTargets,
   createEmptySabotageState,
   createSabotageState,
+  dismountPlayerFromVehicle,
   evaluateMatchOutcome,
   executeGoyendaScan,
   findGhotokPairCandidates,
@@ -110,6 +117,7 @@ import {
   type BotBrainState,
   type BatchedGeminiChatReply,
   applyBatchedGeminiChats,
+  applyBatchedGeminiReactionChats,
   buildBatchedGeminiMeetingPayload,
   createBotBrainState,
   generateFallbackMeetingChats,
@@ -140,6 +148,11 @@ const BOT_ROSTER: Array<{ name: string; color: PlayerColorId }> = [
   { name: 'Pata Bhai', color: 'olive' },
   { name: 'Sona Babu', color: 'tan' },
   { name: 'Lal Mia', color: 'lal' },
+  { name: 'Habu Don', color: 'korolla' },
+  { name: 'Firoza Vabi', color: 'firoza' },
+  { name: 'Sindur Bhai', color: 'sindur' },
+  { name: 'Mehedi Mama', color: 'mehedi' },
+  { name: 'Chandan Dada', color: 'chandan' },
 ];
 
 export class SoloMatchEngine {
@@ -156,6 +169,8 @@ export class SoloMatchEngine {
   private forcedSpecialRole?: SpecialRole;
   private botCounter = 10;
   private meetingEpoch = 0;
+  private lastGeminiReactionAt = 0;
+  private geminiCooldownUntil = 0;
   private localTyping = false;
   public onClueNotice?: (title: string, detail: string) => void;
 
@@ -232,6 +247,7 @@ export class SoloMatchEngine {
       prankedLampUntil: 0,
       commsJammedUntil: 0,
       ghotokLinkedIds: null,
+      vehicles: createInitialVehicles(),
     };
 
     if (skipRoleReveal) {
@@ -299,6 +315,7 @@ export class SoloMatchEngine {
       p.yaw = sp.yaw;
       p.alive = true;
       p.inVent = false;
+      p.vehicleId = null;
       p.watchingCams = false;
       p.visualTaskTimer = 0;
       p.shielded = false;
@@ -349,6 +366,7 @@ export class SoloMatchEngine {
     this.snapshot.players = assigned;
     this.snapshot.bodies = [];
     this.snapshot.footprints = [];
+    this.snapshot.vehicles = createInitialVehicles();
     this.snapshot.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
     this.snapshot.doorLocks = makeEmptyDoorLocks();
     this.snapshot.lobbyCountdownSec = null;
@@ -523,6 +541,7 @@ export class SoloMatchEngine {
     this.snapshot.commsJammedUntil = 0;
     this.snapshot.ghotokLinkedIds = null;
     this.snapshot.emergencyCooldownRemaining = 0;
+    this.snapshot.vehicles = createInitialVehicles();
     this.snapshot.sabotage = createEmptySabotageState(SABOTAGE_INITIAL_LOCKOUT_SEC);
     this.snapshot.doorLocks = makeEmptyDoorLocks();
     this.snapshot.players.forEach((p, idx) => {
@@ -535,6 +554,7 @@ export class SoloMatchEngine {
       p.yaw = sp.yaw;
       p.alive = true;
       p.inVent = false;
+      p.vehicleId = null;
       p.watchingCams = false;
       p.visualTaskTimer = 0;
       p.abilityCooldown = 0;
@@ -599,11 +619,12 @@ export class SoloMatchEngine {
       taskProgress: stats.progress,
       totalTasks: stats.totalTasks,
       completedTasks: stats.completedTasks,
+      vehicles: (this.snapshot.vehicles ?? []).map((v) => ({ ...v })),
     };
   }
 
   private recordFootprint(p: PlayerState, distMoved: number): void {
-    if (!p.alive || p.inVent || distMoved < 0.05) return;
+    if (!p.alive || p.inVent || p.vehicleId || distMoved < 0.05) return;
     const prev = (this.footprintAccum.get(p.id) ?? 0) + distMoved;
     if (prev >= 2.2) {
       this.footprintAccum.set(p.id, 0);
@@ -626,9 +647,9 @@ export class SoloMatchEngine {
   public moveLocal(x: number, z: number, vx: number, vz: number, yaw: number, y?: number): void {
     if (this.snapshot.phase !== 'playing' && this.snapshot.phase !== 'lobby') return;
     const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
-    if (!lp || lp.inVent) return;
+    if (!lp || lp.inVent || lp.vehicleId) return;
     const prevY = lp.y ?? 0;
-    const resolved = lp.alive
+    let resolved = lp.alive
       ? resolvePlayerMoveWithElevation(
           lp.x,
           lp.z,
@@ -640,6 +661,10 @@ export class SoloMatchEngine {
           this.snapshot.doorLocks,
         )
       : { x, z, y: y ?? prevY };
+    if (lp.alive && (resolved.y ?? 0) < 0.8) {
+      const pv = resolvePedestrianVehicleCollision(resolved.x, resolved.z, PLAYER_RADIUS, this.snapshot.vehicles);
+      resolved = { ...resolved, x: pv.x, z: pv.z };
+    }
     const moved = Math.hypot(resolved.x - lp.x, resolved.z - lp.z);
     lp.x = resolved.x;
     lp.z = resolved.z;
@@ -649,6 +674,93 @@ export class SoloMatchEngine {
     lp.yaw = yaw;
     if (this.snapshot.phase === 'playing') {
       this.recordFootprint(lp, moved);
+    }
+  }
+
+  public toggleLocalVehicle(vehicleId?: string): boolean {
+    if (this.snapshot.phase !== 'playing' && this.snapshot.phase !== 'lobby') return false;
+    const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
+    if (!lp || !lp.alive || lp.inVent) return false;
+    const vehicles = this.snapshot.vehicles ?? [];
+    if (lp.vehicleId) {
+      const exited = dismountPlayerFromVehicle(lp, vehicles, this.snapshot.doorLocks, true);
+      if (exited) {
+        soundEngine.playVehicleExit(exited.kind);
+      }
+      return true;
+    }
+    if ((lp.y ?? 0) > 1.2) return false;
+    const target = vehicleId
+      ? vehicles.find((v) => v.id === vehicleId && !v.driverId && distance2D(lp.x, lp.z, v.x, v.z) <= 5.5)
+      : findNearestAvailableVehicle(lp.x, lp.z, vehicles);
+    if (!target) return false;
+    lp.vehicleId = target.id;
+    lp.watchingCams = false;
+    lp.jharuTargetBodyId = null;
+    lp.jharuTimer = 0;
+    this.holdingFixMap.delete(lp.id);
+    target.driverId = lp.id;
+    target.speed = 0;
+    target.vx = 0;
+    target.vz = 0;
+    target.steer = 0;
+    lp.x = target.x;
+    lp.z = target.z;
+    lp.y = 0;
+    lp.vx = 0;
+    lp.vz = 0;
+    lp.yaw = target.yaw;
+    soundEngine.playVehicleEnter(target.kind);
+    return true;
+  }
+
+  public driveLocalVehicle(
+    x: number,
+    z: number,
+    yaw: number,
+    vx: number,
+    vz: number,
+    speed: number,
+    steer: number,
+  ): void {
+    if (this.snapshot.phase !== 'playing' && this.snapshot.phase !== 'lobby') return;
+    const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
+    if (!lp || !lp.alive || !lp.vehicleId) return;
+    const vehicles = this.snapshot.vehicles ?? [];
+    const v = vehicles.find((item) => item.id === lp.vehicleId && item.driverId === lp.id);
+    if (!v) return;
+    const spec = VEHICLE_SPECS[v.kind];
+    const resolved = resolveVehicleCollision(
+      x,
+      z,
+      spec.collisionRadius,
+      vehicles,
+      v.id,
+      this.snapshot.doorLocks,
+    );
+    v.x = resolved.x;
+    v.z = resolved.z;
+    v.yaw = yaw;
+    const maxAllowed = spec.maxSpeed * 1.35;
+    v.speed = Math.max(-spec.reverseSpeed * 1.2, Math.min(maxAllowed, speed));
+    v.vx = vx;
+    v.vz = vz;
+    v.steer = Math.max(-1, Math.min(1, steer));
+    lp.x = v.x;
+    lp.z = v.z;
+    lp.y = 0;
+    lp.yaw = yaw;
+    lp.vx = vx;
+    lp.vz = vz;
+  }
+
+  public honkLocalVehicle(): void {
+    if (this.snapshot.phase !== 'playing' && this.snapshot.phase !== 'lobby') return;
+    const lp = this.snapshot.players.find((p) => p.id === this.localPlayerId);
+    if (!lp || !lp.alive || !lp.vehicleId) return;
+    const v = this.snapshot.vehicles?.find((item) => item.id === lp.vehicleId);
+    if (v) {
+      soundEngine.playVehicleHorn(v.kind);
     }
   }
 
@@ -790,6 +902,7 @@ export class SoloMatchEngine {
       lp.shotsLeft = Math.max(0, (lp.shotsLeft ?? 1) - 1);
       soundEngine.playDarogaShot();
       if (res.hitVondo) {
+        dismountPlayerFromVehicle(target, this.snapshot.vehicles, this.snapshot.doorLocks, false);
         target.alive = false;
         target.watchingCams = false;
         lp.abilityCooldown = DAROGA_COOLDOWN_SEC;
@@ -810,6 +923,7 @@ export class SoloMatchEngine {
           `${target.name} ছিল আসল বাটপার! একেবারে সাইজ করে দিয়েছ!`,
         );
       } else {
+        dismountPlayerFromVehicle(lp, this.snapshot.vehicles, this.snapshot.doorLocks, false);
         lp.alive = false;
         lp.watchingCams = false;
         this.snapshot.bodies.push({
@@ -1069,6 +1183,7 @@ export class SoloMatchEngine {
       return false;
     }
 
+    dismountPlayerFromVehicle(target, this.snapshot.vehicles, this.snapshot.doorLocks, false);
     target.alive = false;
     target.watchingCams = false;
     const hitSupariContract = lp.specialRole === 'supari_killer' && target.id === lp.supariTargetId;
@@ -1265,6 +1380,20 @@ export class SoloMatchEngine {
       players: this.snapshot.players,
       brains: this.brains,
     });
+    if (
+      lp.alive &&
+      this.snapshot.meetingReason &&
+      Date.now() - this.lastGeminiReactionAt >= 4000 &&
+      this.snapshot.players.some((pl) => pl.isBot && pl.alive)
+    ) {
+      this.lastGeminiReactionAt = Date.now();
+      void this.fetchGeminiMeetingChats(
+        this.meetingEpoch,
+        this.snapshot.meetingReason,
+        this.snapshot.meetingCallerId ?? lp.id,
+        'reaction',
+      );
+    }
     this.syncTypingPlayerIds();
   }
 
@@ -1286,6 +1415,7 @@ export class SoloMatchEngine {
     if (this.snapshot.phase !== 'playing') return;
     this.snapshot.phase = 'meeting';
     this.meetingEpoch += 1;
+    this.lastGeminiReactionAt = 0;
     this.localTyping = false;
     this.snapshot.typingPlayerIds = [];
     this.snapshot.meetingCallerId = caller.id;
@@ -1305,6 +1435,7 @@ export class SoloMatchEngine {
     this.snapshot.doorLocks = makeEmptyDoorLocks();
 
     for (const p of this.snapshot.players) {
+      dismountPlayerFromVehicle(p, this.snapshot.vehicles, this.snapshot.doorLocks, false);
       p.inVent = false;
       p.watchingCams = false;
       p.disguiseColor = null;
@@ -1317,6 +1448,15 @@ export class SoloMatchEngine {
       p.vz = 0;
       p.hasVoted = false;
       p.votedFor = null;
+    }
+    if (this.snapshot.vehicles) {
+      for (const v of this.snapshot.vehicles) {
+        v.driverId = null;
+        v.speed = 0;
+        v.vx = 0;
+        v.vz = 0;
+        v.steer = 0;
+      }
     }
 
     if (!this.snapshot.netaRevealedId) {
@@ -1358,7 +1498,7 @@ export class SoloMatchEngine {
       meetingReason: reason,
       meetingCallerId: caller.id,
     });
-    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id);
+    void this.fetchGeminiMeetingChats(this.meetingEpoch, reason, caller.id, 'opening');
 
     soundEngine.playMeetingBell(reason);
   }
@@ -1367,8 +1507,10 @@ export class SoloMatchEngine {
     epoch: number,
     reason: 'body' | 'emergency',
     callerId: string,
+    phase: 'opening' | 'reaction' = 'opening',
   ): Promise<void> {
     if (typeof window === 'undefined' || typeof fetch !== 'function') return;
+    if (Date.now() < this.geminiCooldownUntil) return;
     const payload = buildBatchedGeminiMeetingPayload({
       roomCode: this.snapshot.roomCode,
       players: this.snapshot.players,
@@ -1377,6 +1519,7 @@ export class SoloMatchEngine {
       chat: this.snapshot.chat,
       meetingReason: reason,
       meetingCallerId: callerId,
+      phase,
     });
     if (payload.bots.length === 0) return;
 
@@ -1390,10 +1533,19 @@ export class SoloMatchEngine {
         signal: controller.signal,
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { messages?: BatchedGeminiChatReply[] };
+      const data = (await res.json()) as {
+        messages?: BatchedGeminiChatReply[];
+        quotaExceeded?: boolean;
+        retryAfterSec?: number;
+      };
+      if (data?.quotaExceeded || (typeof data?.retryAfterSec === 'number' && data.retryAfterSec > 0)) {
+        const sec = Math.max(15, data.retryAfterSec ?? 60);
+        this.geminiCooldownUntil = Date.now() + sec * 1000;
+      }
       if (this.snapshot.phase !== 'meeting' || this.meetingEpoch !== epoch) return;
       if (Array.isArray(data?.messages) && data.messages.length > 0) {
-        applyBatchedGeminiChats({
+        const applyFn = phase === 'reaction' ? applyBatchedGeminiReactionChats : applyBatchedGeminiChats;
+        applyFn({
           replies: data.messages,
           players: this.snapshot.players,
           brains: this.brains,
@@ -1548,7 +1700,7 @@ export class SoloMatchEngine {
         nowMs: now,
         onFootprint: (p, distMoved) => this.recordFootprint(p, distMoved),
         onReportBody: (reporter, body) => this.startMeeting(reporter, 'body', body.victimName),
-        onKill: (_killer, victim, shieldBlocked) => {
+        onKill: (killer, victim, shieldBlocked) => {
           if (shieldBlocked) {
             soundEngine.playShieldBlock();
             if (victim.id === this.localPlayerId) {
@@ -1558,7 +1710,10 @@ export class SoloMatchEngine {
               );
             }
           } else {
-            soundEngine.playKill();
+            if (killer.id === this.localPlayerId || victim.id === this.localPlayerId) {
+              soundEngine.playKill();
+            }
+            dismountPlayerFromVehicle(victim, this.snapshot.vehicles, this.snapshot.doorLocks, false);
             this.handleDeathSideEffects(victim);
           }
         },
@@ -1572,6 +1727,14 @@ export class SoloMatchEngine {
         onTaskCompletedCheckWin: () => this.checkWin(),
       });
       if (interrupted) return;
+
+      for (const bp of this.snapshot.players) {
+        if (bp.isBot && bp.alive && !bp.inVent && !bp.vehicleId && (bp.y ?? 0) < 0.8) {
+          const pv = resolvePedestrianVehicleCollision(bp.x, bp.z, PLAYER_RADIUS, this.snapshot.vehicles);
+          bp.x = pv.x;
+          bp.z = pv.z;
+        }
+      }
 
       const sabStep = advanceSabotageState(
         this.snapshot.sabotage,
@@ -1652,6 +1815,7 @@ export class SoloMatchEngine {
         if (this.snapshot.ejection?.ejectedId) {
           const target = this.snapshot.players.find((p) => p.id === this.snapshot.ejection?.ejectedId);
           if (target) {
+            dismountPlayerFromVehicle(target, this.snapshot.vehicles, this.snapshot.doorLocks, false);
             target.alive = false;
             this.justEjectedPlayer = target;
             this.handleDeathSideEffects(target);

@@ -4,7 +4,9 @@ import {
   type PlayerColorId,
   type RoomSettings,
   type RoomSnapshot,
+  type VehicleState,
 } from '../shared/types';
+import { VEHICLE_SPECS } from '../shared/mapData';
 import {
   LOBBY_CHAT_MAX_CHARS,
   MAX_MATCH_PLAYERS,
@@ -16,6 +18,7 @@ import {
 import {
   BookOpen,
   Bot,
+  Car,
   Check,
   Copy,
   Crown,
@@ -27,6 +30,7 @@ import {
   Settings2,
   UserMinus,
   UserX,
+  Volume2,
   X,
 } from 'lucide-react';
 
@@ -46,6 +50,11 @@ export interface LobbyOverlayProps {
   onCancelStart?: () => void;
   onOpenGuide: () => void;
   onLeaveRoom: () => void;
+  drivingVehicle?: VehicleState | null;
+  nearbyVehicle?: VehicleState | null;
+  driveSpeedMs?: number;
+  onToggleVehicle?: (vehicleId?: string) => void;
+  onVehicleHorn?: () => void;
 }
 
 export function LobbyOverlay({
@@ -64,6 +73,11 @@ export function LobbyOverlay({
   onCancelStart,
   onOpenGuide,
   onLeaveRoom,
+  drivingVehicle = null,
+  nearbyVehicle = null,
+  driveSpeedMs = 0,
+  onToggleVehicle,
+  onVehicleHorn,
 }: LobbyOverlayProps) {
   const [copied, setCopied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -215,6 +229,51 @@ export function LobbyOverlay({
 
       {/* Bottom Dock: Slots, Customize, Host Settings + Role Pool, Lobby Chat & Play/Ready */}
       <div className="flex flex-col items-center gap-2 mt-auto">
+        {(drivingVehicle || nearbyVehicle) && onToggleVehicle && (
+          <div
+            className="pointer-events-auto flex flex-wrap items-center justify-center gap-2 px-3.5 py-2 rounded-2xl border border-amber-400/45 shadow-xl"
+            style={{ backgroundColor: 'rgba(10, 16, 30, 0.92)' }}
+          >
+            {drivingVehicle ? (
+              <>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-amber-300">
+                  <Car className="w-4 h-4" />
+                  {VEHICLE_SPECS[drivingVehicle.kind].banglaName}
+                </span>
+                <span className="px-2 py-0.5 rounded-lg bg-slate-900 border border-white/10 font-mono-tabular text-xs font-black text-emerald-300">
+                  {Math.round(driveSpeedMs * 3.6)} km/h
+                </span>
+                {onVehicleHorn && (
+                  <button
+                    type="button"
+                    onClick={onVehicleHorn}
+                    className="px-2.5 py-1 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold flex items-center gap-1"
+                  >
+                    <Volume2 className="w-3.5 h-3.5" />
+                    হর্ন [K]
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onToggleVehicle()}
+                  className="px-2.5 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold"
+                >
+                  নেমে যাও [F]
+                </button>
+              </>
+            ) : nearbyVehicle ? (
+              <button
+                type="button"
+                onClick={() => onToggleVehicle(nearbyVehicle.id)}
+                className="px-3 py-1 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold flex items-center gap-1.5"
+              >
+                <Car className="w-4 h-4" />
+                গাড়িতে ওঠো ({VEHICLE_SPECS[nearbyVehicle.kind].banglaName}) [F]
+              </button>
+            ) : null}
+          </div>
+        )}
+
         {errorMsg && (
           <div
             role="alert"
@@ -431,8 +490,14 @@ export function LobbyOverlay({
                       <option value={2} disabled={snapshot.players.length < 6} className="bg-slate-900">
                         ২ {snapshot.players.length < 6 ? '(৬+ জন)' : ''}
                       </option>
-                      <option value={3} disabled={snapshot.players.length < 11} className="bg-slate-900">
-                        ৩ {snapshot.players.length < 11 ? '(১১+ জন)' : ''}
+                      <option value={3} disabled={snapshot.players.length < 10} className="bg-slate-900">
+                        ৩ {snapshot.players.length < 10 ? '(১০+ জন)' : ''}
+                      </option>
+                      <option value={4} disabled={snapshot.players.length < 14} className="bg-slate-900">
+                        ৪ {snapshot.players.length < 14 ? '(১৪+ জন)' : ''}
+                      </option>
+                      <option value={5} disabled={snapshot.players.length < 17} className="bg-slate-900">
+                        ৫ {snapshot.players.length < 17 ? '(১৭+ জন)' : ''}
                       </option>
                     </select>
                   </label>
@@ -457,7 +522,7 @@ export function LobbyOverlay({
                       onChange={(e) => onUpdateSettings({ tasksPerPlayer: Number(e.target.value) })}
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
-                      {[3, 4, 5, 6, 8].map((v) => (
+                      {[3, 4, 5, 6, 8, 10, 12, 15].map((v) => (
                         <option key={v} value={v} className="bg-slate-900">{v}</option>
                       ))}
                     </select>
@@ -483,9 +548,12 @@ export function LobbyOverlay({
                       onChange={(e) => onUpdateSettings({ moveSpeed: Number(e.target.value) })}
                       className="bg-transparent text-white font-semibold disabled:opacity-60"
                     >
-                      <option value={7.4} className="bg-slate-900">০.৮৫x</option>
-                      <option value={8.6} className="bg-slate-900">১.০x</option>
-                      <option value={10.2} className="bg-slate-900">১.২x</option>
+                      <option value={7.65} className="bg-slate-900">০.৮৫x</option>
+                      <option value={9} className="bg-slate-900">১.০x</option>
+                      <option value={11.25} className="bg-slate-900">১.২৫x</option>
+                      <option value={13.5} className="bg-slate-900">১.৫x</option>
+                      <option value={15.75} className="bg-slate-900">১.৭৫x</option>
+                      <option value={18} className="bg-slate-900">২.০x</option>
                     </select>
                   </label>
                   <label className="flex items-center justify-between gap-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800">

@@ -231,7 +231,12 @@ export type PlayerColorId =
   | 'tute'
   | 'jam'
   | 'olive'
-  | 'tan';
+  | 'tan'
+  | 'korolla'
+  | 'firoza'
+  | 'sindur'
+  | 'mehedi'
+  | 'chandan';
 
 export interface PlayerColorSpec {
   id: PlayerColorId;
@@ -257,6 +262,11 @@ export const PLAYER_COLORS: PlayerColorSpec[] = [
   { id: 'jam', label: 'Jam Kaka', banglaName: 'জাম কাকা', hex: '#6d28d9', visorTint: '#ddd6fe' },
   { id: 'olive', label: 'Pata Bhai', banglaName: 'পাতা ভাই', hex: '#65a30d', visorTint: '#ecfccb' },
   { id: 'tan', label: 'Sona Babu', banglaName: 'সোনা বাবু', hex: '#d97706', visorTint: '#fef3c7' },
+  { id: 'korolla', label: 'Korolla Kaka', banglaName: 'করলা কাকা', hex: '#047857', visorTint: '#a7f3d0' },
+  { id: 'firoza', label: 'Firoza Apu', banglaName: 'ফিরোজা আপু', hex: '#0ea5e9', visorTint: '#e0f2fe' },
+  { id: 'sindur', label: 'Sindur Dada', banglaName: 'সিঁদুর দাদা', hex: '#ef4444', visorTint: '#fecaca' },
+  { id: 'mehedi', label: 'Mehedi Mamu', banglaName: 'মেহেদি মামু', hex: '#4d7c0f', visorTint: '#d9f99d' },
+  { id: 'chandan', label: 'Chandan Bhai', banglaName: 'চন্দন ভাই', hex: '#f59e0b', visorTint: '#fef3c7' },
 ];
 
 export type TaskKind =
@@ -425,6 +435,38 @@ export interface PlayerState {
   ghotokPartnerId?: string | null;
   votedFor: string | null; // playerId | 'skip' | null
   hasVoted: boolean;
+  vehicleId?: string | null;
+}
+
+export type VehicleKind = 'motorbike' | 'rickshaw' | 'cng' | 'car' | 'taxi' | 'pickup' | 'minibus';
+
+export interface VehicleSpec {
+  kind: VehicleKind;
+  label: string;
+  banglaName: string;
+  maxSpeed: number;
+  reverseSpeed: number;
+  accel: number;
+  turnRate: number;
+  collisionRadius: number;
+  seatOffsetX: number;
+  seatOffsetY: number;
+  seatOffsetZ: number;
+  seatTiltX?: number;
+}
+
+export interface VehicleState {
+  id: string;
+  kind: VehicleKind;
+  x: number;
+  z: number;
+  yaw: number;
+  vx: number;
+  vz: number;
+  speed: number;
+  steer: number;
+  driverId: string | null;
+  color: string;
 }
 
 export interface BodyMarker {
@@ -566,6 +608,7 @@ export interface RoomSnapshot {
   totalTasks: number;
   completedTasks: number;
   typingPlayerIds?: string[];
+  vehicles?: VehicleState[];
 }
 
 export interface PublicRoomSummary {
@@ -606,6 +649,19 @@ export type ClientMessage =
   | { type: 'meeting:typing'; typing: boolean }
   | { type: 'meeting:vote'; targetId: string | 'skip' }
   | { type: 'player:meme_sfx'; memeId: string }
+  | { type: 'player:vehicle_toggle'; vehicleId?: string }
+  | {
+      type: 'player:vehicle_drive';
+      vehicleId: string;
+      x: number;
+      z: number;
+      yaw: number;
+      vx: number;
+      vz: number;
+      speed: number;
+      steer: number;
+    }
+  | { type: 'player:vehicle_horn' }
   | { type: 'room:play_again' }
   | { type: 'room:leave' };
 
@@ -640,6 +696,8 @@ export type ServerMessage =
         | 'lobby_join'
         | 'lobby_ready'
         | 'lobby_tick'
-        | 'lobby_start';
+        | 'lobby_start'
+        | 'vehicle_horn';
+      vehicleKind?: VehicleKind;
     };
 

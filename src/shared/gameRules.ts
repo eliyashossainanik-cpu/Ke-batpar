@@ -13,6 +13,7 @@ import type {
   SabotageState,
   SabotageType,
   SpecialRole,
+  VehicleState,
   VentNode,
 } from './types';
 import {
@@ -20,9 +21,13 @@ import {
   GAS_LEAK_VALVES,
   getZoneIdAt,
   hasLineOfSight,
+  PLAYER_RADIUS,
+  resolveCircleWallCollision,
   SABOTAGE_TARGETS,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
+  WALLS,
 } from './mapData';
 
 export const KILL_RANGE = 2.95;
@@ -84,7 +89,7 @@ export const TIKTOK_ZONE_GOAL = 3;
 export const TIKTOK_MAX_ALIVE_TO_WIN = 4;
 
 export const MIN_MATCH_PLAYERS = 5;
-export const MAX_MATCH_PLAYERS = 15;
+export const MAX_MATCH_PLAYERS = 20;
 export const PLAYER_NAME_MAX_CHARS = 12;
 export const LOBBY_CHAT_MAX_CHARS = 120;
 
@@ -312,6 +317,7 @@ export function makeDefaultPlayerState(
     ghotokPartnerId: null,
     votedFor: null,
     hasVoted: false,
+    vehicleId: null,
     ...overrides,
   };
 }
@@ -373,8 +379,8 @@ export function createMatchTaskPlan(
   tasksPerPlayer: number = DEFAULT_ROOM_SETTINGS.tasksPerPlayer,
   rng: () => number = Math.random,
 ): MatchTaskPlan {
-  const clamped = Math.max(3, Math.min(10, Math.round(tasksPerPlayer)));
-  const commonWanted = clamped >= 4 ? 2 : 1;
+  const clamped = Math.max(3, Math.min(15, Math.round(tasksPerPlayer)));
+  const commonWanted = clamped >= 10 ? 3 : clamped >= 4 ? 2 : 1;
   const commons = shuffleWithRng(
     TASK_STATIONS.filter((s) => s.category === 'common').map((s) => s.id),
     rng,
@@ -394,45 +400,88 @@ export function createMatchTaskPlan(
   };
 }
 
+function getStationSectorKey(stationId: string): string {
+  const st = TASK_STATIONS.find((s) => s.id === stationId);
+  if (!st) return 'center';
+  const r = Math.hypot(st.x, st.z);
+  const ring = r < 52 ? 'inner' : r < 105 ? 'mid' : 'outer';
+  const quad = `${st.x >= 0 ? 'E' : 'W'}${st.z >= 0 ? 'S' : 'N'}`;
+  return `${ring}_${quad}`;
+}
+
+function pickSpreadFromPool(
+  poolIds: string[],
+  alreadyPicked: Set<string>,
+  targetTotal: number,
+  rng: () => number,
+): void {
+  const remaining = shuffleWithRng(
+    poolIds.filter((id) => !alreadyPicked.has(id)),
+    rng,
+  );
+  const usedSectors = new Set<string>();
+  for (const id of alreadyPicked) {
+    usedSectors.add(getStationSectorKey(id));
+  }
+
+  // Pass 1: prioritize unvisited geographic sectors & stations >= 36m apart
+  for (const id of remaining) {
+    if (alreadyPicked.size >= targetTotal) break;
+    const st = TASK_STATIONS.find((s) => s.id === id);
+    if (!st) continue;
+    const sector = getStationSectorKey(id);
+    if (usedSectors.has(sector)) continue;
+    const farEnough = Array.from(alreadyPicked).every((pid) => {
+      const prev = TASK_STATIONS.find((s) => s.id === pid);
+      return !prev || distance2D(prev.x, prev.z, st.x, st.z) >= 36;
+    });
+    if (farEnough) {
+      alreadyPicked.add(id);
+      usedSectors.add(sector);
+    }
+  }
+
+  // Pass 2: fill any remaining needed slots from remaining shuffled pool
+  for (const id of remaining) {
+    if (alreadyPicked.size >= targetTotal) break;
+    alreadyPicked.add(id);
+  }
+}
+
 export function createPlayerTasks(
   count: number = DEFAULT_ROOM_SETTINGS.tasksPerPlayer,
   rng: () => number = Math.random,
   plan?: MatchTaskPlan,
   isFake = false,
 ): PlayerTaskState[] {
-  const clamped = Math.max(3, Math.min(10, Math.round(count)));
+  const clamped = Math.max(3, Math.min(15, Math.round(count)));
   const resolvedPlan = plan ?? createMatchTaskPlan(clamped, rng);
-  const picked = new Set<string>(resolvedPlan.commonTaskIds);
+  const picked = new Set<string>(resolvedPlan.commonTaskIds.slice(0, clamped));
 
   const remainingSlots = Math.max(0, clamped - picked.size);
   const longWanted = Math.min(
     resolvedPlan.longPoolIds.length,
-    clamped >= 7 ? 2 : clamped >= 4 ? 1 : 0,
+    clamped >= 12 ? 4 : clamped >= 7 ? 2 : clamped >= 4 ? 1 : 0,
     remainingSlots,
   );
   const shortWanted = Math.max(0, remainingSlots - longWanted);
 
-  const shorts = shuffleWithRng(resolvedPlan.shortPoolIds, rng);
-  const longs = shuffleWithRng(resolvedPlan.longPoolIds, rng);
+  pickSpreadFromPool(
+    resolvedPlan.shortPoolIds,
+    picked,
+    Math.min(clamped, resolvedPlan.commonTaskIds.length + shortWanted),
+    rng,
+  );
+  pickSpreadFromPool(resolvedPlan.longPoolIds, picked, clamped, rng);
 
-  for (const sid of shorts) {
-    if (picked.size >= resolvedPlan.commonTaskIds.length + shortWanted) break;
-    picked.add(sid);
-  }
-  for (const lid of longs) {
-    if (picked.size >= clamped) break;
-    picked.add(lid);
-  }
-  // Fallback fill from all stations if tasksPerPlayer is high (e.g., 9-10)
+  // Fallback fill across all stations (with geographic spread) for high task counts up to 15
   if (picked.size < clamped) {
-    const extras = shuffleWithRng(
+    pickSpreadFromPool(
       TASK_STATIONS.map((s) => s.id),
+      picked,
+      clamped,
       rng,
     );
-    for (const id of extras) {
-      if (picked.size >= clamped) break;
-      picked.add(id);
-    }
   }
 
   return Array.from(picked).map((taskId) => ({
@@ -465,18 +514,21 @@ export function isTaskLockedBySabotage(taskId: string, sabotage: SabotageState):
   return station?.medium === 'digital';
 }
 
+export function getMaxVondoCount(playerCount: number): number {
+  if (playerCount >= 17) return 5;
+  if (playerCount >= 14) return 4;
+  if (playerCount >= 10) return 3;
+  if (playerCount >= 6) return 2;
+  return 1;
+}
+
 export function assignRoles<T extends Pick<PlayerState, 'id' | 'role'>>(
   players: T[],
   requestedVondoCount: number,
   rng: () => number = Math.random,
 ): T[] {
   if (players.length === 0) return players;
-  const maxAllowed =
-    players.length >= 11
-      ? Math.min(3, Math.floor((players.length - 1) / 3))
-      : players.length >= 6
-        ? Math.min(2, Math.floor((players.length - 1) / 2))
-        : 1;
+  const maxAllowed = getMaxVondoCount(players.length);
   const targetVondos = Math.max(1, Math.min(requestedVondoCount, maxAllowed));
   const indices = shuffleWithRng(
     players.map((_, idx) => idx),
@@ -500,7 +552,7 @@ export interface RolePoolPreview {
 
 export function getRolePoolPreview(playerCount: number, settings: RoomSettings): RolePoolPreview {
   const clamped = Math.max(MIN_MATCH_PLAYERS, Math.min(MAX_MATCH_PLAYERS, playerCount));
-  const maxVondo = clamped >= 11 ? 3 : clamped >= 6 ? 2 : 1;
+  const maxVondo = getMaxVondoCount(clamped);
   const batparCount = Math.max(1, Math.min(maxVondo, settings.vondoCount));
 
   if (!settings.enableSpecialRoles) {
@@ -517,7 +569,8 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
   let specialCrewRange = '১';
   let neutralLabel = '০';
   let plainCrewMin = 3;
-  const specialBatparRange = clamped <= 7 ? '০–১' : batparCount >= 3 ? '১–২' : batparCount > 1 ? '১–২' : '১';
+  const specialBatparRange =
+    clamped <= 7 ? '০–১' : clamped >= 16 && batparCount >= 4 ? '২–৩' : batparCount >= 3 ? '১–২' : batparCount > 1 ? '১–২' : '১';
 
   if (clamped === 5) {
     specialCrewRange = '১';
@@ -531,10 +584,14 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
     specialCrewRange = settings.enableNeutralRoles ? '২–৩' : '৩';
     neutralLabel = settings.enableNeutralRoles ? '০–১ (৬০%)' : '০';
     plainCrewMin = Math.max(2, Math.ceil((clamped - batparCount) * 0.4));
-  } else {
+  } else if (clamped <= 15) {
     specialCrewRange = settings.enableNeutralRoles ? '৩–৫' : '৪–৫';
     neutralLabel = settings.enableNeutralRoles ? '০–২' : '০';
     plainCrewMin = Math.max(4, Math.ceil((clamped - batparCount) * 0.4));
+  } else {
+    specialCrewRange = settings.enableNeutralRoles ? '৪–৬' : '৫–৬';
+    neutralLabel = settings.enableNeutralRoles ? '১–৩' : '০';
+    plainCrewMin = Math.max(5, Math.ceil((clamped - batparCount) * 0.4));
   }
 
   return {
@@ -548,11 +605,12 @@ export function getRolePoolPreview(playerCount: number, settings: RoomSettings):
 }
 
 /**
- * Balanced distribution (5–15 players):
+ * Balanced distribution (5–20 players):
  * 5P: 1 Batpar, 1 special crew, 0 neutral, 3 plain Parabasi
  * 6P: 1 Batpar, 2 special crew, 0-1 neutral (60%), 2-3 plain Parabasi
- * 7-10P: 1-2 Batpar, 2-3 special crew, 0-1 neutral (60%), >=40% plain Parabasi
- * 11-15P: 2-3 Batpar, 3-5 special crew, 0-2 neutrals, >=40% plain Parabasi
+ * 7-10P: 1-3 Batpar, 2-3 special crew, 0-1 neutral (60%), >=40% plain Parabasi
+ * 11-15P: 1-4 Batpar, 3-5 special crew, 0-2 neutrals, >=40% plain Parabasi
+ * 16-20P: up to 5 Batpar, 4-6 special crew, 1-3 neutrals, >=40% plain Parabasi
  */
 export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | 'specialRole'>>(
   players: T[],
@@ -574,13 +632,13 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
     }
   }
 
-  // Batpar specials: max 1 special Batpar when total players <= 7, up to 2 when >= 8
+  // Batpar specials: max 1 special Batpar when total players <= 7, 2 when 8-15, up to 3 when >= 16
   const vondoCandidates = shuffleWithRng(
     out.filter((p) => p.role === 'vondo' && p.specialRole === 'none'),
     rng,
   );
   const alreadyVondoSpecial = out.filter((p) => p.role === 'vondo' && p.specialRole !== 'none').length;
-  const maxVondoSpecials = out.length <= 7 ? 1 : 2;
+  const maxVondoSpecials = out.length <= 7 ? 1 : out.length >= 16 ? 3 : 2;
   const remainingVondoSpecialSlots = Math.max(0, maxVondoSpecials - alreadyVondoSpecial);
   const desiredVondoRoles = shuffleWithRng(BATPAR_SPECIAL_ROLES, rng);
   let assignedVondoSpecials = 0;
@@ -605,7 +663,9 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
 
   let targetNeutralTotal = alreadyNeutralCount;
   if (alreadyNeutralCount === 0 && enableNeutralRoles && out.length >= 6) {
-    if (rng() < 0.6) {
+    if (out.length >= 16) {
+      targetNeutralTotal = rng() < 0.45 ? 3 : 2;
+    } else if (rng() < 0.6) {
       targetNeutralTotal = 1;
       if (out.length >= 11 && rng() < 0.35) {
         targetNeutralTotal = 2;
@@ -616,7 +676,8 @@ export function assignSpecialRoles<T extends Pick<PlayerState, 'id' | 'role' | '
   let targetCrewSpecials = 1;
   if (out.length === 6) targetCrewSpecials = 2;
   else if (out.length >= 7 && out.length <= 10) targetCrewSpecials = targetNeutralTotal > 0 ? 2 : 3;
-  else if (out.length >= 11) targetCrewSpecials = Math.max(3, 5 - targetNeutralTotal);
+  else if (out.length >= 11 && out.length <= 15) targetCrewSpecials = Math.max(3, 5 - targetNeutralTotal);
+  else if (out.length >= 16) targetCrewSpecials = Math.max(4, 7 - targetNeutralTotal);
 
   // Guarantee plain Parabasi minimum never gets violated
   const maxAllowedNonPlain = Math.max(0, totalNonVondo - minPlainCrew);
@@ -690,6 +751,9 @@ export function canExecuteKill(
   if (killer.inVent) {
     return { allowed: false, reason: 'আগে ড্রেন থেকে বের হয়ে এসো।' };
   }
+  if (killer.vehicleId) {
+    return { allowed: false, reason: 'গাড়ি থেকে নেমে হামলা করো!' };
+  }
   if (killer.killCooldownRemaining > 0.05) {
     return { allowed: false, reason: 'হামলার কুলডাউন চলছে।' };
   }
@@ -707,7 +771,7 @@ export function canExecuteKill(
 }
 
 export function canUseVent(player: PlayerState): boolean {
-  if (!player.alive) return false;
+  if (!player.alive || player.vehicleId) return false;
   if (player.role === 'vondo') return true;
   if (player.specialRole === 'mistri') {
     return player.inVent || player.abilityCooldown <= 0.05;
@@ -783,13 +847,13 @@ export function sanitizeSoloConfig(
 ): { playerCount: number; settings: RoomSettings } {
   const playerCount = Math.max(MIN_MATCH_PLAYERS, Math.min(MAX_MATCH_PLAYERS, Math.round(playerCountInput)));
   const merged: RoomSettings = { ...DEFAULT_ROOM_SETTINGS, ...partialSettings };
-  const maxVondos = playerCount >= 11 ? 3 : playerCount >= 6 ? 2 : 1;
+  const maxVondos = getMaxVondoCount(playerCount);
   merged.vondoCount = Math.max(1, Math.min(maxVondos, Math.round(merged.vondoCount)));
   merged.killCooldownSec = Math.max(10, Math.min(35, Math.round(merged.killCooldownSec)));
-  merged.tasksPerPlayer = Math.max(3, Math.min(10, Math.round(merged.tasksPerPlayer)));
+  merged.tasksPerPlayer = Math.max(3, Math.min(15, Math.round(merged.tasksPerPlayer)));
   merged.meetingTimeSec = Math.max(15, Math.min(90, Math.round(merged.meetingTimeSec)));
   merged.discussionTimeSec = Math.max(5, Math.min(45, Math.round(merged.discussionTimeSec)));
-  merged.moveSpeed = Math.max(6, Math.min(12, Number(merged.moveSpeed) || DEFAULT_ROOM_SETTINGS.moveSpeed));
+  merged.moveSpeed = Math.max(6, Math.min(18, Number(merged.moveSpeed) || DEFAULT_ROOM_SETTINGS.moveSpeed));
   merged.emergencyCooldownSec = Math.max(5, Math.min(30, Math.round(merged.emergencyCooldownSec)));
   merged.emergencyMeetingsPerPlayer = Math.max(
     1,
@@ -892,9 +956,11 @@ export function getColorShadeHint(color: PlayerColorId): string {
     case 'sada':
     case 'golapi':
     case 'tan':
-      return 'হালকা বা উষ্ণ রঙের পোশাক (লাল, হলুদ, কমলা, সাদা, গোলাপি বা সোনা)';
+    case 'sindur':
+    case 'chandan':
+      return 'হালকা বা উষ্ণ রঙের পোশাক (লাল, হলুদ, কমলা, সাদা, গোলাপি, সিঁদুর বা চন্দন)';
     default:
-      return 'গাঢ় বা শীতল রঙের পোশাক (নীল, সবুজ, বেগুনি, কালো, আকাশী, বাদামী, তুতে, জাম বা পাতা)';
+      return 'গাঢ় বা শীতল রঙের পোশাক (নীল, সবুজ, বেগুনি, কালো, আকাশী, বাদামী, তুতে, জাম, করলা বা মেহেদি)';
   }
 }
 
@@ -1518,3 +1584,53 @@ export function evaluateMatchOutcome(
 
   return null;
 }
+
+export function dismountPlayerFromVehicle(
+  player: PlayerState,
+  vehicles: VehicleState[] | undefined,
+  doorLocks?: DoorLockState,
+  placeOutside = true,
+): VehicleState | null {
+  const vid = player.vehicleId;
+  player.vehicleId = null;
+  if (!vid || !vehicles) return null;
+  const v = vehicles.find((item) => item.id === vid);
+  if (!v) return null;
+  if (v.driverId === player.id) {
+    v.driverId = null;
+  }
+  v.vx = 0;
+  v.vz = 0;
+  v.speed = 0;
+  v.steer = 0;
+
+  if (placeOutside) {
+    const spec = VEHICLE_SPECS[v.kind];
+    const sideDist = spec.collisionRadius + 0.85;
+    const cosY = Math.cos(v.yaw);
+    const sinY = Math.sin(v.yaw);
+    // Try driver left (-X local), right (+X local), rear (-Z local), front (+Z local)
+    const offsets: Array<[number, number]> = [
+      [-cosY * sideDist, sinY * sideDist],
+      [cosY * sideDist, -sinY * sideDist],
+      [-sinY * (sideDist + 0.5), -cosY * (sideDist + 0.5)],
+      [sinY * (sideDist + 0.5), cosY * (sideDist + 0.5)],
+    ];
+    let bestPos: { x: number; z: number } | null = null;
+    for (const [ox, oz] of offsets) {
+      const candidate = resolveCircleWallCollision(v.x + ox, v.z + oz, PLAYER_RADIUS, WALLS, doorLocks);
+      if (distance2D(candidate.x, candidate.z, v.x, v.z) >= spec.collisionRadius * 0.72) {
+        bestPos = candidate;
+        break;
+      }
+    }
+    const finalPos = bestPos ?? resolveCircleWallCollision(v.x, v.z, PLAYER_RADIUS, WALLS, doorLocks);
+    player.x = finalPos.x;
+    player.z = finalPos.z;
+    player.y = 0;
+    player.vx = 0;
+    player.vz = 0;
+  }
+  return v;
+}
+

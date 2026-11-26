@@ -21,6 +21,7 @@ import {
   createEmptySabotageState,
   createPlayerTasks,
   createSabotageState,
+  dismountPlayerFromVehicle,
   evaluateMatchOutcome,
   executeGoyendaScan,
   findGhotokPairCandidates,
@@ -63,11 +64,15 @@ import {
   SPAWN_RING,
   STAIR_RAMPS,
   TASK_STATIONS,
+  VEHICLE_SPECS,
   VENTS,
   WALLS,
+  createInitialVehicles,
+  findNearestAvailableVehicle,
   getWalkableFloorY,
   resolveCircleWallCollision,
   resolvePlayerMoveWithElevation,
+  resolveVehicleCollision,
 } from './mapData';
 import {
   PLAYER_COLORS,
@@ -356,9 +361,15 @@ test('getDirectionCompass computes cardinal arrows and sanitizeSoloConfig clamps
   assert.equal(twelvePlayer.settings.vondoCount, 3);
   assert.equal(twelvePlayer.settings.killCooldownSec, 10);
 
-  const clampedMax = sanitizeSoloConfig(25, { vondoCount: 5 });
-  assert.equal(clampedMax.playerCount, 15);
-  assert.equal(clampedMax.settings.vondoCount, 3);
+  const clampedMax = sanitizeSoloConfig(25, { vondoCount: 5, tasksPerPlayer: 15, moveSpeed: 18 });
+  assert.equal(clampedMax.playerCount, 20);
+  assert.equal(clampedMax.settings.vondoCount, 5);
+  assert.equal(clampedMax.settings.tasksPerPlayer, 15);
+  assert.equal(clampedMax.settings.moveSpeed, 18);
+
+  assert.equal(sanitizeSoloConfig(10, { vondoCount: 5 }).settings.vondoCount, 3);
+  assert.equal(sanitizeSoloConfig(14, { vondoCount: 5 }).settings.vondoCount, 4);
+  assert.equal(sanitizeSoloConfig(17, { vondoCount: 5 }).settings.vondoCount, 5);
 });
 
 test('Daroga Sheriff shot hits Batpar cleanly and backfires on innocent Para-basi', () => {
@@ -733,18 +744,32 @@ test('Phase 3: Goyenda 2-scan limit, Daroga 1-shot limit, Jharudar 2s channel & 
   assert.equal(redacted.players.find((p) => p.id === 'neta1')?.specialRole, 'neta');
 });
 
-test('Phase 6: 15P capacity, 15 unique colors, 3 Batpars at 11P+, and all 9 extended special roles', () => {
-  assert.equal(PLAYER_COLORS.length, 15);
-  assert.equal(SPAWN_RING.length, 15);
+test('Phase 6: 20P capacity, 20 unique colors, 5 Batpars at 17P+, 15 tasks across all zones, and all extended special roles', () => {
+  assert.equal(PLAYER_COLORS.length, 20);
+  assert.equal(SPAWN_RING.length, 20);
 
-  const roster15 = Array.from({ length: 15 }, (_, i) =>
-    makePlayer({ id: `p15_${i}`, name: `Player ${i}`, color: PLAYER_COLORS[i].id, role: 'parabasi' }),
+  const roster20 = Array.from({ length: 20 }, (_, i) =>
+    makePlayer({ id: `p20_${i}`, name: `Player ${i}`, color: PLAYER_COLORS[i].id, role: 'parabasi' }),
   );
-  const with3Vondos = assignRoles(roster15, 3, () => 0.37);
-  assert.equal(with3Vondos.filter((p) => p.role === 'vondo').length, 3);
-  const assigned15 = assignSpecialRoles(with3Vondos, true, undefined, undefined, () => 0.25, true);
-  const plainCrew15 = assigned15.filter((p) => p.role === 'parabasi' && p.specialRole === 'none').length;
-  assert.ok(plainCrew15 >= 4, `Expected >=4 plain Parabasi in 15P, got ${plainCrew15}`);
+  const with5Vondos = assignRoles(roster20, 5, () => 0.37);
+  assert.equal(with5Vondos.filter((p) => p.role === 'vondo').length, 5);
+  const assigned20 = assignSpecialRoles(with5Vondos, true, undefined, undefined, () => 0.25, true);
+  const plainCrew20 = assigned20.filter((p) => p.role === 'parabasi' && p.specialRole === 'none').length;
+  assert.ok(plainCrew20 >= 5, `Expected >=5 plain Parabasi in 20P, got ${plainCrew20}`);
+
+  let seed = 42;
+  const rng = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  assignMatchTasks(assigned20, 15, rng);
+  assert.equal(assigned20[0].tasks.length, 15);
+  const assignedTaskIds = new Set(assigned20.flatMap((p) => p.tasks.map((t) => t.taskId)));
+  const outerShortLongStations = ['task_kaka_bari', 'task_kacchi', 'task_dorji', 'task_nana', 'task_fufu'];
+  assert.ok(
+    outerShortLongStations.every((id) => assignedTaskIds.has(id)),
+    'Expected 15-task assignment across 20 players to distribute tasks across all outer-zone houses',
+  );
 
   // Ghotok Khala pairing & death detection
   const ghotok = makePlayer({ id: 'gk', role: 'parabasi', specialRole: 'ghotok_khala', x: 0, z: 0 });
@@ -927,6 +952,43 @@ test('Phase 4: Exterior staircases climb smoothly onto all 22 walkable Chhad roo
   assert.equal(onFufu.y, fufuRoof.elevationY);
 });
 
+test('Phase 7: 27 drivable vehicles spawn clear, detect proximity, collide cleanly, and dismount safely', () => {
+  const vehicles = createInitialVehicles();
+  assert.equal(vehicles.length, 27);
 
+  for (const v of vehicles) {
+    const spec = VEHICLE_SPECS[v.kind];
+    const resolved = resolveVehicleCollision(v.x, v.z, spec.collisionRadius, vehicles, v.id);
+    assert.ok(
+      Math.abs(resolved.x - v.x) < 0.75 && Math.abs(resolved.z - v.z) < 0.75,
+      `Vehicle ${v.id} (${v.kind}) overlapped wall/vehicle at (${v.x}, ${v.z}) -> (${resolved.x}, ${resolved.z})`,
+    );
+  }
 
+  // Minibus larger collisionRadius extends proximity nicely
+  const minibus = vehicles.find((v) => v.kind === 'minibus')!;
+  assert.equal(
+    findNearestAvailableVehicle(minibus.x + 4.3, minibus.z, vehicles)?.id,
+    minibus.id,
+  );
 
+  // Occupied vehicle is skipped by findNearestAvailableVehicle
+  const cng = vehicles.find((v) => v.kind === 'cng')!;
+  cng.driverId = 'other_driver';
+  const driver = makePlayer({ id: 'drv', role: 'vondo', x: cng.x, z: cng.z, vehicleId: null });
+  assert.notEqual(findNearestAvailableVehicle(cng.x, cng.z, [cng])?.id, cng.id);
+
+  // Cannot kill or vent while driving
+  cng.driverId = driver.id;
+  driver.vehicleId = cng.id;
+  const victim = makePlayer({ id: 'vic', role: 'parabasi', x: cng.x + 1, z: cng.z });
+  assert.equal(canExecuteKill(driver, victim).allowed, false);
+  assert.equal(canUseVent(driver), false);
+
+  // Dismount frees vehicle & places driver safely outside vehicle radius
+  const exited = dismountPlayerFromVehicle(driver, vehicles, undefined, true);
+  assert.equal(exited?.id, cng.id);
+  assert.equal(cng.driverId, null);
+  assert.equal(driver.vehicleId, null);
+  assert.ok(Math.hypot(driver.x - cng.x, driver.z - cng.z) >= 1.2);
+});
